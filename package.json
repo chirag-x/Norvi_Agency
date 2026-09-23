@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "concurrently -k -n api,web \"tsx watch apps/api/dev.ts\" \"node scripts/astro.mjs dev --host 127.0.0.1 --port 4321\"",
+    "dev": "concurrently -k -n api,web \"node --import tsx --watch apps/api/dev.ts\" \"node scripts/astro.mjs dev --host 127.0.0.1 --port 4321\"",
     "build": "node scripts/astro.mjs build",
     "check": "tsc --noEmit",
     "test": "vitest run",
