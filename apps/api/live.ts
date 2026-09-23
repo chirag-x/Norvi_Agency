@@ -26,7 +26,7 @@ const factory: Factory = c => createServerClient(c.env.SUPABASE_URL!, c.env.SUPA
   },
 });
 // Per-request clients; all database access uses the user's JWT, never a service-role key.
-export function createLiveApp(makeClient: Factory = factory) {
+export function createLiveApp(makeClient: Factory = factory, options: { upstreamRateLimit?: 'netlify' } = {}) {
   const app = new Hono<AppEnv>();
   app.use('/api/*', async (c, next) => {
     c.header('Cache-Control', 'no-store'); c.header('X-Content-Type-Options', 'nosniff'); c.header('Referrer-Policy', 'no-referrer');
@@ -44,7 +44,9 @@ export function createLiveApp(makeClient: Factory = factory) {
     c.set('db', makeClient(c)); await next();
   });
   app.use('/api/auth/*', async (c, next) => {
-    if (c.req.method !== 'GET' && c.env.APP_ORIGIN!.startsWith('https://')) {
+    // Only the Netlify entry point opts in: its exported config protects every API path.
+    // This is a deployment contract, never a client header or environment toggle.
+    if (c.req.method !== 'GET' && c.env.APP_ORIGIN!.startsWith('https://') && options.upstreamRateLimit !== 'netlify') {
       if (!c.env.AUTH_RATE_LIMITER) return c.json({ error: 'Authentication protection is not configured.' }, 503);
       if (!(await c.env.AUTH_RATE_LIMITER.limit({ key: c.req.header('CF-Connecting-IP') || 'unknown' })).success) return c.json({ error: 'Too many attempts. Please try again shortly.' }, 429);
     }

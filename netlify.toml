@@ -1,0 +1,19 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+  functions = "netlify/functions"
+
+[build.environment]
+  NODE_VERSION = "22.16.0"
+
+[functions]
+  node_bundler = "esbuild"
+
+# API routing and rate limiting are declared in netlify/functions/api.ts.
+# Runtime credentials belong in the Netlify dashboard, not this file.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "no-referrer"
+    X-Frame-Options = "DENY"

@@ -1,6 +1,6 @@
 # NORVI — Supabase Setup for Phase 2
 
-The integration is implemented locally. No Supabase project has been created or connected, no remote migration has been run, and email delivery has not been tested. The founder requested instructions instead of creating an account now.
+The founder has created a Supabase project. Read-only checks confirmed the project URL/publishable key work, email authentication is enabled with confirmation, and the three product rows are accessible. Full hosted account, policy and email acceptance testing is still required. For the selected hosting provider, follow [NETLIFY-SETUP.md](NETLIFY-SETUP.md); the Cloudflare section below describes the older alternative.
 
 ## 1. Create a dedicated development project
 
@@ -8,7 +8,19 @@ Create your own Supabase account and a new project for **NORVI development**. Ke
 
 ## 2. Apply the database migrations in order
 
-In that project's SQL editor, run these complete files separately:
+The names below are **file paths, not SQL commands**. Supabase cannot read files on your computer from a path pasted into its SQL editor.
+
+For the first file:
+
+1. Open Windows File Explorer and navigate to `E:\Agency\supabase\migrations`.
+2. Right-click `001_initial_schema.sql` and open it with Notepad or your code editor.
+3. Inside that file, press **Ctrl+A**, then **Ctrl+C** to copy all its SQL code.
+4. Return to Supabase's SQL Editor. Click inside the query editor, press **Ctrl+A**, then **Ctrl+V**. This replaces the incorrect path with the full SQL script.
+5. The pasted script should contain many lines, including `begin;`, `create schema`, and `create table`, and end with `commit;`.
+6. Click **Run**. A successful schema script normally reports success without returning rows.
+7. Open a new query and repeat the same steps with `002_accounts_and_catalog.sql`. Run it only after the first script succeeds.
+
+The two files, in order:
 
 1. `supabase/migrations/001_initial_schema.sql`
 2. `supabase/migrations/002_accounts_and_catalog.sql`
@@ -31,6 +43,12 @@ Use this host consistently; `localhost` and `127.0.0.1` are different origins. C
 
 ## 4. Install the required auth email links
 
+**Dashboard prerequisite:** If the email page says “Set up custom SMTP to edit templates,” the Source editor is locked. Configure an email provider first; the HTML below cannot be pasted into the preview. Click **Set up SMTP** on that page.
+
+For the planned Resend integration, create a Resend account, verify a domain you control using its supplied DNS records, and create a sending API key. Supabase's sender email must use that verified domain. Enter host `smtp.resend.com`, port `465`, username `resend`, and the Resend API key as the SMTP password. Save, return to the email template, select **Source**, and edit its HTML. Do not use your Supabase publishable key or account password as the SMTP password. See [Resend's Supabase SMTP guide](https://resend.com/docs/send-with-supabase-smtp).
+
+If you do not own a domain, pause this provider setup and choose a development email arrangement first; do not invent a sender domain. The current NORVI implementation requires these custom links. Supabase's default templates are not a drop-in replacement for this implementation.
+
 This integration uses an explicit confirmation page and POST request. Default links that return browser access-token fragments are not supported. Customize the Supabase templates with these links:
 
 **Confirm signup**
@@ -52,6 +70,8 @@ The fragment keeps token material out of normal HTTP request URLs. The page clea
 See [Supabase email template documentation](https://supabase.com/docs/guides/auth/auth-email-templates) for template variables and email delivery behavior.
 
 ## 5. Configure the local application
+
+The **API Keys** page contains the publishable key. To find the project URL, open the project's **Connect** dialog and select the application/framework connection instructions, or follow **Data API** in the Settings sidebar and look for Project URL. Use the HTTPS API base URL, not a `postgresql://` database connection string or the Supabase dashboard URL.
 
 Copy `.env.example` to `.env.local` without replacing an existing configuration. Fill:
 
