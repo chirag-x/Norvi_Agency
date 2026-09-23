@@ -1,6 +1,10 @@
-import { useEffect, useState, type FormEvent } from 'react';
-import { ArrowRight, ShieldCheck } from 'lucide-react';
-import { api, Field, Loading, Notice, PageHeading, useData } from './common';
+import { useEffect, useState, type FormEvent, useRef, type ReactNode } from 'react';
+import { ArrowRight, ShieldCheck, Plus, ArrowUpRight, Copy, X, KeyRound } from 'lucide-react';
+import { api, Badge, Field, Loading, Notice, PageHeading, useData, Empty } from './common';
+import { ProductForm, SettingsForm } from './Workspace';
+import { ProductIcon } from './App';
+
+export function Modal({ title, onClose, children, wide = false }: { title: string; onClose: () => void; children: ReactNode; wide?: boolean }) { const ref = useRef<HTMLDialogElement>(null); useEffect(() => { ref.current?.showModal(); const prior = document.body.style.overflow; document.body.style.overflow = 'hidden'; return () => { document.body.style.overflow = prior; }; }, []); return <dialog ref={ref} className={'modal ' + (wide ? 'wide' : '')} onCancel={e => { e.preventDefault(); onClose(); }} aria-label={title}><div className="modal-heading"><h2>{title}</h2><button onClick={onClose} className="icon-button" aria-label="Close dialog"><X size={22} /></button></div>{children}</dialog>; }
 
 export function safeNext(value: string | null, fallback = '/account') {
   // Only known internal destinations. Reject protocol-relative and backslash redirects.
@@ -80,10 +84,76 @@ export function AccountSecurity() {
 
 export function LiveAdmin({ section }: { section: string }) {
   const [page, setPage] = useState(0);
-  const { data, error } = useData(section === '/customers' ? '/admin/customers?page=' + page : '/me');
-  return <><PageHeading eyebrow="NORVI WORKSPACE" title={section === '/customers' ? 'Your customers.' : 'Your account foundation is ready.'} />
+  const endpoint = section === '/products' ? '/admin/products' : section === '/content' ? '/admin/content' : section === '/settings' ? '/admin/settings' : section === '/customers' ? '/admin/customers?page=' + page : section === '/team' ? '/admin/team' : section === '/licenses' ? '/admin/licenses' : section === '/orders' ? '/admin/orders' : section === '/activity' ? '/admin/activity' : section === '' ? '/admin' : '/me';
+  const { data, error, reload } = useData(endpoint);
+  const [feedback, setFeedback] = useState('');
+  const [editing, setEditing] = useState<any>(undefined);
+  const [licenseAction, setLicenseAction] = useState<{ id: string; action: string } | null>(null);
+
+  async function action(path: string, body?: object) {
+    try {
+      await api(path, { method: 'POST', body: JSON.stringify(body || {}) });
+      reload();
+      setFeedback('Action successful.');
+    } catch (e: any) {
+      setFeedback(e.message);
+    }
+  }
+
+  const titles: Record<string, string> = { '': 'Your agency, at a glance.', '/products': 'Your agent collection.', '/customers': 'Your customers.', '/team': 'Your team.', '/content': 'Make it sound like you.', '/settings': 'The details that make it yours.', '/licenses': 'Access, under your control.', '/orders': 'Every order, in one place.', '/activity': 'A clear record of every change.', '/subscriptions': 'Keep track of recurring access.' };
+
+  const date = (d: string) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+  return <><PageHeading eyebrow={section === '' ? 'WELCOME TO YOUR WORKSPACE' : 'AGENCY MANAGEMENT'} title={titles[section] || 'Your account foundation is ready.'} action={section === '/products' ? <button className="button primary" onClick={() => setEditing(null)}><Plus size={17} />Add agent</button> : undefined} />
     {error && <Notice kind="error">{error}</Notice>}
+    {feedback && <Notice>{feedback}</Notice>}
+
+    {section === '' && data?.customers !== undefined && <><div className="stat-grid"><div className="panel"><h3>Customers</h3><p className="stat-value">{data.customers}</p></div><div className="panel"><h3>Active Licenses</h3><p className="stat-value">{data.licenses}</p></div><div className="panel"><h3>Live Products</h3><p className="stat-value">{data.products}</p></div></div><div className="workspace-welcome"><div><span className="eyebrow">A STRONG START</span><h2>Let’s make NORVI<br /><span className="serif">yours.</span></h2><p>Your business dashboard is fully active and connected to Supabase.</p></div></div></>}
+    
+    {section === '/products' && data?.items && <><div className="admin-products">{data.items.map((p: any) => <div className="panel admin-product" key={p.id || p.slug}><ProductIcon product={p} /><div className="grow"><h3>{p.name}</h3><p>{p.tagline}</p><span className="small-note">/{p.slug} · {p.price}</span></div><Badge>{p.status}</Badge><button className="button secondary" onClick={() => setEditing(p)}>Edit agent <ArrowUpRight size={15} /></button></div>)}</div>{!data.items.length && <Empty title="No products match." description="Change your filters or add your first agent." />}<Notice>This updates the live production catalog in the database.</Notice></>}
+    
+    {section === '/content' && data?.settings && <SettingsForm initial={data.settings} contentOnly onSave={reload} />}
+    
+    {section === '/settings' && data?.settings && <><SettingsForm initial={data.settings} onSave={reload} /><div className="panel"><h3>Integration readiness</h3><div className="list-row"><span>Authentication · Supabase</span><Badge>Connected</Badge></div><div className="list-row"><span>Email · Resend</span><Badge>Connected</Badge></div><p className="small-note">Provider secrets belong in protected server configuration, never in this form.</p></div></>}
+
     {section === '/customers' && data?.items && <><div className="table-wrap"><table><thead><tr><th>Customer</th><th>Email</th><th>Status</th><th>Purchases</th></tr></thead><tbody>{data.items.map((u: any) => <tr key={u.id}><td>{u.name}</td><td>{u.email}</td><td>{u.status}</td><td>{u.purchases}</td></tr>)}</tbody></table></div>{!data.items.length && <p>No customers on this page.</p>}<div className="row-actions"><button className="button secondary" disabled={!page} onClick={() => setPage(p => p - 1)}>Previous</button><span>Page {page + 1}</span><button className="button secondary" disabled={data.items.length < 50} onClick={() => setPage(p => p + 1)}>Next</button></div></>}
-    {section !== '/customers' && <Notice>Real account access and staff permissions are connected. Product editing, invitations, billing, and license administration remain separate integration phases. No sample records are shown in this workspace.</Notice>}
+    
+    {section === '/licenses' && data?.items && (!data.items.length ? <Empty title="No licenses issued yet." description="Live purchases will appear here." /> : <div className="license-list">{data.items.map((l: any) => <div className="panel" key={l.id}><div className="panel-heading"><div><h3>{l.product}</h3><p>{l.customer}</p></div><Badge>{l.status}</Badge></div><code>NORVI_••••••{l.suffix}</code><div className="row-actions"><button className="button secondary" onClick={() => setLicenseAction({ id: l.id, action: l.status === 'active' ? 'revoke' : 'restore' })}>{l.status === 'active' ? 'Revoke access' : 'Restore access'}</button><button className="button secondary" onClick={() => setLicenseAction({ id: l.id, action: 'rotate' })}>Rotate key</button><button className="button secondary" disabled={!l.device} onClick={() => action('/admin/licenses/' + l.id + '/device-reset')}>Reset device</button></div></div>)}</div>)}
+
+    {section === '/orders' && data?.items && (!data.items.length ? <Empty title="No orders just yet." description="Live purchases will appear here." /> : <div className="table-wrap"><table><thead><tr><th>Order</th><th>Product</th><th>Customer</th><th>Date</th><th>Amount</th><th>Status</th></tr></thead><tbody>{data.items.map((o: any) => <tr key={o.id}><td><code>{o.id.slice(0, 8)}</code></td><td>{o.product}</td><td>{o.customer}</td><td>{date(o.createdAt)}</td><td>{o.currency} {(o.amount / 100).toFixed(2)}</td><td><Badge>{o.status}</Badge></td></tr>)}</tbody></table></div>)}
+
+    {section === '/subscriptions' && <Empty title="No recurring agreements yet." description="Real subscriptions will appear here after billing plans and the payment provider are configured. Simulated purchases do not create recurring charges." />}
+
+    {section === '/activity' && data?.items && <><div className="panel"><h3>Activity log</h3>{!data.items.length ? <p>No changes recorded yet.</p> : data.items.map((a: any) => <div className="list-row" key={a.id}><div className="grow"><b>{a.action}</b><p>{a.actor} · {a.target}</p></div><span className="small-note">{date(a.createdAt)}</span></div>)}</div><div className="panel"><h3>Email delivery</h3>{!data.emails?.length ? <p>No purchase email jobs yet.</p> : data.emails.map((e: any) => <div className="list-row" key={e.id}><span className="grow">{e.kind} · {e.target_id}</span><Badge>{e.status}</Badge></div>)}</div></>}
+
+    {section === '/team' && data?.items && <>
+      <div className="panel">
+        <h3>Your team</h3>
+        {data.items.map((u: any) => <div className="list-row" key={u.id}><span className="avatar">{(u.name || u.email).slice(0, 1)}</span><div className="grow"><b>{u.name || 'No name'}</b><p>{u.email}</p></div><Badge>{u.role.replace('_', ' ')}</Badge><Badge>{u.status}</Badge>{u.role !== 'owner' && <button className="text-button bare" onClick={() => action('/admin/team/' + u.id + '/suspend')}>{u.status === 'active' ? 'Suspend' : 'Restore'}</button>}</div>)}
+      </div>
+      <form className="panel" onSubmit={async e => { e.preventDefault(); const d = Object.fromEntries(new FormData(e.currentTarget)); await action('/admin/team/invite', d); e.currentTarget.reset(); }}>
+        <h3>Invite a teammate</h3>
+        <p>Send an invitation to join your workspace. (Requires email outbox processing)</p>
+        <div className="form-grid">
+          <Field label="Teammate email"><input name="email" type="email" required placeholder="teammate@example.com" /></Field>
+          <Field label="Role">
+            <select name="role">
+              <option value="support">Support</option>
+              <option value="product_manager">Product manager</option>
+              <option value="administrator">Administrator</option>
+            </select>
+          </Field>
+        </div>
+        <button className="button primary">Send invitation</button>
+      </form>
+      <div className="panel">
+        <h3>Pending invitations</h3>
+        {!data.invitations?.length ? <p>No invitations yet.</p> : data.invitations.map((i: any) => <div className="list-row" key={i.id}><span className="grow">{i.email}</span><Badge>{i.role.replace('_', ' ')}</Badge><Badge>Pending</Badge></div>)}
+      </div>
+    </>}
+
+    {editing !== undefined && <Modal title={editing ? 'Edit agent' : 'Add an agent'} onClose={() => setEditing(undefined)} wide><ProductForm product={editing} onSave={() => { setEditing(undefined); reload(); }} /></Modal>}
+    
+    {licenseAction && <Modal title={licenseAction.action === 'revoke' ? 'Revoke product access?' : licenseAction.action === 'rotate' ? 'Replace the activation key?' : 'Restore product access?'} onClose={() => setLicenseAction(null)}><form onSubmit={async e => { e.preventDefault(); const reason = new FormData(e.currentTarget).get('reason'); await action('/admin/licenses/' + licenseAction.id + '/' + licenseAction.action, { reason }); setLicenseAction(null); }}><Field label="Reason"><textarea name="reason" required minLength={5} maxLength={250} rows={3} /></Field><button className="button primary">Confirm {licenseAction.action}</button></form></Modal>}
   </>;
 }

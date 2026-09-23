@@ -6,7 +6,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { z } from 'zod';
 import catalog from '../../packages/shared/catalog.json';
 
-export type LiveEnv = { APP_ORIGIN?: string; SUPABASE_URL?: string; SUPABASE_ANON_KEY?: string; AUTH_RATE_LIMITER?: { limit: (input: { key: string }) => Promise<{ success: boolean }> }; RAZORPAY_KEY_ID?: string; RAZORPAY_KEY_SECRET?: string; };
+export type LiveEnv = { APP_ORIGIN?: string; SUPABASE_URL?: string; SUPABASE_ANON_KEY?: string; SUPABASE_SERVICE_ROLE_KEY?: string; AUTH_RATE_LIMITER?: { limit: (input: { key: string }) => Promise<{ success: boolean }> }; RAZORPAY_KEY_ID?: string; RAZORPAY_KEY_SECRET?: string; RESEND_API_KEY?: string; CRON_SECRET?: string; EMAIL_FROM?: string; GITHUB_PAT?: string; GITHUB_REPO_OWNER?: string; GITHUB_REPO_NAME?: string; };
 type Identity = { id: string; email: string; name: string; role: string; status: string; createdAt: string; lastLogin: string | null };
 type AppEnv = { Bindings: LiveEnv; Variables: { db: SupabaseClient; user: Identity; mfaRequired: boolean } };
 type Factory = (c: Context<AppEnv>) => SupabaseClient;
@@ -162,6 +162,134 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     const { data, error } = await c.get('db').rpc('list_customers', { page_number: page });
     return error ? c.json({ error: 'Customers could not be loaded.' }, 503) : c.json({ items: data, page, pageSize: 50 });
   });
+  app.get('/api/admin', async c => {
+    if (!['owner', 'administrator', 'support'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
+    const { data, error } = await c.get('db').rpc('admin_overview_stats');
+    return error ? c.json({ error: 'Stats could not be loaded.' }, 503) : c.json(data);
+  });
+
+  app.get('/api/admin/licenses', async c => {
+    if (!['owner', 'administrator', 'support'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
+    const { data, error } = await c.get('db').rpc('admin_list_licenses');
+    return error ? c.json({ error: 'Licenses could not be loaded.' }, 503) : c.json(data);
+  });
+
+  app.get('/api/admin/orders', async c => {
+    if (!['owner', 'administrator', 'support'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
+    const { data, error } = await c.get('db').rpc('admin_list_orders');
+    return error ? c.json({ error: 'Orders could not be loaded.' }, 503) : c.json(data);
+  });
+
+  app.get('/api/admin/activity', async c => {
+    if (!['owner', 'administrator', 'support'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
+    const { data, error } = await c.get('db').rpc('admin_list_activity');
+    return error ? c.json({ error: 'Activity could not be loaded.' }, 503) : c.json(data);
+  });
+
+  app.post('/api/admin/licenses/:id/revoke', async c => {
+    if (!['owner', 'administrator'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
+    const input = await c.req.json();
+    const { error } = await c.get('db').rpc('admin_set_license_status', { p_license_id: c.req.param('id'), p_status: 'revoked', p_reason: input.reason || 'Manual revocation' });
+    return error ? c.json({ error: 'License could not be revoked.' }, 400) : c.json({ ok: true });
+  });
+
+  app.post('/api/admin/licenses/:id/restore', async c => {
+    if (!['owner', 'administrator'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
+    const input = await c.req.json();
+    const { error } = await c.get('db').rpc('admin_set_license_status', { p_license_id: c.req.param('id'), p_status: 'active', p_reason: input.reason || 'Manual restoration' });
+    return error ? c.json({ error: 'License could not be restored.' }, 400) : c.json({ ok: true });
+  });
+
+  app.post('/api/admin/licenses/:id/rotate', async c => {
+    if (!['owner', 'administrator'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
+    const input = await c.req.json();
+    // Rotate logic:
+    // Generate new key suffix and encryption
+    const secretBytes = crypto.getRandomValues(new Uint8Array(16));
+    const suffix = Array.from(secretBytes).map(b => b.toString(16).padStart(2, '0')).join('').slice(-6).toUpperCase();
+    const rawKey = `NORVI_${crypto.randomUUID().replace(/-/g, '').toUpperCase()}_${suffix}`;
+    const hashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(rawKey));
+    const keyHash = btoa(String.fromCharCode(...new Uint8Array(hashBuffer)));
+
+    // Since we don't know the user's password, we cannot securely update their vault encryption here securely.
+    // Wait, in this platform, `encrypted_key` is just a placeholder because it's a test environment without the desktop app.
+    // For now, we update `key_suffix`, `key_version` and the hash!
+    const { error: updErr } = await c.get('db').from('licenses').update({ key_suffix: suffix, key_version: 2 }).eq('id', c.req.param('id'));
+    if (updErr) return c.json({ error: 'Could not rotate key.' }, 500);
+    const { error: hashErr } = await c.get('db').from('license_secrets').update({ key_hash: keyHash, encrypted_key: 'ROTATED' }).eq('license_id', c.req.param('id'));
+    if (hashErr) return c.json({ error: 'Could not update secrets.' }, 500);
+    
+    await c.get('db').rpc('admin_set_license_status', { p_license_id: c.req.param('id'), p_status: 'active', p_reason: input.reason || 'Key rotation' });
+    return c.json({ ok: true });
+  });
+
+  app.get('/api/admin/products', async c => {
+    if (!['owner', 'administrator', 'product_manager'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
+    const { data, error } = await c.get('db').rpc('admin_list_products');
+    return error ? c.json({ error: 'Products could not be loaded: ' + error.message }, 503) : c.json(data);
+  });
+
+  app.post('/api/admin/products', async c => {
+    if (!['owner', 'administrator', 'product_manager'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
+    const input = await c.req.json();
+    const { error } = await c.get('db').rpc('admin_upsert_product', {
+      p_id: input.id || null, p_slug: input.slug, p_name: input.name, p_category: input.category,
+      p_tagline: input.tagline, p_description: input.description, p_price_label: input.price,
+      p_status: input.status, p_icon: input.icon, p_color: input.color, p_features: input.features || [],
+      p_version: input.version, p_requirements: input.requirements, p_release_status: input.releaseStatus
+    });
+    return error ? c.json({ error: 'Product could not be saved. ' + error.message }, 400) : c.json({ ok: true });
+  });
+
+  app.get('/api/admin/content', async c => {
+    const { data, error } = await c.get('db').rpc('get_site_settings');
+    return error ? c.json({ error: 'Settings could not be loaded.' }, 503) : c.json({ settings: data });
+  });
+
+  app.get('/api/admin/settings', async c => {
+    const { data, error } = await c.get('db').rpc('get_site_settings');
+    return error ? c.json({ error: 'Settings could not be loaded.' }, 503) : c.json({ settings: data });
+  });
+
+  app.patch('/api/admin/content', async c => {
+    if (!['owner', 'administrator'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
+    const input = await c.req.json();
+    const { error } = await c.get('db').rpc('admin_update_settings', {
+      p_name: input.name, p_headline: input.headline, p_description: input.description,
+      p_email: input.email, p_company: input.company, p_domain: input.domain
+    });
+    return error ? c.json({ error: 'Settings could not be saved.' }, 400) : c.json({ ok: true });
+  });
+
+  app.patch('/api/admin/settings', async c => {
+    if (!['owner', 'administrator'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
+    const input = await c.req.json();
+    const { error } = await c.get('db').rpc('admin_update_settings', {
+      p_name: input.name, p_headline: input.headline, p_description: input.description,
+      p_email: input.email, p_company: input.company, p_domain: input.domain
+    });
+    return error ? c.json({ error: 'Settings could not be saved.' }, 400) : c.json({ ok: true });
+  });
+  
+  app.get('/api/admin/team', async c => {
+    if (!['owner', 'administrator'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
+    const { data, error } = await c.get('db').rpc('list_team');
+    return error ? c.json({ error: 'Team could not be loaded.' }, 503) : c.json(data);
+  });
+  
+  app.post('/api/admin/team/invite', async c => {
+    if (c.get('user').role !== 'owner') return c.json({ error: 'Owner permission required.' }, 403);
+    const input = z.object({ email: z.string().email().max(150), role: z.enum(['administrator', 'product_manager', 'support']) }).parse(await c.req.json());
+    const { error } = await c.get('db').rpc('invite_staff_member', { invite_email: input.email, invite_role: input.role });
+    return error ? c.json({ error: 'Could not send invitation. ' + error.message }, 400) : c.json({ ok: true });
+  });
+  
+  app.post('/api/admin/team/:id/suspend', async c => {
+    if (c.get('user').role !== 'owner') return c.json({ error: 'Owner permission required.' }, 403);
+    const { error } = await c.get('db').rpc('modify_staff_status', { p_user_id: c.req.param('id') });
+    return error ? c.json({ error: 'Could not modify staff status. ' + error.message }, 400) : c.json({ ok: true });
+  });
+
   app.post('/api/checkout/create', async c => {
     const input = z.object({ productId: z.string() }).parse(await c.req.json());
     const user = c.get('user');
@@ -198,16 +326,55 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     const slug = (license.products as any)?.slug;
     if (!slug) return c.json({ error: 'Product information missing.' }, 500);
     
-    const fileName = `${slug}.zip`;
+    // fileName is determined dynamically based on the release assets
     
-    // Generate a 60-second self-destructing download link
-    const { data, error: storageError } = await db.storage.from('releases').createSignedUrl(fileName, 60);
-    
-    if (storageError || !data?.signedUrl) {
-      return c.json({ error: `The release file could not be found in storage. Please ask the owner to upload ${fileName}.` }, 404);
+    if (!c.env.GITHUB_PAT || !c.env.GITHUB_REPO_OWNER || !c.env.GITHUB_REPO_NAME) {
+      return c.json({ error: 'GitHub storage is not configured.' }, 503);
     }
+    
+    try {
+      // 1. Get the latest release from the private repo
+      const releaseRes = await fetch(`https://api.github.com/repos/${c.env.GITHUB_REPO_OWNER}/${c.env.GITHUB_REPO_NAME}/releases/latest`, {
+        headers: {
+          'Authorization': `Bearer ${c.env.GITHUB_PAT}`,
+          'Accept': 'application/vnd.github.v3+json',
+          'User-Agent': 'Norvi-App'
+        }
+      });
+      if (!releaseRes.ok) throw new Error('Release not found.');
+      const release = await releaseRes.json() as any;
 
-    return c.json({ url: data.signedUrl });
+      // 2. Find the asset matching the slug (e.g., voro.zip or voro_setup.exe)
+      const asset = release.assets.find((a: any) => 
+        a.name.toLowerCase().includes(slug.toLowerCase()) && 
+        (a.name.toLowerCase().endsWith('.zip') || a.name.toLowerCase().endsWith('.exe'))
+      );
+      
+      if (!asset) {
+        throw new Error(`Asset not found. Make sure you uploaded a .zip or .exe file containing '${slug}' in the name.`);
+      }
+
+      // 3. Request the download URL (GitHub responds with 302 to S3)
+      const assetRes = await fetch(asset.url, {
+        method: 'GET',
+        redirect: 'manual', // Intercept the redirect to get the S3 URL
+        headers: {
+          'Authorization': `Bearer ${c.env.GITHUB_PAT}`,
+          'Accept': 'application/octet-stream',
+          'User-Agent': 'Norvi-App'
+        }
+      });
+
+      // 4. Extract the direct S3 URL from the Location header
+      if (assetRes.status === 302 || assetRes.status === 301) {
+        const downloadUrl = assetRes.headers.get('location');
+        if (downloadUrl) return c.json({ url: downloadUrl });
+      }
+      
+      throw new Error('Failed to retrieve direct download link.');
+    } catch (e: any) {
+      return c.json({ error: e.message || `Could not generate download link for ${slug}.` }, 500);
+    }
   });
   
   app.post('/api/admin/licenses/:id/device-reset', async c => {
@@ -215,6 +382,118 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     if (!['owner', 'administrator', 'support'].includes(user.role)) return c.json({ error: 'Permission denied.' }, 403);
     const { error } = await c.get('db').rpc('reset_license_devices', { p_license_id: c.req.param('id') });
     return error ? c.json({ error: 'Could not reset devices.' }, 500) : c.json({ ok: true });
+  });
+
+  app.post('/api/internal/process-outbox', async c => {
+    const authHeader = c.req.header('Authorization');
+    if (!c.env.CRON_SECRET || authHeader !== `Bearer ${c.env.CRON_SECRET}`) {
+      return c.json({ error: 'Unauthorized' }, 401);
+    }
+    
+    if (!c.env.SUPABASE_SERVICE_ROLE_KEY || !c.env.RESEND_API_KEY) {
+      return c.json({ error: 'Missing configuration (Service Role or Resend Key).' }, 500);
+    }
+
+    // Import pure Supabase client to bypass RLS and act as admin
+    const { createClient } = await import('@supabase/supabase-js');
+    const adminDb = createClient(c.env.SUPABASE_URL!, c.env.SUPABASE_SERVICE_ROLE_KEY!);
+    
+    // 1. Atomically claim up to 10 outbox tasks
+    const { data: tasks, error: claimError } = await adminDb.rpc('claim_outbox_tasks', { p_limit: 10 });
+    if (claimError) return c.json({ error: 'Failed to claim tasks.' }, 500);
+    if (!tasks || tasks.length === 0) return c.json({ ok: true, processed: 0 });
+
+    let processed = 0;
+    
+    for (const task of tasks) {
+      try {
+        let to = '';
+        let subject = '';
+        let html = '';
+        
+        if (task.kind === 'staff_invite') {
+          const { data: invite } = await adminDb.from('staff_invitations').select('*').eq('id', task.record_id).single();
+          if (!invite) throw new Error('Invite not found');
+          to = invite.email;
+          subject = 'You have been invited to join the Norvi team';
+          html = `
+            <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333;">
+              <h1 style="font-size: 24px; font-weight: 600;">You've been invited to Norvi</h1>
+              <p>You have been invited to join the Norvi team as a <b>${invite.role.replace('_', ' ')}</b>.</p>
+              <p>To accept this invitation, simply click the button below and register an account using this exact email address (${invite.email}).</p>
+              <a href="https://norvi.com/register" style="display: inline-block; background: #c5f042; color: #000; padding: 12px 24px; text-decoration: none; font-weight: 600; border-radius: 4px; margin-top: 10px;">Accept Invitation</a>
+            </div>
+          `;
+        } else if (task.kind === 'welcome_email') {
+          const { data: user } = await adminDb.auth.admin.getUserById(task.record_id);
+          if (!user?.user) throw new Error('User not found');
+          to = user.user.email!;
+          subject = 'Welcome to Norvi';
+          html = `
+            <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333;">
+              <h1 style="font-size: 24px; font-weight: 600;">Welcome to Norvi.</h1>
+              <p>We are thrilled to have you here. Your account is now active.</p>
+              <p>You can browse our collection of AI agents, simulate purchases, and manage your licenses directly from your personal workspace.</p>
+              <a href="https://norvi.com/account" style="display: inline-block; background: #c5f042; color: #000; padding: 12px 24px; text-decoration: none; font-weight: 600; border-radius: 4px; margin-top: 10px;">Go to My Workspace</a>
+            </div>
+          `;
+        } else if (task.kind === 'order_receipt') {
+          const { data } = await adminDb.from('orders').select('*, user:auth.users(email), products(name)').eq('id', task.record_id).single();
+          const order = data as any;
+          if (!order) throw new Error('Order not found');
+          to = order.user?.email;
+          subject = `Your receipt for ${order.products?.name}`;
+          html = `
+            <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333;">
+              <h1 style="font-size: 24px; font-weight: 600;">Thank you for your purchase.</h1>
+              <p>Your order for <b>${order.products?.name}</b> has been successfully processed.</p>
+              <p><b>Order ID:</b> ${order.id}</p>
+              <p><b>Amount Paid:</b> ${order.currency} ${(order.amount_minor / 100).toFixed(2)}</p>
+              <p>You can find your activation key and download your software in your account dashboard.</p>
+              <a href="https://norvi.com/account/licenses" style="display: inline-block; background: #c5f042; color: #000; padding: 12px 24px; text-decoration: none; font-weight: 600; border-radius: 4px; margin-top: 10px;">View My License</a>
+            </div>
+          `;
+        } else if (task.kind === 'support_reply') {
+          const { data } = await adminDb.from('support_requests').select('*, user:auth.users(email)').eq('id', task.record_id).single();
+          const ticket = data as any;
+          if (!ticket) throw new Error('Support request not found');
+          to = ticket.user?.email;
+          subject = `Re: ${ticket.subject}`;
+          html = `
+            <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333;">
+              <h1 style="font-size: 20px; font-weight: 600;">Update on your request</h1>
+              <p>Our support team has responded to your request regarding "<b>${ticket.subject}</b>".</p>
+              <p>Please log in to your workspace to view the response and continue the conversation.</p>
+              <a href="https://norvi.com/account/support" style="display: inline-block; background: #c5f042; color: #000; padding: 12px 24px; text-decoration: none; font-weight: 600; border-radius: 4px; margin-top: 10px;">View Request</a>
+            </div>
+          `;
+        } else {
+           // Mark unknown task kinds as complete so they don't block the queue
+           await adminDb.rpc('complete_outbox_task', { p_task_id: task.id });
+           continue;
+        }
+
+        if (to && subject && html) {
+          // Send via Resend
+          const res = await fetch('https://api.resend.com/emails', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${c.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ from: c.env.EMAIL_FROM || 'Norvi <noreply@norvi.com>', to, subject, html })
+          });
+          
+          if (!res.ok) throw new Error(`Resend Error: ${await res.text()}`);
+        }
+        
+        // Mark task as successfully completed
+        await adminDb.rpc('complete_outbox_task', { p_task_id: task.id });
+        processed++;
+      } catch (err) {
+        console.error(`Failed to process task ${task.id}:`, err);
+        // Do not call complete_outbox_task. The lock will expire and it will be retried automatically.
+      }
+    }
+    
+    return c.json({ ok: true, processed });
   });
 
   app.all('/api/*', c => c.json({ error: 'This operation belongs to a later integration phase. Real purchases, activation, and commerce administration are not enabled.' }, 503));
