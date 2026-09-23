@@ -12,5 +12,73 @@ export function About(){return <div className="container page"><PageHeading eyeb
 export function Contact({settings}:{settings:Settings}){const [sent,setSent]=useState(false);return <div className="container page"><PageHeading eyebrow="LET’S TALK" title="Good work starts with a conversation." description="Questions about an agent or your account? Find the right place to start."/><div className="two-column"><div className="panel"><Mail className="accent"/><h3>Get in touch</h3><p>{settings.email}</p><p>response_Time · business_Hours</p><Notice>Contact details are placeholders. This form does not send email yet.</Notice><form onSubmit={e=>{e.preventDefault();setSent(true);}}><Field label="Your name"><input required placeholder="Your name"/></Field><Field label="Email address"><input type="email" required placeholder="you@example.com"/></Field><Field label="Your message"><textarea required minLength={10} placeholder="What can we help you with?" rows={4}/></Field><button className="button secondary" type="submit">Preview message <ArrowRight size={16}/></button>{sent&&<Notice kind="success">Your message passes the form checks. Nothing has been sent; email delivery needs to be connected.</Notice>}</form></div><div><div className="panel"><LifeBuoy className="accent"/><h3>Already have an account?</h3><p>Keep your questions and purchase details in one place.</p><a href="/account/support" className="text-button">Open account support <ArrowUpRight size={17}/></a></div><div className="panel"><h3>Prefer a quick answer?</h3><p>Our help center covers accounts, keys, devices, and downloads.</p><a href="/help" className="text-button">Browse the help center <ArrowUpRight size={17}/></a></div></div></div></div>;}
 const legal:Record<string,{title:string;sections:[string,string][]}>={privacy:{title:'Privacy policy',sections:[['Data we expect to collect','Account identity, profile details, purchase references, licenses, device activation records, and support requests. Real data collection is not enabled in this local preview.'],['How information will be used','To operate accounts, fulfill purchases, validate access, deliver support, and protect the service. Registration will not automatically opt you into marketing.'],['Service providers','The proposed services are Supabase, Cloudflare, Razorpay, and Resend. Final processing, retention, and international transfer details require review.'],['Retention and requests','retention_Period · privacy_Contact · deletion_Process. These details must be completed before accepting customers.']]},terms:{title:'Terms of service',sections:[['Service scope','NORVI intends to sell access to its own AI agents. Each product listing will define the included functionality and requirements.'],['Accounts and acceptable use','Customers will be responsible for keeping account credentials and activation keys private and using the products under their agreed license.'],['Payments and access','Final billing, renewal, cancellation, tax, support, and suspension terms must be established before live checkout is enabled.'],['Business details','name_Company · address_Company · jurisdiction_Terms · effective_Date.']]},refunds:{title:'Refund policy',sections:[['Eligibility','refund_Eligibility — Define eligible circumstances and applicable customer rights before launch.'],['Request process','refund_Contact · refund_Request_Window. Customers will be able to contact support about their purchase.'],['Processing expectations','refund_Processing_Time — Timing depends on the provider and payment method. No refund guarantee has been established yet.']]},license:{title:'License agreement',sections:[['Product-specific access','Each license belongs to a customer and a particular product. A key for one agent cannot unlock another.'],['Devices and sharing','The proposed default is one active device. The final agreement must explain allowed use and reassignment.'],['Connection requirements','The proposed policy requires online startup and periodic validation. A local authorization lease lasts at most ten minutes.'],['Expiry and revocation','Subscription expiry, manual revocation, and billing cancellation are separate events. Final suspension grounds and appeals must be published.'],['Updates and support','update_Policy · support_Coverage · license_Duration. Final terms require review before sales.']]}};
 export function Legal({kind}:{kind:string}){const doc=legal[kind];return <div className="container page legal"><PageHeading eyebrow="THE DETAILS" title={doc.title}/><Notice>Draft planning text only. This is not a finalized legal policy or a contract offered for acceptance. Complete and review it before launch.</Notice>{doc.sections.map(([title,body],i)=><section key={title}><h2>{i+1}. {title}</h2><p>{body}</p></section>)}<a href="/contact" className="text-button">Questions? Contact us <ArrowRight size={16}/></a></div>;}
-export function Checkout({product}:{product:Product|undefined}){const {data:config}=useData('/auth/config');const [busy,setBusy]=useState(false),[error,setError]=useState(''),[accepted,setAccepted]=useState(false);if(!product)return <NotFound/>;if(product.releaseStatus==='development'||!config?.preview)return <div className="container page"><PageHeading title={product.name} description={product.releaseStatus==='development'?'In development. Purchasing is unavailable.':'Preparing for launch. Pricing, releases, and payment integration are not ready yet.'}/><a className="button secondary" href={'/agents/'+product.slug}>Back to agent</a></div>;async function purchase(){setBusy(true);setError('');try{const {order}=await api('/preview/purchase',{method:'POST',body:JSON.stringify({productId:product!.id})});location.href='/orders?id='+order.id;}catch(e:any){setError(e.message+' Use the customer preview from the login page first.');setBusy(false);}}return <div className="container page"><PageHeading eyebrow="YOUR NEXT AGENT" title="One step closer." description="Review your selection and explore the purchase journey."/><div className="checkout-grid"><div className="panel"><h3>Payment details</h3><Notice>This is a local checkout demonstration. No payment is collected. Live checkout requires verified products, real prices, and a configured payment account.</Notice><div className="payment-options"><span>UPI</span><span>Credit / debit card</span><span>International</span></div><p className="small-note">Methods shown are planned and subject to provider approval.</p><hr/><h3>Your account</h3><p>Start with a synthetic customer account to keep this purchase in your dashboard.</p><a href={'/login?next=/checkout/'+product.slug} className="text-button">Open customer preview <ArrowUpRight size={16}/></a><label className="checkbox-row"><input type="checkbox" checked={accepted} onChange={e=>setAccepted(e.target.checked)}/>I understand this creates a sample order, not a real purchase.</label>{error&&<Notice kind="error">{error}</Notice>}<button className="button primary full" disabled={busy||!accepted} onClick={purchase}>{busy?'Creating sample order…':'Simulate purchase — no charge'}<ArrowRight size={17}/></button></div><aside className="panel order-summary"><ProductIcon product={product}/><h3>{product.name}</h3><p>{product.tagline}</p><hr/><div className="summary-row"><span>Price placeholder</span><b>{product.price}</b></div><div className="summary-row"><span>Billing period</span><b>billing_Term</b></div><div className="summary-row total"><span>Charged today</span><b>₹0 · Preview</b></div><p className="small-note">Includes a synthetic product-specific key to test your account experience. No working agent file is included.</p><a href="/terms" className="text-button">Read draft terms <ArrowUpRight size={15}/></a></aside></div></div>;}
+export function Checkout({product}:{product:Product|undefined}){
+  const {data:config}=useData('/auth/config');
+  const [busy,setBusy]=useState(false),[error,setError]=useState(''),[accepted,setAccepted]=useState(false);
+  if(!product)return <NotFound/>;
+  if(product.releaseStatus==='development')return <div className="container page"><PageHeading title={product.name} description={'In development. Purchasing is unavailable.'}/><a className="button secondary" href={'/agents/'+product.slug}>Back to agent</a></div>;
+
+  async function purchase(){
+    setBusy(true);setError('');
+    try{
+      if(config?.preview){
+        const {order}=await api('/preview/purchase',{method:'POST',body:JSON.stringify({productId:product!.id})});
+        location.href='/orders?id='+order.id;
+      }else{
+        const data=await api('/checkout/create',{method:'POST',body:JSON.stringify({productId:product!.id})});
+        if(!(window as any).Razorpay){
+          await new Promise((res, rej) => {
+            const script=document.createElement('script');
+            script.src='https://checkout.razorpay.com/v1/checkout.js';
+            script.onload=res; script.onerror=rej;
+            document.body.appendChild(script);
+          });
+        }
+        const options={
+          key:data.keyId, amount:data.amount, currency:data.currency, name:"NORVI", description:`Purchase of ${product?.name}`, order_id:data.orderId,
+          handler:function(res:any){
+            fetch('/api/webhooks/razorpay',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(res)})
+            .then(()=>location.href='/account?success=true').catch(()=>setError("Payment recorded but fulfillment failed. Contact support."));
+          },
+          theme:{color:"#C6F077"}
+        };
+        const rzp=new (window as any).Razorpay(options);
+        rzp.on('payment.failed', function(res:any){setError(res.error.description||"Payment failed.");});
+        rzp.open();
+        setBusy(false);
+      }
+    }catch(e:any){
+      setError(e.message||'Checkout failed. Please try again.');
+      setBusy(false);
+    }
+  }
+
+  const isPreview=config?.preview;
+  return <div className="container page">
+    <PageHeading eyebrow="YOUR NEXT AGENT" title="One step closer." description="Review your selection and complete your purchase securely."/>
+    <div className="checkout-grid">
+      <div className="panel">
+        <h3>Payment details</h3>
+        {isPreview?<Notice>Local checkout demonstration. No payment is collected. Switch to live mode for real checkout.</Notice>:<Notice kind="success">Secure checkout via Razorpay. UPI, Cards, and Netbanking supported.</Notice>}
+        <div className="payment-options"><span>UPI</span><span>Credit / debit card</span><span>Netbanking</span></div>
+        <p className="small-note">Payments processed securely by Razorpay.</p>
+        <hr/>
+        <h3>Terms & Conditions</h3>
+        <label className="checkbox-row"><input type="checkbox" checked={accepted} onChange={e=>setAccepted(e.target.checked)}/>I agree to the terms of service and refund policy.</label>
+        {error&&<Notice kind="error">{error}</Notice>}
+        <button className="button primary full" disabled={busy||!accepted} onClick={purchase}>{busy?'Processing...':(isPreview?'Simulate purchase — no charge':'Pay ₹500 securely')}<ArrowRight size={17}/></button>
+      </div>
+      <aside className="panel order-summary">
+        <ProductIcon product={product}/>
+        <h3>{product.name}</h3>
+        <p>{product.tagline}</p>
+        <hr/>
+        <div className="summary-row"><span>Price</span><b>₹500.00</b></div>
+        <div className="summary-row total"><span>Total today</span><b>₹500.00</b></div>
+        <p className="small-note">Includes a product-specific activation key to unlock the agent on your desktop.</p>
+        <a href="/terms" className="text-button">Read terms <ArrowUpRight size={15}/></a>
+      </aside>
+    </div>
+  </div>;
+}
 export function NotFound(){return <div className="container page"><Empty title="This page took a different path." description="The page or agent could not be found." href="/agents" label="Back to the collection"/></div>;}

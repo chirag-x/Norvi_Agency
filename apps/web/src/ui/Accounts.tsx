@@ -61,14 +61,16 @@ export function AccountAuth({ path }: { path: string }) {
 export function AccountSecurity() {
   const { data: identity, error: identityError } = useData('/me');
   const { data, error, reload } = useData('/auth/mfa');
-  const [enrollment, setEnrollment] = useState<{ id: string; secret: string } | null>(null), [code, setCode] = useState(''), [feedback, setFeedback] = useState(''), [busy, setBusy] = useState(false);
+  const [enrollment, setEnrollment] = useState<{ id: string; secret: string; qr?: string } | null>(null), [code, setCode] = useState(''), [feedback, setFeedback] = useState(''), [busy, setBusy] = useState(false);
   const factor = enrollment?.id || data?.factors?.find((f: any) => f.status === 'verified')?.id;
   if (identity?.preview) return <div className="container page"><Notice>Authenticator setup requires a real account. Preview identities do not have passwords or MFA.</Notice><a href="/account">Back to account</a></div>;
   return <div className="container page"><PageHeading eyebrow="ACCOUNT SECURITY" title="Protect your NORVI account." description="Use a time-based authenticator app. Staff must complete this step before opening their workspace." />
     {(error || identityError) && <Notice kind="error">{error || identityError}</Notice>}
     {!identityError && !identity && <Loading />}
     {data && <div className="panel security-panel">{!factor && <button className="button primary" disabled={busy} onClick={async () => { setBusy(true); setFeedback(''); try { setEnrollment(await api('/auth/mfa/enroll', { method: 'POST' })); } catch (e: any) { setFeedback(e.message); } finally { setBusy(false); } }}>Set up authenticator</button>}
-      {enrollment && <><p>Download an Authenticator app (like Google Authenticator or Authy) on your phone. Choose "Enter a setup key", name the account NORVI, and paste the secret key below to get your 6-digit code:</p><code className="full-key">{enrollment.secret}</code></>}
+      {enrollment && <><p>Scan the QR code below with your Authenticator app (like Google Authenticator or Authy), or choose "Enter a setup key" and paste the secret code manually.</p>
+      {enrollment.qr && <div className="qr-box" dangerouslySetInnerHTML={{ __html: enrollment.qr }} style={{ maxWidth: 200, margin: '20px 0' }} />}
+      <code className="full-key">{enrollment.secret}</code></>}
       {factor && <form onSubmit={async e => { e.preventDefault(); setBusy(true); setFeedback(''); try { await api('/auth/mfa/verify', { method: 'POST', body: JSON.stringify({ factorId: factor, code }) }); setEnrollment(null); setCode(''); location.href = identity?.user.role === 'customer' ? '/account' : '/admin'; } catch (e: any) { setFeedback(e.message); setCode(''); reload(); } finally { setBusy(false); } }}><Field label="Authenticator code"><input required inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} value={code} onChange={e => setCode(e.target.value)} /></Field><button className="button primary" disabled={busy}>Verify authenticator</button></form>}
       {feedback && <Notice kind="error">{feedback}</Notice>}<p>If you lose your authenticator, contact the owner for identity-verified recovery. Email reset alone does not remove MFA.</p>
     </div>}

@@ -6,7 +6,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { z } from 'zod';
 import catalog from '../../packages/shared/catalog.json';
 
-export type LiveEnv = { APP_ORIGIN?: string; SUPABASE_URL?: string; SUPABASE_ANON_KEY?: string; AUTH_RATE_LIMITER?: { limit: (input: { key: string }) => Promise<{ success: boolean }> } };
+export type LiveEnv = { APP_ORIGIN?: string; SUPABASE_URL?: string; SUPABASE_ANON_KEY?: string; AUTH_RATE_LIMITER?: { limit: (input: { key: string }) => Promise<{ success: boolean }> }; RAZORPAY_KEY_ID?: string; RAZORPAY_KEY_SECRET?: string; };
 type Identity = { id: string; email: string; name: string; role: string; status: string; createdAt: string; lastLogin: string | null };
 type AppEnv = { Bindings: LiveEnv; Variables: { db: SupabaseClient; user: Identity; mfaRequired: boolean } };
 type Factory = (c: Context<AppEnv>) => SupabaseClient;
@@ -30,7 +30,7 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
   const app = new Hono<AppEnv>();
   app.use('/api/*', async (c, next) => {
     c.header('Cache-Control', 'no-store'); c.header('X-Content-Type-Options', 'nosniff'); c.header('Referrer-Policy', 'no-referrer');
-    if (!['GET', 'HEAD'].includes(c.req.method) && c.req.header('origin') !== c.env.APP_ORIGIN) return c.json({ error: 'Request origin is not allowed.' }, 403);
+    if (!['GET', 'HEAD'].includes(c.req.method) && !c.req.path.startsWith('/api/agent/') && c.req.header('origin') !== c.env.APP_ORIGIN) return c.json({ error: 'Request origin is not allowed.' }, 403);
     await next();
   });
   app.use('/api/*', bodyLimit({ maxSize: 16384, onError: c => c.json({ error: 'Request is too large.' }, 413) }));
@@ -90,6 +90,15 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     const { error } = await c.get('db').auth.signOut({ scope: 'local' });
     return error ? c.json({ error: 'Sign-out could not be completed. Please retry.' }, 503) : c.json({ ok: true });
   });
+  app.post('/api/agent/activate', async c => {
+    const input = z.object({ key: z.string().max(100), productId: z.string().uuid(), deviceId: z.string().min(3).max(100) }).parse(await c.req.json());
+    const hashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(input.key));
+    const hashHex = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+    const { data, error } = await c.get('db').rpc('activate_agent_license', { p_key_hash: hashHex, p_product_id: input.productId, p_device_id: input.deviceId });
+    if (error) return c.json({ error: 'Activation could not be authorized.' }, 403);
+    if (data.error) return c.json({ error: data.error }, 403);
+    return c.json(data);
+  });
   app.use('/api/*', async (c, next) => {
     const db = c.get('db'); const { data, error } = await db.auth.getUser();
     if (error || !data.user?.email_confirmed_at) return c.json({ error: 'Sign in with a verified account to continue.' }, 401);
@@ -116,7 +125,7 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
       if ((await db.auth.mfa.unenroll({ factorId: factor.id })).error) return c.json({ error: 'Could not restart authenticator setup.' }, 503);
     }
     const { data, error } = await db.auth.mfa.enroll({ factorType: 'totp', issuer: 'NORVI', friendlyName: 'NORVI authenticator' });
-    return error ? c.json({ error: 'Authenticator setup failed.' }, 400) : c.json({ id: data.id, secret: data.totp.secret });
+    return error ? c.json({ error: 'Authenticator setup failed.' }, 400) : c.json({ id: data.id, secret: data.totp.secret, qr: data.totp.qr_code });
   });
   app.post('/api/auth/mfa/verify', async c => {
     const input = z.object({ factorId: z.string().uuid(), code: z.string().regex(/^\d{6}$/) }).parse(await c.req.json());
@@ -153,6 +162,61 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     const { data, error } = await c.get('db').rpc('list_customers', { page_number: page });
     return error ? c.json({ error: 'Customers could not be loaded.' }, 503) : c.json({ items: data, page, pageSize: 50 });
   });
+  app.post('/api/checkout/create', async c => {
+    const input = z.object({ productId: z.string() }).parse(await c.req.json());
+    const user = c.get('user');
+    const product = catalog.products.find(p => p.id === input.productId);
+    if (!product) return c.json({ error: 'Product not found.' }, 404);
+    if (product.releaseStatus === 'development') return c.json({ error: 'Product is not available for purchase.' }, 400);
+
+    if (!c.env.RAZORPAY_KEY_ID || !c.env.RAZORPAY_KEY_SECRET) return c.json({ error: 'Payment gateway is not configured.' }, 503);
+
+    // Temporary testing amount (₹500.00) until catalog has dynamic pricing
+    const amountMinor = 50000;
+    const currency = 'INR';
+
+    const auth = btoa(`${c.env.RAZORPAY_KEY_ID}:${c.env.RAZORPAY_KEY_SECRET}`);
+    const rzpRes = await fetch('https://api.razorpay.com/v1/orders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Basic ${auth}` },
+      body: JSON.stringify({ amount: amountMinor, currency, receipt: `receipt_${crypto.randomUUID().slice(0, 8)}`, notes: { productId: product.id, userId: user.id } })
+    });
+    if (!rzpRes.ok) return c.json({ error: 'Failed to initialize checkout with payment gateway.' }, 500);
+
+    const orderData = await rzpRes.json();
+    return c.json({ orderId: orderData.id, amount: orderData.amount, currency: orderData.currency, keyId: c.env.RAZORPAY_KEY_ID });
+  });
+  app.post('/api/licenses/:id/download', async c => {
+    const id = c.req.param('id');
+    const db = c.get('db');
+    
+    // Fetch license status and join with products to get the slug for the file name
+    const { data: license, error } = await db.from('licenses').select('status, products(slug)').eq('id', id).single();
+    if (error || !license) return c.json({ error: 'License not found.' }, 404);
+    if (license.status !== 'active') return c.json({ error: 'This license is revoked or inactive.' }, 403);
+    
+    const slug = (license.products as any)?.slug;
+    if (!slug) return c.json({ error: 'Product information missing.' }, 500);
+    
+    const fileName = `${slug}.zip`;
+    
+    // Generate a 60-second self-destructing download link
+    const { data, error: storageError } = await db.storage.from('releases').createSignedUrl(fileName, 60);
+    
+    if (storageError || !data?.signedUrl) {
+      return c.json({ error: `The release file could not be found in storage. Please ask the owner to upload ${fileName}.` }, 404);
+    }
+
+    return c.json({ url: data.signedUrl });
+  });
+  
+  app.post('/api/admin/licenses/:id/device-reset', async c => {
+    const user = c.get('user');
+    if (!['owner', 'administrator', 'support'].includes(user.role)) return c.json({ error: 'Permission denied.' }, 403);
+    const { error } = await c.get('db').rpc('reset_license_devices', { p_license_id: c.req.param('id') });
+    return error ? c.json({ error: 'Could not reset devices.' }, 500) : c.json({ ok: true });
+  });
+
   app.all('/api/*', c => c.json({ error: 'This operation belongs to a later integration phase. Real purchases, activation, and commerce administration are not enabled.' }, 503));
   return app;
 }
