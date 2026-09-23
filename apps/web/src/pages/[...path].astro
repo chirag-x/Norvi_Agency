@@ -1,0 +1,14 @@
+---
+import App from '../ui/App';
+import '../styles/global.css';
+import { routes } from '../../../../packages/shared/model';
+import catalog from '../../../../packages/shared/catalog.json';
+export function getStaticPaths() {
+  const fixed = routes.filter(p=>!p.startsWith('agents/')&&!p.startsWith('checkout/'));
+  const paths=[...fixed,...catalog.products.flatMap(p=>['agents/'+p.slug,'checkout/'+p.slug])];
+  return paths.map(path => ({ params: { path: path || undefined } }));
+}
+const path = '/' + (Astro.params.path || '');
+const privatePage = /\/(account|admin|checkout|orders|login|register)/.test(path);
+---
+<!doctype html><html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><meta name="description" content="Explore AI agents, find your next workflow, and manage your products with NORVI."/><meta name="robots" content={privatePage ? 'noindex,nofollow' : 'noindex'}/><link rel="icon" href="/favicon.svg"/><title>NORVI — AI agents for your everyday work</title></head><body><App initialPath={path} client:load /><noscript>This website needs JavaScript for accounts and checkout. Enable it to continue.</noscript></body></html>

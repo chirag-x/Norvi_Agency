@@ -1,0 +1,77 @@
+{
+  "products": [
+    {
+      "id": "agent-1",
+      "slug": "omnix",
+      "name": "Omnix",
+      "category": "Desktop automation",
+      "tagline": "Speak your next task into action.",
+      "description": "A voice-first desktop agent being developed to understand natural-language instructions, plan tasks, and operate your computer. Capabilities and supported environments will be confirmed through release testing.",
+      "price": "Pricing to be confirmed",
+      "status": "published",
+      "icon": "workflow",
+      "color": "lime",
+      "features": [
+        "Voice-first task instructions",
+        "Task planning and computer interaction",
+        "Release scope under development"
+      ],
+      "version": "In development",
+      "requirements": "Supported operating systems and hardware requirements to be confirmed.",
+      "updatedAt": "2026-09-23",
+      "releaseStatus": "development"
+    },
+    {
+      "id": "agent-2",
+      "slug": "voro",
+      "name": "Voro",
+      "category": "Interview assistance",
+      "tagline": "Bring context to your interview preparation.",
+      "description": "An interview assistant with screen and audio context, résumé memory, and coding assistance. Designed for practice and situations where assistance is permitted. The application is reported complete; the NORVI release and compatibility checks are still being prepared.",
+      "price": "Pricing to be confirmed",
+      "status": "published",
+      "icon": "message",
+      "color": "blue",
+      "features": [
+        "Screen and audio context",
+        "Résumé and conversation memory",
+        "Local and cloud AI options",
+        "Coding assistance"
+      ],
+      "version": "Release version to be confirmed",
+      "requirements": "Windows-oriented application. Supported Windows versions, audio setup, and local-model hardware requirements need verification.",
+      "updatedAt": "2026-09-23",
+      "releaseStatus": "prelaunch"
+    },
+    {
+      "id": "agent-3",
+      "slug": "rolvio",
+      "name": "Rolvio",
+      "category": "Job-search automation",
+      "tagline": "Your next role, with less routine.",
+      "description": "Discover relevant openings, compare job descriptions with your résumé, assist with applications, and track responses in a Kanban workspace. The application is reported complete; supported-platform testing and the NORVI release are being prepared. Applications require your authorization and accurate profile information.",
+      "price": "Pricing to be confirmed",
+      "status": "published",
+      "icon": "sparkles",
+      "color": "purple",
+      "features": [
+        "Job discovery and résumé-fit scoring",
+        "Application workflow and duplicate detection",
+        "Email response tracking",
+        "Kanban application dashboard"
+      ],
+      "version": "Release version to be confirmed",
+      "requirements": "Python application with a browser-driven workflow. Packaged installer, supported systems, AI provider setup, and email requirements to be confirmed.",
+      "updatedAt": "2026-09-23",
+      "releaseStatus": "prelaunch"
+    }
+  ],
+  "settings": {
+    "name": "NORVI",
+    "headline": "Less busywork.\nMore possibility.",
+    "description": "Make room for the work that matters. Discover AI agents built to take everyday tasks off your hands.",
+    "email": "email_Support",
+    "company": "name_Company",
+    "domain": "domain_Website"
+  }
+}

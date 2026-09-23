@@ -1,0 +1,39 @@
+{
+  "name": "agency-platform",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -k -n api,web \"tsx watch apps/api/dev.ts\" \"node scripts/astro.mjs dev --host 127.0.0.1 --port 4321\"",
+    "build": "node scripts/astro.mjs build",
+    "check": "tsc --noEmit",
+    "test": "vitest run",
+    "preview": "node scripts/astro.mjs preview --host 127.0.0.1 --port 4321",
+    "prebuild": "tsx scripts/sync-catalog.ts",
+    "predev": "tsx scripts/sync-catalog.ts",
+    "check:worker": "wrangler deploy --dry-run --outdir .local/worker-build"
+  },
+  "dependencies": {
+    "@astrojs/react": "6.0.6",
+    "@hono/node-server": "^1.19.0",
+    "@supabase/ssr": "^0.12.7",
+    "@supabase/supabase-js": "^2.57.0",
+    "astro": "7.3.3",
+    "hono": "^4.9.0",
+    "lucide-react": "^0.468.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "concurrently": "^9.2.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0",
+    "vitest": "5.0.1",
+    "wrangler": "^4.136.3"
+  }
+}
