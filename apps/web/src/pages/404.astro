@@ -2,4 +2,6 @@
 import App from '../ui/App';
 import '../styles/global.css';
 ---
-<!doctype html><html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><meta name="robots" content="noindex"/><link rel="icon" href="/favicon.svg"/><title>NORVI</title></head><body><App initialPath="/404" client:load /></body></html>
+<!doctype html><html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><meta name="robots" content="noindex"/><link rel="icon" href="/favicon.svg"/><title>NORVI</title></head><body>
+  <App initialPath={Astro.url.pathname} client:only="react" />
+</body></html>

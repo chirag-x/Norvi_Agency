@@ -5,8 +5,8 @@ import type { Product, Settings, User } from '../../../../packages/shared/model'
 import { ProductCard, ProductIcon } from './App';
 import { api, Badge, date, Empty, Field, Loading, Notice, PageHeading, useData } from './common';
 const customerNav = [['', 'Overview', LayoutDashboard], ['/agents', 'My agents', Box], ['/licenses', 'Keys & devices', KeyRound], ['/billing', 'Billing & orders', CreditCard], ['/support', 'Support', LifeBuoy], ['/settings', 'Profile & security', SettingsIcon]] as const;
-const staffNav = [['', 'Overview', LayoutDashboard], ['/products', 'Products & releases', Box], ['/customers', 'Customers', Users], ['/licenses', 'Licenses', KeyRound], ['/orders', 'Orders', CreditCard], ['/subscriptions', 'Subscriptions', Activity], ['/team', 'Team', Users], ['/content', 'Content', FileText], ['/activity', 'Audit & delivery', Activity], ['/settings', 'Settings', SettingsIcon]] as const;
-const allowed: Record<string, string[]> = { owner: ['*'], administrator: ['', '/products', '/customers', '/licenses', '/orders', '/subscriptions', '/content', '/activity'], product_manager: ['', '/products', '/content'], support: ['', '/customers', '/licenses', '/orders'] };
+const staffNav = [['', 'Overview', LayoutDashboard], ['/products', 'Products & releases', Box], ['/categories', 'Categories', Box], ['/customers', 'Customers', Users], ['/licenses', 'Licenses', KeyRound], ['/orders', 'Orders', CreditCard], ['/subscriptions', 'Subscriptions', Activity], ['/team', 'Team', Users], ['/content', 'Content', FileText], ['/activity', 'Audit & delivery', Activity], ['/settings', 'Settings', SettingsIcon]] as const;
+const allowed: Record<string, string[]> = { owner: ['*'], administrator: ['', '/products', '/categories', '/customers', '/licenses', '/orders', '/subscriptions', '/content', '/activity'], product_manager: ['', '/products', '/categories', '/content'], support: ['', '/customers', '/licenses', '/orders'] };
 export function Workspace({ path, products, settings, onCatalogChange }: { path: string; products: Product[]; settings: Settings; onCatalogChange: () => void }) {
     const admin = path.startsWith('/admin'), base = admin ? '/admin' : '/account'; const section = path.slice(base.length); const { data: identity, error } = useData('/me'); const [logoutError, setLogoutError] = useState('');
     if (error) return <div className="container page"><Empty title={admin ? 'Your workspace awaits.' : 'Your agents live here.'} description={error} href={admin ? '/admin/login' : '/login'} label={admin ? 'Open admin sign in' : 'Open customer sign in'} /></div>;
@@ -37,7 +37,8 @@ function Admin({ section, user, settings, onCatalogChange }: { section: string; 
     async function action(path: string, body?: object) { try { await api(path, { method: 'POST', body: JSON.stringify(body || {}) }); reload(); setFeedback('Change saved in the local preview.'); } catch (e: any) { setFeedback(e.message); } }
     return <><PageHeading eyebrow={section === '' ? 'WELCOME TO YOUR WORKSPACE' : 'AGENCY MANAGEMENT'} title={titles[section] || 'Workspace'} description={section === '' ? 'Start with the essentials. Build your collection, get to know your customers, and keep things moving.' : undefined} action={section === '/products' ? <button className="button primary" onClick={() => setEditing(null)}><Plus size={17} />Add agent</button> : undefined} />{error ? <Notice kind="error">{error}</Notice> : !data ? <Loading /> : <>{feedback && <Notice>{feedback}</Notice>}
         {section === '' && <><div className="stat-grid"><Stat label={user.role === 'support' ? 'Sample customers' : 'Products in collection'} value={items.length} icon={<Box />} /><Stat label="Website status" value="Preview" icon={<Activity />} /><Stat label="Live integrations" value="0 / 3" icon={<SlidersHorizontal />} /></div><div className="workspace-welcome"><div><span className="eyebrow">A STRONG START</span><h2>Let’s make NORVI<br /><span className="serif">yours.</span></h2><p>Your website is taking shape. Add your product details and explore the customer journey.</p><a className="button primary" href={user.role === 'support' ? '/admin/customers' : '/admin/products'}>{user.role === 'support' ? 'Explore customers' : 'Manage your agents'}<ArrowUpRight size={17} /></a></div><div className="setup-list">{[['Website name', 'NORVI is ready', true], ['Product details', 'Names, features, prices, and releases', false], ['Secure accounts', 'Connect your authentication service', false], ['Payments & email', 'Connect your business accounts', false]].map(([title, desc, done]) => <div key={String(title)}><span className={done ? 'check-circle done' : 'check-circle'}>{done ? <Check size={14} /> : <span />}</span><div><b>{title}</b><small>{desc}</small></div></div>)}</div></div><div className="panel-heading"><h3>Find your next step</h3><a href="/" className="text-button">View website <ArrowUpRight size={15} /></a></div><div className="quick-links">{(user.role === 'support' ? [['Customers', 'Find accounts, including non-buyers', '/admin/customers', Users], ['Licenses', 'Help with devices and access', '/admin/licenses', KeyRound]] : [['Your products', 'Add, edit, and publish your agents', '/admin/products', Box], ['Website content', 'Edit your headline and description', '/admin/content', FileText]]).map(([title, desc, href, Icon]: any) => <a className="panel" href={href} key={title}><Icon size={22} /><h3>{title}</h3><p>{desc}</p><ArrowUpRight size={19} /></a>)}</div></>}
-        {['/products', '/customers', '/licenses'].includes(section) && <div className="catalog-toolbar"><label className="search"><Search size={17} /><input aria-label="Search records" placeholder={section === '/customers' ? 'Search name or email…' : 'Search records…'} value={query} onChange={e => setQuery(e.target.value)} /></label><select aria-label="Filter records" value={filter} onChange={e => setFilter(e.target.value)}><option value="all">All records</option>{section === '/products' ? <><option value="published">Published</option><option value="draft">Drafts</option><option value="archived">Archived</option></> : section === '/customers' ? <option value="nonbuyers">No purchases</option> : <><option value="active">Active</option><option value="revoked">Revoked</option></>}</select></div>}
+        {['/products', '/categories', '/customers', '/licenses'].includes(section) && <div className="catalog-toolbar"><label className="search"><Search size={17} /><input aria-label="Search records" placeholder={section === '/customers' ? 'Search name or email…' : 'Search records…'} value={query} onChange={e => setQuery(e.target.value)} /></label><select aria-label="Filter records" value={filter} onChange={e => setFilter(e.target.value)}><option value="all">All records</option>{section === '/products' ? <><option value="published">Published</option><option value="draft">Drafts</option><option value="archived">Archived</option></> : section === '/customers' ? <option value="nonbuyers">No purchases</option> : <><option value="active">Active</option><option value="revoked">Revoked</option></>}</select></div>}
+        {section === '/categories' && <CategoriesAdmin categories={data.categories} onSave={() => { reload(); onCatalogChange(); }} />}
         {section === '/products' && <><div className="admin-products">{filtered.map((p: Product) => <div className="panel admin-product" key={p.id}><ProductIcon product={p} /><div className="grow"><h3>{p.name}</h3><p>{p.tagline}</p><span className="small-note">/{p.slug} · {p.price}</span></div><Badge>{p.status}</Badge><button className="button secondary" onClick={() => setEditing(p)}>Edit agent <ArrowUpRight size={15} /></button></div>)}</div>{!filtered.length && <Empty title="No products match." description="Change your filters or add your first agent." />}<Notice>Publishing here updates the local catalog. Release uploads and public deployment are not connected yet.</Notice></>}
         {section === '/customers' && <><div className="table-wrap"><table><thead><tr><th>Customer</th><th>Registered</th><th>Last sign-in</th><th>Purchases</th><th>Licenses</th><th>Status</th></tr></thead><tbody>{filtered.map(u => <tr key={u.id}><td><b>{u.name}</b><small className="block">{u.email}</small></td><td>{date(u.createdAt)}</td><td>{date(u.lastLogin)}</td><td>{u.purchases === 0 ? <span className="badge">No purchases</span> : u.purchases}</td><td>{u.licenseCount}</td><td><Badge>{u.status}</Badge></td></tr>)}</tbody></table></div>{!filtered.length && <Empty title="No matching customers." description="Try a different search or filter." />}<p className="fineprint">Synthetic preview accounts only. Customers appear at registration, including those with no purchases.</p></>}
         {section === '/licenses' && (!filtered.length ? <Empty title="No licenses issued yet." description="Open a customer preview and simulate a purchase. The resulting license will appear here." href="/login" label="Explore customer flow" /> : <div className="license-list">{filtered.map(l => <div className="panel" key={l.id}><div className="panel-heading"><div><h3>{l.product}</h3><p>{l.customer}</p></div><Badge>{l.status}</Badge></div><code>NORVI_••••••{l.suffix}</code><div className="row-actions">{user.role !== 'support' && <><button className="button secondary" onClick={() => setLicenseAction({ id: l.id, action: l.status === 'active' ? 'revoke' : 'restore' })}>{l.status === 'active' ? 'Revoke access' : 'Restore access'}</button><button className="button secondary" onClick={() => setLicenseAction({ id: l.id, action: 'rotate' })}>Rotate key</button></>}<button className="button secondary" disabled={!l.device} onClick={() => action('/licenses/' + l.id + '/device-reset')}>Reset device</button>{user.role === 'owner' && <OwnerReveal id={l.id} />}</div></div>)}</div>)}
@@ -47,10 +48,137 @@ function Admin({ section, user, settings, onCatalogChange }: { section: string; 
         {section === '/content' && <SettingsForm initial={data.settings} contentOnly onSave={() => { reload(); onCatalogChange(); }} />}
         {section === '/settings' && <><SettingsForm initial={data.settings} onSave={() => { reload(); onCatalogChange(); }} /><div className="panel"><h3>Integration readiness</h3><div className="list-row"><span>Authentication · Supabase</span><Badge>Not connected</Badge></div><div className="list-row"><span>Payments · Razorpay</span><Badge>Not connected</Badge></div><div className="list-row"><span>Email · Resend</span><Badge>Not connected</Badge></div><p className="small-note">Provider secrets belong in protected server configuration, never in this form.</p></div></>}
         {section === '/activity' && <><div className="panel"><h3>Activity log</h3>{!items.length ? <p>No changes recorded yet.</p> : items.map(a => <div className="list-row" key={a.id}><span className="activity-icon"><Activity size={16} /></span><div className="grow"><b>{a.action}</b><p>{a.actor} · {a.target}</p></div><span className="small-note">{date(a.createdAt)}</span></div>)}</div><div className="panel"><h3>Email delivery</h3>{!data.emails.length ? <p>No purchase email jobs yet.</p> : data.emails.map((e: any) => <div className="list-row" key={e.id}><Mail size={16} /><span className="grow">Purchase confirmation · {e.orderId.slice(0, 8)}</span><Badge>{e.status}</Badge></div>)}</div></>}
-    </>}{editing !== undefined && <Modal title={editing ? 'Edit agent' : 'Add an agent'} onClose={() => setEditing(undefined)} wide><ProductForm product={editing} onSave={() => { setEditing(undefined); reload(); onCatalogChange(); }} /></Modal>}{licenseAction && <Modal title={licenseAction.action === 'revoke' ? 'Revoke product access?' : licenseAction.action === 'rotate' ? 'Replace the activation key?' : 'Restore product access?'} onClose={() => setLicenseAction(null)}><p>This changes the local preview license. Billing is separate. A reason is recorded in the audit log.</p><form onSubmit={async e => { e.preventDefault(); const reason = new FormData(e.currentTarget).get('reason'); await action('/admin/licenses/' + licenseAction.id + '/' + licenseAction.action, { reason }); setLicenseAction(null); }}><Field label="Reason"><textarea name="reason" required minLength={5} maxLength={250} rows={3} /></Field><button className="button primary">Confirm {licenseAction.action}</button></form></Modal>}</>;
+    </>}{editing !== undefined && <Modal title={editing ? 'Edit agent' : 'Add an agent'} onClose={() => setEditing(undefined)} wide><ProductForm categories={data.categories} product={editing} onSave={() => { setEditing(undefined); reload(); onCatalogChange(); }} /></Modal>}{licenseAction && <Modal title={licenseAction.action === 'revoke' ? 'Revoke product access?' : licenseAction.action === 'rotate' ? 'Replace the activation key?' : 'Restore product access?'} onClose={() => setLicenseAction(null)}><p>This changes the local preview license. Billing is separate. A reason is recorded in the audit log.</p><form onSubmit={async e => { e.preventDefault(); const reason = new FormData(e.currentTarget).get('reason'); await action('/admin/licenses/' + licenseAction.id + '/' + licenseAction.action, { reason }); setLicenseAction(null); }}><Field label="Reason"><textarea name="reason" required minLength={5} maxLength={250} rows={3} /></Field><button className="button primary">Confirm {licenseAction.action}</button></form></Modal>}</>;
 }
 function OwnerReveal({ id }: { id: string }) { const [key, setKey] = useState(''), [error, setError] = useState(''); return <><button className="button secondary" onClick={async () => { try { setKey((await api('/licenses/' + id + '/reveal', { method: 'POST' })).key); } catch (e: any) { setError(e.message); } }}>Reveal key</button>{error && <Notice kind="error">{error}</Notice>}{key && <Modal title="Preview activation key" onClose={() => setKey('')}><code className="full-key">{key}</code><CopyButton text={key} /></Modal>}</>; }
-export function ProductForm({ product, onSave }: { product: Product | null; onSave: () => void }) { const [error, setError] = useState(''), [busy, setBusy] = useState(false); return <form className="editor-form" onSubmit={async e => { e.preventDefault(); setBusy(true); const d = Object.fromEntries(new FormData(e.currentTarget)); try { await api('/admin/products', { method: 'POST', body: JSON.stringify({ ...d, id: product?.id, features: String(d.features).split('\n').filter(Boolean) }) }); onSave(); } catch (e: any) { setError(e.message); setBusy(false); } }}><div className="form-grid"><Field label="Agent name"><input name="name" required minLength={2} maxLength={80} defaultValue={product?.name} placeholder="name_Agent_4" /></Field><Field label="URL slug" hint="Lowercase words separated by hyphens."><input name="slug" required pattern="[a-z0-9]+(-[a-z0-9]+)*" defaultValue={product?.slug} placeholder="agent-4" /></Field><Field label="Category"><input name="category" required defaultValue={product?.category} placeholder="category_Agent_4" /></Field><Field label="Price label"><input name="price" required defaultValue={product?.price} placeholder="price_Agent_4" /></Field></div><Field label="Short introduction"><input name="tagline" required minLength={3} maxLength={140} defaultValue={product?.tagline} placeholder="A short description of the benefit" /></Field><Field label="Description"><textarea name="description" required minLength={5} maxLength={2000} rows={3} defaultValue={product?.description} placeholder="description_Agent_4" /></Field><Field label="Features" hint="One feature per line, up to eight."><textarea name="features" rows={3} defaultValue={product?.features.join('\n')} placeholder="feature_Agent_4_1" /></Field><div className="form-grid"><Field label="Requirements"><input name="requirements" defaultValue={product?.requirements || 'requirements_Agent_4'} /></Field><Field label="Version"><input name="version" defaultValue={product?.version || 'version_Agent_4'} /></Field><Field label="Icon"><select name="icon" defaultValue={product?.icon || 'workflow'}><option value="workflow">Workflow</option><option value="message">Conversation</option><option value="sparkles">Sparkles</option></select></Field><Field label="Accent"><select name="color" defaultValue={product?.color || 'lime'}><option value="lime">Lime</option><option value="blue">Blue</option><option value="purple">Purple</option></select></Field><Field label="Release status"><select name="releaseStatus" defaultValue={product?.releaseStatus || 'development'}><option value="development">In development</option><option value="prelaunch">Preparing for launch</option></select></Field><Field label="Publication status"><select name="status" defaultValue={product?.status || 'draft'}><option value="draft">Draft — private</option><option value="published">Published — local preview</option><option value="archived">Archived — stop new sales</option></select></Field></div><Notice>Agent binaries and verified payment prices will be connected separately. This editor manages the local preview catalog.</Notice>{error && <Notice kind="error">{error}</Notice>}<button className="button primary" disabled={busy}>{busy ? 'Saving…' : 'Save agent'}<Check size={16} /></button></form>; }
+export function ProductForm({ product, onSave, categories }: { product: Product | null; onSave: () => void; categories: Category[] }) { 
+  const [error, setError] = useState(''), [busy, setBusy] = useState(false); 
+  return <form className="editor-form" onSubmit={async e => { 
+    e.preventDefault(); 
+    setBusy(true); 
+    const form = e.currentTarget as HTMLFormElement;
+    const d = Object.fromEntries(new FormData(form)); 
+    try { 
+      let logoUrl = product?.logoUrl || null;
+      if (d.logoFile && (d.logoFile as File).size > 0) {
+        logoUrl = await uploadFile(d.logoFile as File);
+      }
+      let workflowMediaUrl = product?.workflowMediaUrl || null;
+      if (d.workflowMediaFile && (d.workflowMediaFile as File).size > 0) {
+        workflowMediaUrl = await uploadFile(d.workflowMediaFile as File);
+      }
+      await api('/admin/products', { 
+        method: 'POST', 
+        body: JSON.stringify({ 
+          ...d, 
+          id: product?.id, 
+          features: String(d.features).split('\n').filter(Boolean),
+          logoUrl,
+          workflowMediaUrl
+        }) 
+      }); 
+      onSave(); 
+    } catch (e: any) { 
+      setError(e.message); 
+      setBusy(false); 
+    } 
+  }}>
+    <div className="form-grid">
+      <Field label="Agent name"><input name="name" required minLength={2} maxLength={80} defaultValue={product?.name} placeholder="name_Agent_4" /></Field>
+      <Field label="URL slug" hint="Lowercase words separated by hyphens."><input name="slug" required pattern="[a-z0-9]+(-[a-z0-9]+)*" defaultValue={product?.slug} placeholder="agent-4" /></Field>
+      <Field label="Category">
+        <select name="categoryId" required defaultValue={product?.categoryId}>
+          {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
+      </Field>
+      <Field label="Price label"><input name="price" required defaultValue={product?.price} placeholder="price_Agent_4" /></Field>
+    </div>
+    <Field label="Logo image (optional)"><input name="logoFile" type="file" accept="image/*" /></Field>
+    <Field label="Short introduction"><input name="tagline" required minLength={3} maxLength={140} defaultValue={product?.tagline} placeholder="A short description of the benefit" /></Field>
+    <Field label="Description"><textarea name="description" required minLength={5} maxLength={2000} rows={3} defaultValue={product?.description} placeholder="description_Agent_4" /></Field>
+    <Field label="Features" hint="One feature per line, up to eight."><textarea name="features" rows={3} defaultValue={product?.features?.join('\n')} placeholder="feature_Agent_4_1" /></Field>
+    
+    <div className="form-grid">
+      <Field label="Requirements"><input name="requirements" defaultValue={product?.requirements || 'requirements_Agent_4'} /></Field>
+      <Field label="Version"><input name="version" defaultValue={product?.version || 'version_Agent_4'} /></Field>
+      <Field label="Release status">
+        <select name="releaseStatus" defaultValue={product?.releaseStatus || 'development'}>
+          <option value="development">In development</option>
+          <option value="prelaunch">Preparing for launch</option>
+          <option value="live">Live - Available for download</option>
+        </select>
+      </Field>
+      <Field label="Publication status">
+        <select name="status" defaultValue={product?.status || 'draft'}>
+          <option value="draft">Draft — private</option>
+          <option value="published">Published — local preview</option>
+          <option value="archived">Archived — stop new sales</option>
+        </select>
+      </Field>
+    </div>
+
+    <h3>Walkthrough Section</h3>
+    <Field label="Walkthrough Heading"><input name="workflowHeading" required defaultValue={product?.workflowHeading || 'Built for your workflow.'} /></Field>
+    <Field label="Walkthrough Description"><textarea name="workflowDescription" required rows={2} defaultValue={product?.workflowDescription} /></Field>
+    <Field label="Walkthrough Media (Video or Image)"><input name="workflowMediaFile" type="file" accept="video/mp4,video/webm,image/*" /></Field>
+    <Field label="Walkthrough Note (optional)"><input name="workflowNote" defaultValue={product?.workflowNote} /></Field>
+
+    <Notice>Agent binaries and verified payment prices will be connected separately. This editor manages the local preview catalog.</Notice>
+    {error && <Notice kind="error">{error}</Notice>}
+    <button className="button primary" disabled={busy}>{busy ? 'Saving...' : 'Save agent'}<Check size={16} /></button>
+  </form>; 
+}
+export function CategoriesAdmin({ categories, onSave }: { categories: Category[]; onSave: () => void }) {
+  const [editing, setEditing] = useState<Category | null | undefined>(undefined);
+  const [error, setError] = useState('');
+  
+  const deleteCategory = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this category?')) return;
+    try {
+      await api('/admin/categories/' + id, { method: 'DELETE' });
+      onSave();
+    } catch (e: any) { alert(e.message); }
+  };
+
+  return <div className="panel">
+    <div className="panel-heading">
+      <h3>Categories</h3>
+      <button className="button primary button-small" onClick={() => setEditing(null)}>Add category</button>
+    </div>
+    <div className="table-wrap">
+      <table>
+        <thead><tr><th>Name</th><th>Slug</th><th>Actions</th></tr></thead>
+        <tbody>
+          {categories.map(c => <tr key={c.id}>
+            <td><b>{c.name}</b></td>
+            <td>{c.slug}</td>
+            <td>
+              <button className="text-button bare" onClick={() => setEditing(c)}>Edit</button>
+              <button className="text-button bare" onClick={() => deleteCategory(c.id)}>Delete</button>
+            </td>
+          </tr>)}
+        </tbody>
+      </table>
+    </div>
+    {editing !== undefined && <Modal title={editing ? 'Edit category' : 'Add category'} onClose={() => setEditing(undefined)}>
+      <form onSubmit={async e => {
+        e.preventDefault();
+        const d = Object.fromEntries(new FormData(e.currentTarget));
+        try {
+          await api('/admin/categories', { method: 'POST', body: JSON.stringify({ ...d, id: editing?.id }) });
+          setEditing(undefined);
+          onSave();
+        } catch (e: any) { setError(e.message); }
+      }}>
+        <Field label="Category name"><input name="name" required defaultValue={editing?.name} /></Field>
+        <Field label="URL slug"><input name="slug" required pattern="[a-z0-9]+(-[a-z0-9]+)*" defaultValue={editing?.slug} /></Field>
+        {error && <Notice kind="error">{error}</Notice>}
+        <button className="button primary">Save category</button>
+      </form>
+    </Modal>}
+  </div>;
+}
+
 export function SettingsForm({ initial, contentOnly = false, onSave }: { initial: Settings; contentOnly?: boolean; onSave: () => void }) { const [message, setMessage] = useState(''); return <form className="panel settings-form" onSubmit={async e => { e.preventDefault(); const d = Object.fromEntries(new FormData(e.currentTarget)); try { await api(contentOnly ? '/admin/content' : '/admin/settings', { method: 'PATCH', body: JSON.stringify(contentOnly ? d : { ...initial, ...d }) }); setMessage('Saved. Your website preview has been updated.'); onSave(); } catch (e: any) { setMessage(e.message); } }}><h3>{contentOnly ? 'Homepage copy' : 'Business details'}</h3>{!contentOnly && <div className="form-grid"><Field label="Website name"><input name="name" required defaultValue={initial.name} /></Field><Field label="Company name"><input name="company" defaultValue={initial.company} /></Field><Field label="Support email"><input name="email" defaultValue={initial.email} /></Field><Field label="Website domain"><input name="domain" defaultValue={initial.domain} /></Field></div>}<Field label="Homepage headline" hint="Use a new line to split the headline."><textarea name="headline" required rows={2} defaultValue={initial.headline} /></Field><Field label="Homepage description"><textarea name="description" required rows={3} defaultValue={initial.description} /></Field><button className="button primary">Save changes <Check size={16} /></button>{message && <Notice>{message}</Notice>}</form>; }
 function Team({ data, onAction }: { data: any; onAction: (path: string, body?: object) => Promise<void> }) { return <><div className="panel"><h3>Your team</h3>{data.items.map((u: User) => <div className="list-row" key={u.id}><span className="avatar">{u.name.slice(0, 1)}</span><div className="grow"><b>{u.name}</b><p>{u.email}</p></div><Badge>{u.role.replace('_', ' ')}</Badge><Badge>{u.status}</Badge>{u.role !== 'owner' && <button className="text-button bare" onClick={() => onAction('/admin/team/' + u.id + '/suspend')}>{u.status === 'active' ? 'Suspend' : 'Restore'}</button>}</div>)}</div><form className="panel" onSubmit={async e => { e.preventDefault(); const d = Object.fromEntries(new FormData(e.currentTarget)); await onAction('/admin/team/invite', d); }}><h3>Invite a teammate</h3><p>Stage an invitation in the local preview. No email or live access will be created.</p><div className="form-grid"><Field label="Teammate email"><input name="email" type="email" required placeholder="teammate@example.invalid" /></Field><Field label="Role"><select name="role"><option value="support">Support</option><option value="product_manager">Product manager</option><option value="administrator">Administrator</option></select></Field></div><button className="button primary">Stage invitation <Plus size={16} /></button></form><div className="panel"><h3>Pending invitations</h3>{!data.invitations.length ? <p>No invitations yet.</p> : data.invitations.map((i: any) => <div className="list-row" key={i.id}><span className="grow">{i.email}</span><Badge>{i.role.replace('_', ' ')}</Badge><Badge>Not sent</Badge></div>)}</div></>; }
 export function OrderStatus() { const { data, error } = useData('/account'); const [orderId, setOrderId] = useState(''); useEffect(() => { setOrderId(new URLSearchParams(location.search).get('id') || ''); }, []); if (error) return <div className="container page"><Notice kind="error">{error}</Notice><a href="/login" className="button primary">Open account</a></div>; if (!data) return <Loading />; const order = data.orders.find((o: any) => o.id === orderId); return <div className="container page order-success">{order ? <><span className="success-symbol"><Check size={36} /></span><span className="eyebrow">YOUR SAMPLE ORDER IS READY</span><h1>A little more possibility.<br />Now in your account.</h1><p>Your preview license has been created. No payment was taken and no email was sent.</p><div className="panel"><div className="summary-row"><span>Order reference</span><code>{order.id.slice(0, 8)}</code></div><div className="summary-row"><span>Amount charged</span><b>₹0 · Preview</b></div><div className="summary-row"><span>Purchase email</span><Badge>Preview job saved · not sent</Badge></div></div><a href="/account/licenses" className="button primary">View your activation key <KeyRound size={18} /></a><a href="/account" className="text-button">Go to dashboard <ArrowRight size={16} /></a></> : <Empty title="Select an order from your account." description="Order details are private to the customer who placed them." href="/account/billing" label="View billing" />}</div>; }

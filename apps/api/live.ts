@@ -37,7 +37,22 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
   app.onError((e, c) => c.json({ error: e instanceof z.ZodError ? e.errors.map(x => x.message).join(' ') : 'The account service could not complete this request.' }, e instanceof z.ZodError ? 400 : 500));
   app.get('/api/health', c => c.json({ mode: isConfigured(c.env) ? 'supabase' : 'unconfigured', livePayments: false }));
   app.get('/api/auth/config', c => c.json({ mode: isConfigured(c.env) ? 'supabase' : 'unconfigured', preview: false, registration: isConfigured(c.env) }));
-  app.get('/api/catalog', c => c.json({ ...catalog, preview: false }));
+  app.get('/api/catalog', async c => {
+    if (!isConfigured(c.env)) return c.json({ ...catalog, preview: false });
+    const supabase = factory(c);
+    const [productsResult, settingsResult, categoriesResult] = await Promise.all([
+      supabase.from('products')
+        .select('id, slug, name, categoryId:category_id, tagline, description, price:price_label, status, logoUrl:logo_url, features, version, requirements, releaseStatus:release_status, workflowHeading:workflow_heading, workflowDescription:workflow_description, workflowMediaUrl:workflow_media_url, workflowNote:workflow_note, updatedAt:updated_at')
+        .eq('status', 'published')
+        .order('created_at', { ascending: true }),
+      supabase.from('site_settings').select('name, headline, description, email, company, domain').single(),
+      supabase.from('categories').select('id, slug, name, createdAt:created_at')
+    ]);
+    const products = (productsResult.data || catalog.products).map(p => ({...p, category: (categoriesResult.data || catalog.categories).find(c => c.id === p.categoryId) || null}));
+    const settings = settingsResult.data || catalog.settings;
+    const categories = categoriesResult.data || catalog.categories;
+    return c.json({ categories, products, settings, preview: false });
+  });
   app.all('/api/preview/*', c => c.json({ error: 'Preview actions are disabled in account mode.' }, 404));
   app.use('/api/*', async (c, next) => {
     if (!isConfigured(c.env)) return c.json({ error: 'Supabase account services need to be configured.' }, 503);
@@ -223,20 +238,59 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     return c.json({ ok: true });
   });
 
+  app.get('/api/admin/categories', async c => {
+    const { data, error } = await c.get('db').from('categories').select('*').order('created_at', { ascending: true });
+    return error ? c.json({ error: error.message }, 500) : c.json(data);
+  });
+  
+  app.post('/api/admin/categories', async c => {
+    if (!['owner', 'administrator', 'product_manager'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
+    const input = await c.req.json();
+    const { error } = await c.get('db').rpc('admin_upsert_category', { p_id: input.id || null, p_slug: input.slug, p_name: input.name });
+    return error ? c.json({ error: error.message }, 400) : c.json({ ok: true });
+  });
+  
+  app.delete('/api/admin/categories/:id', async c => {
+    if (!['owner', 'administrator', 'product_manager'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
+    const { error } = await c.get('db').rpc('admin_delete_category', { p_id: c.req.param('id') });
+    return error ? c.json({ error: error.message }, 400) : c.json({ ok: true });
+  });
+
   app.get('/api/admin/products', async c => {
     if (!['owner', 'administrator', 'product_manager'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
     const { data, error } = await c.get('db').rpc('admin_list_products');
     return error ? c.json({ error: 'Products could not be loaded: ' + error.message }, 503) : c.json(data);
   });
 
+  app.post('/api/admin/upload', async c => {
+    if (!['owner', 'administrator', 'product_manager'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
+    try {
+      const body = await c.req.parseBody();
+      const file = body['file'];
+      if (!file || typeof file === 'string') return c.json({ error: 'No file uploaded.' }, 400);
+      
+      const ext = file.name.split('.').pop();
+      const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`;
+      const { error } = await factory(c).storage.from('product-assets').upload(fileName, file as any, { contentType: file.type });
+      if (error) return c.json({ error: error.message }, 500);
+      
+      const { data } = factory(c).storage.from('product-assets').getPublicUrl(fileName);
+      return c.json({ url: data.publicUrl });
+    } catch (e: any) {
+      return c.json({ error: 'Upload failed: ' + e.message }, 500);
+    }
+  });
+
   app.post('/api/admin/products', async c => {
     if (!['owner', 'administrator', 'product_manager'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
     const input = await c.req.json();
     const { error } = await c.get('db').rpc('admin_upsert_product', {
-      p_id: input.id || null, p_slug: input.slug, p_name: input.name, p_category: input.category,
+      p_id: input.id || null, p_slug: input.slug, p_name: input.name, p_category_id: input.categoryId,
       p_tagline: input.tagline, p_description: input.description, p_price_label: input.price,
-      p_status: input.status, p_icon: input.icon, p_color: input.color, p_features: input.features || [],
-      p_version: input.version, p_requirements: input.requirements, p_release_status: input.releaseStatus
+      p_status: input.status, p_logo_url: input.logoUrl || null, p_features: input.features || [],
+      p_version: input.version, p_requirements: input.requirements, p_release_status: input.releaseStatus,
+      p_workflow_heading: input.workflowHeading || 'Built for your workflow.', p_workflow_description: input.workflowDescription || '',
+      p_workflow_media_url: input.workflowMediaUrl || null, p_workflow_note: input.workflowNote || ''
     });
     return error ? c.json({ error: 'Product could not be saved. ' + error.message }, 400) : c.json({ ok: true });
   });
@@ -248,7 +302,13 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
 
   app.get('/api/admin/settings', async c => {
     const { data, error } = await c.get('db').rpc('get_site_settings');
-    return error ? c.json({ error: 'Settings could not be loaded.' }, 503) : c.json({ settings: data });
+    const system = {
+      supabase: !!c.env.SUPABASE_URL && !!c.env.SUPABASE_ANON_KEY,
+      resend: !!c.env.RESEND_API_KEY,
+      github: !!c.env.GITHUB_PAT && !!c.env.GITHUB_REPO_OWNER && !!c.env.GITHUB_REPO_NAME,
+      razorpay: !!c.env.RAZORPAY_KEY_ID && !!c.env.RAZORPAY_KEY_SECRET
+    };
+    return error ? c.json({ error: 'Settings could not be loaded.' }, 503) : c.json({ settings: data, system });
   });
 
   app.patch('/api/admin/content', async c => {

@@ -1,22 +1,16 @@
-export type Role = 'owner' | 'administrator' | 'product_manager' | 'support' | 'customer';
-export type Category = { id: string; slug: string; name: string; createdAt?: string };
-export type Product = { id: string; slug: string; name: string; categoryId: string; category?: Category; tagline: string; description: string; price: string; status: 'draft' | 'published' | 'archived'; releaseStatus: 'development' | 'prelaunch' | 'live'; logoUrl: string | null; features: string[]; version: string; requirements: string; workflowHeading: string; workflowDescription: string; workflowMediaUrl: string | null; workflowNote: string; updatedAt?: string };
-export type User = { id: string; name: string; email: string; role: Role; status: 'active' | 'suspended'; createdAt: string; lastLogin: string | null };
-export type License = { id: string; userId: string; productId: string; status: 'active' | 'revoked'; keyHash: string; encryptedKey: string; suffix: string; createdAt: string; device: string | null; expiresAt: string | null };
-export type Order = { id: string; userId: string; productId: string; status: 'simulated' | 'refunded'; amount: string; createdAt: string; licenseId: string };
-export type Audit = { id: string; actor: string; action: string; target: string; createdAt: string };
-export type Ticket = { id: string; userId: string; subject: string; message: string; status: 'open' | 'closed'; createdAt: string };
-export type Invite = { id: string; email: string; role: Role; status: 'pending' | 'revoked'; createdAt: string };
-export type Settings = { name: string; headline: string; description: string; email: string; company: string; domain: string };
-export type Store = { categories: Category[]; products: Product[]; users: User[]; licenses: License[]; orders: Order[]; audit: Audit[]; tickets: Ticket[]; invitations: Invite[]; settings: Settings; emails: { id: string; userId: string; orderId: string; status: string; createdAt: string }[] };
-export const settings: Settings = { name: 'NORVI', headline: 'Less busywork.\nMore possibility.', description: 'Make room for the work that matters. Discover AI agents built to take everyday tasks off your hands.', email: 'email_Support', company: 'name_Company', domain: 'domain_Website' };
-export const categories: Category[] = [
+const fs = require('fs');
+
+let content = fs.readFileSync('e:/Agency/packages/shared/model.ts', 'utf-8');
+content = content.replace(
+  `export type Store = { products: Product[]; users: User[]; licenses: License[]; orders: Order[]; audit: Audit[]; tickets: Ticket[]; invitations: Invite[]; settings: Settings; emails: { id: string; userId: string; orderId: string; status: string; createdAt: string }[] };`,
+  `export type Store = { categories: Category[]; products: Product[]; users: User[]; licenses: License[]; orders: Order[]; audit: Audit[]; tickets: Ticket[]; invitations: Invite[]; settings: Settings; emails: { id: string; userId: string; orderId: string; status: string; createdAt: string }[] };`
+);
+
+content = content.replace(/export const products: Product\[\] = \[[\s\S]*?\];/, `export const categories: Category[] = [
   { id: 'cat-1', slug: 'desktop-automation', name: 'Desktop automation' },
   { id: 'cat-2', slug: 'interview-assistance', name: 'Interview assistance' },
   { id: 'cat-3', slug: 'job-search-automation', name: 'Job-search automation' }
 ];
-
-
 
 export const products: Product[] = [
   {
@@ -96,15 +90,8 @@ export const products: Product[] = [
     workflowNote: "",
     updatedAt: "2026-09-23"
   }
-];
-export function seed(): Store {
-  const date = '2026-09-22T09:00:00.000Z';
-  return { categories: structuredClone(categories), products: structuredClone(products), settings: { ...settings }, users: [
-    { id: 'preview-owner', name: 'name_Owner', email: 'owner@example.invalid', role: 'owner', status: 'active', createdAt: date, lastLogin: null },
-    { id: 'preview-customer', name: 'name_Customer', email: 'customer@example.invalid', role: 'customer', status: 'active', createdAt: date, lastLogin: null },
-    { id: 'preview-nonbuyer', name: 'name_Visitor', email: 'visitor@example.invalid', role: 'customer', status: 'active', createdAt: date, lastLogin: date },
-    { id: 'preview-support', name: 'name_Support', email: 'support@example.invalid', role: 'support', status: 'active', createdAt: date, lastLogin: null },
-    { id: 'preview-product', name: 'name_Editor', email: 'editor@example.invalid', role: 'product_manager', status: 'active', createdAt: date, lastLogin: null },
-  ], licenses: [], orders: [], audit: [], tickets: [], invitations: [], emails: [] };
-}
-export const routes = ['', 'agents', 'agents/agent-1', 'agents/agent-2', 'agents/agent-3', 'pricing', 'about', 'contact', 'help', 'privacy', 'terms', 'refunds', 'license', 'register', 'login', 'verify-email', 'reset-password', 'update-password', 'auth/confirm', 'account/security', 'onboarding', 'account', 'account/agents', 'account/licenses', 'account/billing', 'account/settings', 'account/support', 'checkout/agent-1', 'checkout/agent-2', 'checkout/agent-3', 'orders', 'admin', 'admin/login', 'admin/customers', 'admin/licenses', 'admin/orders', 'admin/subscriptions', 'admin/products', 'admin/activity', 'admin/settings', 'admin/team', 'admin/content'];
+];`);
+
+content = content.replace(`return { products: structuredClone(products)`, `return { categories: structuredClone(categories), products: structuredClone(products)`);
+
+fs.writeFileSync('e:/Agency/packages/shared/model.ts', content);
