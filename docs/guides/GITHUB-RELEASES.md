@@ -23,13 +23,21 @@ The Norvi API finds the correct file by looking at the **Product Slug** in your 
 
 If your product is named "Voro Agent" and its slug in the database is `voro-agent`, the file uploaded to GitHub **must contain `voro-agent` in the file name** and must end in `.exe` or `.zip`.
 
-**✅ Valid File Names:**
-* `voro-agent-setup.exe`
-* `voro-agent-v1.0.zip`
-* `Voro-Agent_mac.zip`
+**✅ Valid File Names (for Voro):**
+* `voro-setup.exe`
+* `voro-v1.0.zip`
+* `voro_mac.zip`
 
-**❌ Invalid File Names:**
-* `voro_setup.exe` (Missing the exact slug `voro-agent`)
+**✅ Valid File Names (for Omnix):**
+* `omnix-setup.exe`
+* `omnix-v2.0.zip`
+
+**✅ Valid File Names (for Rolvio):**
+* `rolvio-setup.exe`
+* `rolvio-v1.5.zip`
+
+**❌ Invalid File Names (for Voro):**
+* `setup.exe` (Missing the exact slug `voro`)
 * `voro-agent.dmg` (Currently the API only looks for `.exe` and `.zip`. If you need `.dmg`, we can add it to the code).
 
 ## How it works behind the scenes

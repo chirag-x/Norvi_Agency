@@ -8,12 +8,17 @@ import { createClient } from '@supabase/supabase-js';
 import { z } from 'zod';
 import catalog from '../../packages/shared/catalog.json';
 
-export type LiveEnv = { APP_ORIGIN?: string; SUPABASE_URL?: string; SUPABASE_ANON_KEY?: string; SUPABASE_SERVICE_ROLE_KEY?: string; AUTH_RATE_LIMITER?: { limit: (input: { key: string }) => Promise<{ success: boolean }> }; RAZORPAY_KEY_ID?: string; RAZORPAY_KEY_SECRET?: string; RESEND_API_KEY?: string; CRON_SECRET?: string; EMAIL_FROM?: string; GITHUB_PAT?: string; GITHUB_REPO_OWNER?: string; GITHUB_REPO_NAME?: string; };
+export type LiveEnv = { APP_ORIGIN?: string; SUPABASE_URL?: string; SUPABASE_ANON_KEY?: string; SUPABASE_SERVICE_ROLE_KEY?: string; AUTH_RATE_LIMITER?: { limit: (input: { key: string }) => Promise<{ success: boolean }> }; RAZORPAY_KEY_ID?: string; RAZORPAY_KEY_SECRET?: string; RESEND_API_KEY?: string; CRON_SECRET?: string; EMAIL_FROM?: string; GITHUB_PAT?: string; GITHUB_REPO_OWNER?: string; GITHUB_REPO_NAME?: string; DISCORD_SALES_WEBHOOK?: string; DISCORD_DOWNLOADS_WEBHOOK?: string; DISCORD_SECURITY_WEBHOOK?: string; };
 type Identity = { id: string; email: string; name: string; role: string; status: string; createdAt: string; lastLogin: string | null };
 type AppEnv = { Bindings: LiveEnv; Variables: { db: SupabaseClient; user: Identity; mfaRequired: boolean } };
 type Factory = (c: Context<AppEnv>) => SupabaseClient;
 const credentials = z.object({ email: z.string().trim().email().max(254), password: z.string().min(1).max(128) });
 const password = z.string().min(12, 'Use at least 12 characters.').max(128);
+
+async function sendDiscordLog(webhookUrl: string | undefined, content: string) {
+  if (!webhookUrl) return;
+  try { await fetch(webhookUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content }) }); } catch (e) { console.error('Discord log failed', e); }
+}
 const email = z.object({ email: z.string().trim().email().max(254) });
 export function isConfigured(env: LiveEnv) {
   try { const origin = new URL(env.APP_ORIGIN || ''); const provider = new URL(env.SUPABASE_URL || '');
@@ -136,8 +141,10 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     const hashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(input.key));
     const hashHex = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
     const { data, error } = await c.get('db').rpc('activate_agent_license', { p_key_hash: hashHex, p_product_id: input.productId, p_device_id: input.deviceId });
-    if (error) return c.json({ error: 'Activation could not be authorized.' }, 403);
-    if (data.error) return c.json({ error: data.error }, 403);
+    if (error || data.error) {
+      c.executionCtx.waitUntil(sendDiscordLog(c.env.DISCORD_SECURITY_WEBHOOK, `🚨 **[Security Alert: Failed Activation]**\n**Reason:** ${error?.message || data.error}\n**Product ID:** ${input.productId}\n**Device ID:** ${input.deviceId}`));
+      return c.json({ error: error?.message || data.error || 'Activation could not be authorized.' }, 403);
+    }
 
     const now = Math.floor(Date.now() / 1000);
     const leaseExp = now + (7 * 24 * 60 * 60); // 7-day offline grace period
@@ -292,6 +299,7 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     if (!['owner', 'administrator'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
     const input = await c.req.json();
     const { error } = await c.get('db').rpc('admin_set_license_status', { p_license_id: c.req.param('id'), p_status: 'revoked', p_reason: input.reason || 'Manual revocation' });
+    if (!error) c.executionCtx.waitUntil(sendDiscordLog(c.env.DISCORD_SECURITY_WEBHOOK, `🔒 **[Security Alert: License Revoked]**\n**License ID:** ${c.req.param('id')}\n**Admin:** ${c.get('user').email}\n**Reason:** ${input.reason || 'Manual revocation'}`));
     return error ? c.json({ error: 'License could not be revoked.' }, 400) : c.json({ ok: true });
   });
 
@@ -309,6 +317,7 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     if (error || (res && res.error)) return c.json({ error: error?.message || res.error }, 500);
     
     await c.get('db').rpc('admin_set_license_status', { p_license_id: c.req.param('id'), p_status: 'active', p_reason: input.reason || 'Key rotation' });
+    c.executionCtx.waitUntil(sendDiscordLog(c.env.DISCORD_SECURITY_WEBHOOK, `🔄 **[Security Alert: Key Rotated]**\n**License ID:** ${c.req.param('id')}\n**Admin:** ${c.get('user').email}\n**Reason:** ${input.reason || 'Key rotation'}`));
     return c.json({ ok: true, version: res.version });
   });
 
@@ -455,7 +464,10 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     // Fetch license status and join with products to get the slug for the file name
     const { data: license, error } = await db.from('licenses').select('status, products(slug)').eq('id', id).single();
     if (error || !license) return c.json({ error: 'License not found.' }, 404);
-    if (license.status !== 'active') return c.json({ error: 'This license is revoked or inactive.' }, 403);
+    if (license.status !== 'active') {
+      c.executionCtx.waitUntil(sendDiscordLog(c.env.DISCORD_SECURITY_WEBHOOK, `🚨 **[Security Alert: Blocked Download]**\n**User:** ${c.get('user').email}\n**Reason:** License is ${license.status}\n**Product:** ${license.products?.slug}`));
+      return c.json({ error: 'This license is revoked or inactive.' }, 403);
+    }
     
     const slug = (license.products as any)?.slug;
     if (!slug) return c.json({ error: 'Product information missing.' }, 500);
@@ -502,7 +514,10 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
       // 4. Extract the direct S3 URL from the Location header
       if (assetRes.status === 302 || assetRes.status === 301) {
         const downloadUrl = assetRes.headers.get('location');
-        if (downloadUrl) return c.json({ url: downloadUrl });
+        if (downloadUrl) {
+          c.executionCtx.waitUntil(sendDiscordLog(c.env.DISCORD_DOWNLOADS_WEBHOOK, `⬇️ **[Agent Download]**\n**User:** ${c.get('user').email}\n**Product:** ${slug}\n**License ID:** ${id}`));
+          return c.json({ url: downloadUrl });
+        }
       }
       
       throw new Error('Failed to retrieve direct download link.');
@@ -618,11 +633,14 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
         // Find our internal order ID
         const { data: internalOrder } = await adminDb.from('orders').select('id').eq('provider_order_id', rzpOrderId).single();
         if (internalOrder) {
-          await adminDb.rpc('process_payment_webhook', {
+          const { data: res, error } = await adminDb.rpc('process_payment_webhook', {
             p_order_id: internalOrder.id,
             p_payment_id: payment.id,
             p_encryption_secret: c.env.CRON_SECRET!
           });
+          if (!error && res && res.ok) {
+            c.executionCtx.waitUntil(sendDiscordLog(c.env.DISCORD_SALES_WEBHOOK, `🎉 **[New Sale (Razorpay)]**\n**Order ID:** ${internalOrder.id}\n**Payment ID:** ${payment.id}\nLicense generated successfully.`));
+          }
         }
       }
       return c.json({ ok: true });
@@ -635,8 +653,9 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
   app.post('/api/internal/mock-webhook', async c => {
     const { order_id, payment_id } = await c.req.json();
     const adminDb = createClient(c.env.SUPABASE_URL!, c.env.SUPABASE_SERVICE_ROLE_KEY!);
-    const { error } = await adminDb.rpc('process_payment_webhook', { p_order_id: order_id, p_payment_id: payment_id, p_encryption_secret: c.env.CRON_SECRET! });
-    if (error) return c.json({ error: error.message }, 500);
+    const { data: res, error } = await adminDb.rpc('process_payment_webhook', { p_order_id: order_id, p_payment_id: payment_id, p_encryption_secret: c.env.CRON_SECRET! });
+    if (error || (res && res.error)) return c.json({ error: error?.message || res.error }, 500);
+    c.executionCtx.waitUntil(sendDiscordLog(c.env.DISCORD_SALES_WEBHOOK, `🎉 **[New Sale]**\n**Order ID:** ${order_id}\n**Payment ID:** ${payment_id}\nLicense generated successfully.`));
     return c.json({ ok: true });
   });
 
