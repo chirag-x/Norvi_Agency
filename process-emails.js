@@ -1,11 +1,11 @@
 async function run() {
   console.log("Triggering Outbox Email Processor...");
   try {
-    const res = await fetch('http://127.0.0.1:4321/api/internal/process-outbox', {
+    const res = await fetch('https://nor-vi.in/api/internal/process-outbox', {
       method: 'POST',
       headers: {
         'Authorization': 'Bearer local-cron-secret-123',
-        'Origin': 'http://127.0.0.1:4321'
+        'Origin': 'https://nor-vi.in'
       }
     });
     
