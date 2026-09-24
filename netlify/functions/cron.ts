@@ -2,7 +2,7 @@ import type { Config } from '@netlify/functions';
 
 export default async function handler(request: Request) {
   // Use the Netlify provided URL or fallback to the APP_ORIGIN
-  const baseUrl = process.env.URL || process.env.APP_ORIGIN;
+  const baseUrl = process.env.APP_ORIGIN || process.env.URL;
   
   if (!baseUrl) {
     console.error('Missing APP_ORIGIN or URL for cron job.');
