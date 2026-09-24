@@ -1,13 +1,13 @@
 # Phase 4 - Complete License and Agent Security
 
-**Status:** Pending
+**Status:** Completed
 
-## Plan:
-- Design one consistent license-key format.
-- Hash keys consistently.
-- Encrypt recoverable keys with a dedicated server encryption key.
-- Make issue, rotate, revoke, and restore operations transactional.
-- Build owner and customer key-reveal endpoints.
-- Return short-lived signed activation leases to agents.
-- Include product, license, device, version, and expiry claims in the lease.
-- Define offline behavior and grace periods.
+## Completed Work:
+- [x] Designed one consistent license-key format (`NORVI-XXXX-XXXX-XXXX-XXXX`).
+- [x] Hashed keys consistently using `SHA-256` for fast lookups.
+- [x] Encrypt recoverable keys with a dedicated server encryption key (`pgcrypto` via `pgp_sym_encrypt` and `pgp_sym_decrypt` using `CRON_SECRET` as the master key).
+- [x] Made issue, rotate, revoke, and restore operations transactional via Secure Database RPCs (`process_payment_webhook`, `rotate_license_key`).
+- [x] Built owner and customer key-reveal endpoints (`reveal_license_key`).
+- [x] Return short-lived signed activation leases (JWTs) to agents via `/api/agent/activate`.
+- [x] Include product, license, device, version, and expiry claims in the JWT lease.
+- [x] Defined offline behavior and grace periods (Agents receive a 7-day offline JWT lease).
