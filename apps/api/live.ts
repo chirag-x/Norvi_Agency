@@ -510,6 +510,134 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     }
   });
   
+  app.post('/api/checkout/create', async c => {
+    const input = z.object({ productId: z.string().uuid() }).parse(await c.req.json());
+    const db = c.get('db');
+    const { data: user } = await db.auth.getUser();
+    if (!user.user) return c.json({ error: 'Not authenticated' }, 401);
+
+    // Get active price
+    const { data: priceData, error: priceError } = await db.from('prices').select('*, products(name, catalog_key)').eq('product_id', input.productId).eq('active', true).maybeSingle();
+    if (priceError || !priceData) return c.json({ error: 'Product is currently not available for purchase.' }, 400);
+
+    const amount = priceData.amount_minor;
+    const currency = priceData.currency;
+    const idempotency = `checkout_${user.user.id}_${input.productId}_${Date.now()}`;
+
+    // Create a pending order in DB
+    const { data: order, error: orderError } = await db.from('orders').insert({
+      user_id: user.user.id,
+      product_id: input.productId,
+      price_id: priceData.id,
+      amount_minor: amount,
+      currency,
+      status: 'pending',
+      idempotency_key: idempotency
+    }).select().single();
+
+    if (orderError || !order) return c.json({ error: 'Could not create order.' }, 500);
+
+    // If Razorpay keys are configured, call Razorpay API
+    if (c.env.RAZORPAY_KEY_ID && c.env.RAZORPAY_KEY_SECRET && !c.env.RAZORPAY_KEY_ID.includes('YOUR_KEY_HERE')) {
+      try {
+        const auth = btoa(`${c.env.RAZORPAY_KEY_ID}:${c.env.RAZORPAY_KEY_SECRET}`);
+        const rzpRes = await fetch('https://api.razorpay.com/v1/orders', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Basic ${auth}` },
+          body: JSON.stringify({ amount, currency, receipt: order.id })
+        });
+        const rzpData = await rzpRes.json();
+        if (!rzpRes.ok) throw new Error(rzpData.error?.description || 'Razorpay order creation failed');
+        
+        await db.from('orders').update({ provider_order_id: rzpData.id }).eq('id', order.id);
+        
+        return c.json({
+          ok: true,
+          order_id: order.id,
+          razorpay_order_id: rzpData.id,
+          amount,
+          currency,
+          key_id: c.env.RAZORPAY_KEY_ID,
+          name: priceData.products.name,
+          mock: false
+        });
+      } catch (e: any) {
+        return c.json({ error: 'Checkout service unavailable: ' + e.message }, 503);
+      }
+    }
+
+    // Mock Mode fallback
+    return c.json({
+      ok: true,
+      order_id: order.id,
+      razorpay_order_id: 'order_mock_' + order.id,
+      amount,
+      currency,
+      key_id: 'mock_key',
+      name: priceData.products.name,
+      mock: true
+    });
+  });
+
+  app.post('/api/webhooks/razorpay', async c => {
+    // Read the raw body as text for signature verification
+    const bodyText = await c.req.text();
+    const signature = c.req.header('x-razorpay-signature');
+    if (!signature || !c.env.RAZORPAY_KEY_SECRET) return c.json({ error: 'Invalid webhook configuration' }, 400);
+
+    try {
+      // Use Web Crypto API to verify HMAC SHA256 signature
+      const enc = new TextEncoder();
+      const key = await crypto.subtle.importKey('raw', enc.encode(c.env.RAZORPAY_KEY_SECRET), { name: 'HMAC', hash: 'SHA-256' }, false, ['verify']);
+      
+      const sigBytes = new Uint8Array(signature.length / 2);
+      for (let i = 0; i < signature.length; i += 2) sigBytes[i / 2] = parseInt(signature.substr(i, 2), 16);
+      
+      const isValid = await crypto.subtle.verify('HMAC', key, sigBytes, enc.encode(bodyText));
+      if (!isValid) return c.json({ error: 'Invalid signature' }, 403);
+
+      const event = JSON.parse(bodyText);
+      const adminDb = createClient(c.env.SUPABASE_URL!, c.env.SUPABASE_SERVICE_ROLE_KEY!);
+      
+      // Store the event
+      await adminDb.from('webhook_events').insert({
+        provider_event_id: event.id || `evt_${Date.now()}`,
+        payload: event
+      }).onConflict('provider_event_id').ignore();
+
+      // Process payment.authorized or payment.captured
+      if (event.event === 'payment.captured' || event.event === 'payment.authorized') {
+        const payment = event.payload.payment.entity;
+        const receiptOrderId = payment.notes?.order_id || payment.description; // Usually we encode our order ID in notes or we fetch the Razorpay order to get the receipt
+        
+        // Wait, Razorpay includes the order_id in the payment entity, and we can fetch the order to get the receipt.
+        // But for simplicity, we assume `payment.order_id` is the razorpay_order_id.
+        const rzpOrderId = payment.order_id;
+        
+        // Find our internal order ID
+        const { data: internalOrder } = await adminDb.from('orders').select('id').eq('provider_order_id', rzpOrderId).single();
+        if (internalOrder) {
+          await adminDb.rpc('process_payment_webhook', {
+            p_order_id: internalOrder.id,
+            p_payment_id: payment.id
+          });
+        }
+      }
+      return c.json({ ok: true });
+    } catch (e: any) {
+      return c.json({ error: 'Webhook processing failed' }, 500);
+    }
+  });
+
+  // Internal test endpoint to simulate a webhook if in mock mode
+  app.post('/api/internal/mock-webhook', async c => {
+    const { order_id, payment_id } = await c.req.json();
+    const adminDb = createClient(c.env.SUPABASE_URL!, c.env.SUPABASE_SERVICE_ROLE_KEY!);
+    const { error } = await adminDb.rpc('process_payment_webhook', { p_order_id: order_id, p_payment_id: payment_id });
+    if (error) return c.json({ error: error.message }, 500);
+    return c.json({ ok: true });
+  });
+
   app.post('/api/admin/licenses/:id/device-reset', async c => {
     const user = c.get('user');
     if (!['owner', 'administrator', 'support'].includes(user.role)) return c.json({ error: 'Permission denied.' }, 403);

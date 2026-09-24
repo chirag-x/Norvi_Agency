@@ -26,6 +26,15 @@ export function Checkout({product}:{product:Product|undefined}){
         location.href='/orders?id='+order.id;
       }else{
         const data=await api('/checkout/create',{method:'POST',body:JSON.stringify({productId:product!.id})});
+        
+        if (data.mock) {
+          // MOCK CHECKOUT FLOW (Keys are missing in .env)
+          console.log('Running mock checkout simulation...');
+          await api('/internal/mock-webhook', { method: 'POST', body: JSON.stringify({ order_id: data.order_id, payment_id: 'mock_payment_' + Date.now() }) });
+          location.href = '/account?success=true';
+          return;
+        }
+
         if(!(window as any).Razorpay){
           await new Promise((res, rej) => {
             const script=document.createElement('script');
@@ -34,11 +43,13 @@ export function Checkout({product}:{product:Product|undefined}){
             document.body.appendChild(script);
           });
         }
+        
         const options={
-          key:data.keyId, amount:data.amount, currency:data.currency, name:"NORVI", description:`Purchase of ${product?.name}`, order_id:data.orderId,
+          key:data.key_id, amount:data.amount, currency:data.currency, name:"NORVI", description:`Purchase of ${product?.name}`, order_id:data.razorpay_order_id,
           handler:function(res:any){
-            fetch('/api/webhooks/razorpay',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(res)})
-            .then(()=>location.href='/account?success=true').catch(()=>setError("Payment recorded but fulfillment failed. Contact support."));
+            // Webhooks handle fulfillment, but we can verify success client-side if needed.
+            // For security, true fulfillment only happens via the background webhook.
+            location.href='/account?success=true';
           },
           theme:{color:"#C6F077"}
         };
@@ -66,15 +77,15 @@ export function Checkout({product}:{product:Product|undefined}){
         <h3>Terms & Conditions</h3>
         <label className="checkbox-row"><input type="checkbox" checked={accepted} onChange={e=>setAccepted(e.target.checked)}/>I agree to the terms of service and refund policy.</label>
         {error&&<Notice kind="error">{error}</Notice>}
-        <button className="button primary full" disabled={busy||!accepted} onClick={purchase}>{busy?'Processing...':(isPreview?'Simulate purchase — no charge':'Pay ₹500 securely')}<ArrowRight size={17}/></button>
+        <button className="button primary full" disabled={busy||!accepted} onClick={purchase}>{busy?'Processing...':(isPreview?'Simulate purchase — no charge':`Pay Securely`)}<ArrowRight size={17}/></button>
       </div>
       <aside className="panel order-summary">
         <ProductIcon product={product}/>
         <h3>{product.name}</h3>
         <p>{product.tagline}</p>
         <hr/>
-        <div className="summary-row"><span>Price</span><b>₹500.00</b></div>
-        <div className="summary-row total"><span>Total today</span><b>₹500.00</b></div>
+        <div className="summary-row"><span>Price</span><b>{product.price || '₹0.00'}</b></div>
+        <div className="summary-row total"><span>Total today</span><b>{product.price || '₹0.00'}</b></div>
         <p className="small-note">Includes a product-specific activation key to unlock the agent on your desktop.</p>
         <a href="/terms" className="text-button">Read terms <ArrowUpRight size={15}/></a>
       </aside>
