@@ -1,6 +1,7 @@
 import { Hono, type Context } from 'hono';
 import { getCookie, setCookie } from 'hono/cookie';
 import { bodyLimit } from 'hono/body-limit';
+import { sign } from 'hono/jwt';
 import { createServerClient } from '@supabase/ssr';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { createClient } from '@supabase/supabase-js';
@@ -137,7 +138,20 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     const { data, error } = await c.get('db').rpc('activate_agent_license', { p_key_hash: hashHex, p_product_id: input.productId, p_device_id: input.deviceId });
     if (error) return c.json({ error: 'Activation could not be authorized.' }, 403);
     if (data.error) return c.json({ error: data.error }, 403);
-    return c.json(data);
+
+    const now = Math.floor(Date.now() / 1000);
+    const leaseExp = now + (7 * 24 * 60 * 60); // 7-day offline grace period
+    const jwt = await sign({
+      sub: input.deviceId,
+      iat: now,
+      exp: leaseExp,
+      license_id: data.license_id,
+      product_id: input.productId,
+      version: data.version,
+      status: 'active'
+    }, c.env.CRON_SECRET!);
+
+    return c.json({ ok: true, lease: jwt, expires_at: new Date(leaseExp * 1000).toISOString() });
   });
   app.use('/api/*', async (c, next) => {
     if (c.req.path.startsWith('/api/internal/')) return next();
@@ -203,7 +217,7 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     // In a real system, the full key is not stored plaintext.
     // Assuming the full key was given once or we call a secure RPC to retrieve it if stored encrypted.
     // For now, let's call an RPC that returns the decrypted key or error.
-    const res = await c.get('db').rpc('reveal_license_key', { p_license_id: id });
+    const res = await c.get('db').rpc('reveal_license_key', { p_license_id: id, p_encryption_secret: c.env.CRON_SECRET! });
     if (res.error) return c.json({ error: res.error.message }, 403);
     return c.json({ key: res.data });
   });
@@ -291,24 +305,11 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
   app.post('/api/admin/licenses/:id/rotate', async c => {
     if (!['owner', 'administrator'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
     const input = await c.req.json();
-    // Rotate logic:
-    // Generate new key suffix and encryption
-    const secretBytes = crypto.getRandomValues(new Uint8Array(16));
-    const suffix = Array.from(secretBytes).map(b => b.toString(16).padStart(2, '0')).join('').slice(-6).toUpperCase();
-    const rawKey = `NORVI_${crypto.randomUUID().replace(/-/g, '').toUpperCase()}_${suffix}`;
-    const hashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(rawKey));
-    const keyHash = btoa(String.fromCharCode(...new Uint8Array(hashBuffer)));
-
-    // Since we don't know the user's password, we cannot securely update their vault encryption here securely.
-    // Wait, in this platform, `encrypted_key` is just a placeholder because it's a test environment without the desktop app.
-    // For now, we update `key_suffix`, `key_version` and the hash!
-    const { error: updErr } = await c.get('db').from('licenses').update({ key_suffix: suffix, key_version: 2 }).eq('id', c.req.param('id'));
-    if (updErr) return c.json({ error: 'Could not rotate key.' }, 500);
-    const { error: hashErr } = await c.get('db').from('license_secrets').update({ key_hash: keyHash, encrypted_key: 'ROTATED' }).eq('license_id', c.req.param('id'));
-    if (hashErr) return c.json({ error: 'Could not update secrets.' }, 500);
+    const { data: res, error } = await c.get('db').rpc('rotate_license_key', { p_license_id: c.req.param('id'), p_encryption_secret: c.env.CRON_SECRET! });
+    if (error || (res && res.error)) return c.json({ error: error?.message || res.error }, 500);
     
     await c.get('db').rpc('admin_set_license_status', { p_license_id: c.req.param('id'), p_status: 'active', p_reason: input.reason || 'Key rotation' });
-    return c.json({ ok: true });
+    return c.json({ ok: true, version: res.version });
   });
 
   app.get('/api/admin/categories', async c => {
@@ -619,7 +620,8 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
         if (internalOrder) {
           await adminDb.rpc('process_payment_webhook', {
             p_order_id: internalOrder.id,
-            p_payment_id: payment.id
+            p_payment_id: payment.id,
+            p_encryption_secret: c.env.CRON_SECRET!
           });
         }
       }
@@ -633,7 +635,7 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
   app.post('/api/internal/mock-webhook', async c => {
     const { order_id, payment_id } = await c.req.json();
     const adminDb = createClient(c.env.SUPABASE_URL!, c.env.SUPABASE_SERVICE_ROLE_KEY!);
-    const { error } = await adminDb.rpc('process_payment_webhook', { p_order_id: order_id, p_payment_id: payment_id });
+    const { error } = await adminDb.rpc('process_payment_webhook', { p_order_id: order_id, p_payment_id: payment_id, p_encryption_secret: c.env.CRON_SECRET! });
     if (error) return c.json({ error: error.message }, 500);
     return c.json({ ok: true });
   });
