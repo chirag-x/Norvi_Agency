@@ -75,7 +75,7 @@ begin
     from public.orders o
     join public.products p on p.id = o.product_id
     join public.profiles pr on pr.id = o.user_id
-    order by o.created_at desc
+    order by o.due_at desc
   ) o;
 
   return json_build_object('items', v_items);
@@ -107,9 +107,9 @@ begin
 
   select coalesce(json_agg(row_to_json(e)), '[]'::json) into v_emails
   from (
-    select o.id, o.kind, o.status, o.target_id, o.created_at as "createdAt"
+    select o.id, o.kind, o.record_id as target_id, case when o.completed_at is not null then 'completed' when o.attempts > 0 then 'failed' else 'pending' end as status, o.due_at as "createdAt"
     from private.outbox o
-    order by o.created_at desc
+    order by o.due_at desc
     limit 50
   ) e;
 

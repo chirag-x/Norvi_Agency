@@ -41,7 +41,7 @@ create table public.licenses (
   product_id uuid not null references public.products(id), order_id uuid not null unique,
   status text not null default 'active' check(status in ('active','revoked')),
   key_suffix text not null, key_version integer not null default 1,
-  max_devices integer not null default 1 check(max_devices between 1 and 100), expires_at timestamptz,
+  max_devices integer not null default 3 check(max_devices between 1 and 100), expires_at timestamptz,
   created_at timestamptz not null default now(),
   foreign key(order_id,user_id,product_id) references public.orders(id,user_id,product_id)
 );

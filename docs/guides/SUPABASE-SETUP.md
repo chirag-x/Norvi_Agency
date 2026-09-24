@@ -135,3 +135,31 @@ HTTPS auth mutations fail closed without that binding. Before launch, configure 
 Phase 2 implements accounts, HttpOnly cookie sessions, verification/recovery, profiles, staff identity checks, TOTP MFA, scoped account reads, support persistence, and a paginated staff customer directory. Real catalog administration, invitations, payments, signed agent leases, protected downloads, and purchase emails belong to later phases. The public catalog still comes from the approved build snapshot, not remote CMS writes.
 
 Automated SQL checks use PGlite's PostgreSQL engine with a small Auth-schema fixture. They exercise migrations and policies but cannot prove hosted Supabase configuration, SMTP, browser session rotation, or provider MFA behavior. Those remain the real-project acceptance steps above.
+
+## 8. Going Live (Netlify / Production Launch Checklist)
+
+When deploying this application to Netlify (or any public host) rather than `localhost:4321`, you **MUST** update the following settings in your Supabase Dashboard to ensure authentication and emails work correctly on the public internet:
+
+1. **Update Site URL:**
+   - Go to **Authentication** -> **URL Configuration**.
+   - Change the **Site URL** from `http://127.0.0.1:4321` to your live public domain (e.g., `https://your-agency.netlify.app` or `https://nor-vi.in`).
+   - *Why?* This ensures that when users click "Confirm Email" or "Reset Password" links in their emails, they are redirected to your live website instead of a broken localhost link.
+
+2. **Add Redirect URLs:**
+   - Under the same **URL Configuration** page, add your live domain to the **Redirect URLs** list.
+   - For safety, you should also include `http://127.0.0.1:4321/**` and `http://localhost:4321/**` so you can continue testing locally without breaking the live site.
+
+3. **Verify Email Sender (Resend / SMTP):**
+   - Go to **Authentication** -> **Providers** -> **Email**.
+   - Ensure **Custom SMTP** is enabled.
+   - The **Sender email address** must use your verified domain (e.g., `support@nor-vi.in`). *Do not use a @gmail.com address.*
+   - Toggle **Confirm email** back to **ON** (if you temporarily disabled it for local testing).
+
+4. **Update Netlify Environment Variables:**
+   - In your Netlify project settings, ensure you have set all the required `.env.local` variables, including:
+     - `NORVI_MODE=supabase`
+     - `SUPABASE_URL=...`
+     - `SUPABASE_ANON_KEY=...`
+     - `RESEND_API_KEY=...` (For backend-sent emails like receipts).
+   
+Failure to update the Site URL will result in users getting stuck on dead links when they try to register on your live platform!

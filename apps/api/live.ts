@@ -3,6 +3,7 @@ import { getCookie, setCookie } from 'hono/cookie';
 import { bodyLimit } from 'hono/body-limit';
 import { createServerClient } from '@supabase/ssr';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { createClient } from '@supabase/supabase-js';
 import { z } from 'zod';
 import catalog from '../../packages/shared/catalog.json';
 
@@ -70,7 +71,10 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
   app.post('/api/auth/register', async c => {
     const input = credentials.extend({ password, name: z.string().trim().min(2).max(80) }).parse(await c.req.json());
     const { data, error } = await c.get('db').auth.signUp({ email: input.email, password: input.password, options: { data: { name: input.name } } });
-    if (error) return c.json({ error: 'Registration could not be completed. Check your details or try again later.' }, 400);
+    if (error) {
+      console.error('Signup error:', error);
+      return c.json({ error: `Registration failed: ${error.message}` }, 400);
+    }
     if (data.session) { await c.get('db').auth.signOut(); return c.json({ error: 'Email confirmation must be enabled before registration is available.' }, 503); }
     return c.json({ message: 'If this address can be registered, check your email for a confirmation link.' });
   });
@@ -105,6 +109,25 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     const { error } = await c.get('db').auth.signOut({ scope: 'local' });
     return error ? c.json({ error: 'Sign-out could not be completed. Please retry.' }, 503) : c.json({ ok: true });
   });
+  app.delete('/api/auth/account', async c => {
+    const db = c.get('db');
+    const { data, error } = await db.auth.getUser();
+    if (error || !data.user) return c.json({ error: 'Not authenticated.' }, 401);
+    
+    // Check if staff. Don't allow staff to delete accounts via this automated path.
+    const membership = await db.from('staff_memberships').select('role').eq('user_id', data.user.id).maybeSingle();
+    if (membership.data) return c.json({ error: 'Staff accounts must be deactivated by the owner.' }, 403);
+    
+    // Supabase admin API is required to actually delete the user from auth.users.
+    // However, if we just delete the user's profile, it might cascade depending on the setup.
+    // For now, we will just call a secure RPC or use db.rpc.
+    const res = await db.rpc('delete_customer_account');
+    if (res.error) return c.json({ error: 'Account deletion failed: ' + res.error.message }, 500);
+    
+    await db.auth.signOut({ scope: 'global' });
+    return c.json({ ok: true });
+  });
+
   app.post('/api/agent/activate', async c => {
     const input = z.object({ key: z.string().max(100), productId: z.string().uuid(), deviceId: z.string().min(3).max(100) }).parse(await c.req.json());
     const hashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(input.key));
@@ -115,6 +138,7 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     return c.json(data);
   });
   app.use('/api/*', async (c, next) => {
+    if (c.req.path.startsWith('/api/internal/')) return next();
     const db = c.get('db'); const { data, error } = await db.auth.getUser();
     if (error || !data.user?.email_confirmed_at) return c.json({ error: 'Sign in with a verified account to continue.' }, 401);
     const [profile, membership, assurance] = await Promise.all([
@@ -162,9 +186,34 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
       db.from('licenses').select('id,product_id,status,key_suffix,created_at,expires_at').eq('user_id', uid),
       db.from('orders').select('id,product_id,status,amount_minor,currency,created_at').eq('user_id', uid),
       db.from('support_requests').select('id,subject,message,status,created_at').eq('user_id', uid),
+      db.from('devices').select('id,license_id,installation_id,active,last_seen_at').eq('active', true),
     ]);
     if (results.some(r => r.error)) return c.json({ error: 'Account records could not be loaded.' }, 503);
-    return c.json({ user: c.get('user'), licenses: results[0].data!.map(l => ({ ...l, productId: l.product_id, suffix: l.key_suffix, createdAt: l.created_at, expiresAt: l.expires_at })), orders: results[1].data!.map(o => ({ ...o, productId: o.product_id, createdAt: o.created_at, amount: `${o.currency} ${(o.amount_minor / 100).toFixed(2)}` })), tickets: results[2].data!.map(t => ({ ...t, createdAt: t.created_at })), emails: [], preview: false });
+    const devices = results[3].data || [];
+    return c.json({ user: c.get('user'), licenses: results[0].data!.map(l => ({ ...l, productId: l.product_id, suffix: l.key_suffix, createdAt: l.created_at, expiresAt: l.expires_at, devices: devices.filter(d => d.license_id === l.id) })), orders: results[1].data!.map(o => ({ ...o, productId: o.product_id, createdAt: o.created_at, amount: `${o.currency} ${(o.amount_minor / 100).toFixed(2)}` })), tickets: results[2].data!.map(t => ({ ...t, createdAt: t.created_at })), emails: [], preview: false });
+  });
+
+  app.post('/api/licenses/:id/reveal', async c => {
+    const id = c.req.param('id'), uid = c.get('user').id;
+    const { data: license, error } = await c.get('db').from('licenses').select('id,status').eq('id', id).eq('user_id', uid).single();
+    if (error || !license) return c.json({ error: 'License not found.' }, 404);
+    if (license.status !== 'active') return c.json({ error: 'License is revoked.' }, 403);
+    // In a real system, the full key is not stored plaintext.
+    // Assuming the full key was given once or we call a secure RPC to retrieve it if stored encrypted.
+    // For now, let's call an RPC that returns the decrypted key or error.
+    const res = await c.get('db').rpc('reveal_license_key', { p_license_id: id });
+    if (res.error) return c.json({ error: res.error.message }, 403);
+    return c.json({ key: res.data });
+  });
+
+  app.post('/api/licenses/:id/device-reset', async c => {
+    const id = c.req.param('id'), uid = c.get('user').id, deviceId = c.req.query('deviceId');
+    if (!deviceId) return c.json({ error: 'Device ID required.' }, 400);
+    const { data: license, error } = await c.get('db').from('licenses').select('id').eq('id', id).eq('user_id', uid).single();
+    if (error || !license) return c.json({ error: 'License not found.' }, 404);
+    const res = await c.get('db').from('devices').update({ active: false }).eq('id', deviceId).eq('license_id', id);
+    if (res.error) return c.json({ error: 'Could not release device.' }, 500);
+    return c.json({ ok: true });
   });
   app.post('/api/support', async c => {
     const input = z.object({ subject: z.string().trim().min(3).max(120), message: z.string().trim().min(10).max(3000) }).parse(await c.req.json());
@@ -183,6 +232,28 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     return error ? c.json({ error: 'Stats could not be loaded.' }, 503) : c.json(data);
   });
 
+  app.get('/api/admin/team', async c => {
+    if (!['owner', 'administrator'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
+    const { data, error } = await c.get('db').rpc('list_team');
+    return error ? c.json({ error: 'Team could not be loaded.' }, 503) : c.json(data);
+  });
+
+  app.post('/api/admin/team/invite', async c => {
+    if (c.get('user').role !== 'owner') return c.json({ error: 'Only owners can invite staff.' }, 403);
+    const input = await c.req.json();
+    const { error } = await c.get('db').rpc('invite_staff_member', { invite_email: input.email, invite_role: input.role });
+    return error ? c.json({ error: 'Failed to send invite: ' + error.message }, 400) : c.json({ ok: true });
+  });
+
+  app.post('/api/admin/team/:id/suspend', async c => {
+    if (c.get('user').role !== 'owner') return c.json({ error: 'Only owners can suspend staff.' }, 403);
+    // Note: To properly toggle, we would need to check current status. For simplicity, we just toggle.
+    const { data: member } = await c.get('db').from('staff_memberships').select('active').eq('user_id', c.req.param('id')).single();
+    if (!member) return c.json({ error: 'Staff member not found.' }, 404);
+    const { error } = await c.get('db').rpc('modify_staff_status', { p_user_id: c.req.param('id'), p_active: !member.active });
+    return error ? c.json({ error: 'Could not suspend staff.' }, 500) : c.json({ ok: true });
+  });
+
   app.get('/api/admin/licenses', async c => {
     if (!['owner', 'administrator', 'support'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
     const { data, error } = await c.get('db').rpc('admin_list_licenses');
@@ -198,7 +269,7 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
   app.get('/api/admin/activity', async c => {
     if (!['owner', 'administrator', 'support'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
     const { data, error } = await c.get('db').rpc('admin_list_activity');
-    return error ? c.json({ error: 'Activity could not be loaded.' }, 503) : c.json(data);
+    return error ? c.json({ error: 'Activity could not be loaded: ' + error.message }, 503) : c.json(data);
   });
 
   app.post('/api/admin/licenses/:id/revoke', async c => {
@@ -303,10 +374,10 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
   app.get('/api/admin/settings', async c => {
     const { data, error } = await c.get('db').rpc('get_site_settings');
     const system = {
-      supabase: !!c.env.SUPABASE_URL && !!c.env.SUPABASE_ANON_KEY,
-      resend: !!c.env.RESEND_API_KEY,
-      github: !!c.env.GITHUB_PAT && !!c.env.GITHUB_REPO_OWNER && !!c.env.GITHUB_REPO_NAME,
-      razorpay: !!c.env.RAZORPAY_KEY_ID && !!c.env.RAZORPAY_KEY_SECRET
+      supabase: !!c.env.SUPABASE_URL && !!c.env.SUPABASE_ANON_KEY && !c.env.SUPABASE_URL.includes('your-project'),
+      resend: !!c.env.RESEND_API_KEY && !c.env.RESEND_API_KEY.includes('YOUR_API_KEY'),
+      github: !!c.env.GITHUB_PAT && !!c.env.GITHUB_REPO_OWNER && !!c.env.GITHUB_REPO_NAME && !c.env.GITHUB_PAT.includes('YOUR_'),
+      razorpay: !!c.env.RAZORPAY_KEY_ID && !!c.env.RAZORPAY_KEY_SECRET && !c.env.RAZORPAY_KEY_ID.includes('YOUR_KEY_HERE') && !c.env.RAZORPAY_KEY_SECRET.includes('YOUR_SECRET')
     };
     return error ? c.json({ error: 'Settings could not be loaded.' }, 503) : c.json({ settings: data, system });
   });
@@ -334,7 +405,7 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
   app.get('/api/admin/team', async c => {
     if (!['owner', 'administrator'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
     const { data, error } = await c.get('db').rpc('list_team');
-    return error ? c.json({ error: 'Team could not be loaded.' }, 503) : c.json(data);
+    return error ? c.json({ error: 'Team could not be loaded: ' + error.message }, 503) : c.json(data);
   });
   
   app.post('/api/admin/team/invite', async c => {
@@ -454,13 +525,14 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
       return c.json({ error: 'Missing configuration (Service Role or Resend Key).' }, 500);
     }
 
-    // Import pure Supabase client to bypass RLS and act as admin
-    const { createClient } = await import('@supabase/supabase-js');
+    // Use statically imported createClient to bypass RLS and act as admin
     const adminDb = createClient(c.env.SUPABASE_URL!, c.env.SUPABASE_SERVICE_ROLE_KEY!);
     
-    // 1. Atomically claim up to 10 outbox tasks
     const { data: tasks, error: claimError } = await adminDb.rpc('claim_outbox_tasks', { p_limit: 10 });
-    if (claimError) return c.json({ error: 'Failed to claim tasks.' }, 500);
+    if (claimError) {
+      console.error('Claim tasks error:', claimError);
+      return c.json({ error: 'Failed to claim tasks.', details: claimError.message }, 500);
+    }
     if (!tasks || tasks.length === 0) return c.json({ ok: true, processed: 0 });
 
     let processed = 0;
@@ -481,7 +553,7 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
               <h1 style="font-size: 24px; font-weight: 600;">You've been invited to Norvi</h1>
               <p>You have been invited to join the Norvi team as a <b>${invite.role.replace('_', ' ')}</b>.</p>
               <p>To accept this invitation, simply click the button below and register an account using this exact email address (${invite.email}).</p>
-              <a href="https://norvi.com/register" style="display: inline-block; background: #c5f042; color: #000; padding: 12px 24px; text-decoration: none; font-weight: 600; border-radius: 4px; margin-top: 10px;">Accept Invitation</a>
+              <a href="${c.env.APP_ORIGIN}/register" style="display: inline-block; background: #c5f042; color: #000; padding: 12px 24px; text-decoration: none; font-weight: 600; border-radius: 4px; margin-top: 10px;">Accept Invitation</a>
             </div>
           `;
         } else if (task.kind === 'welcome_email') {
@@ -494,7 +566,7 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
               <h1 style="font-size: 24px; font-weight: 600;">Welcome to Norvi.</h1>
               <p>We are thrilled to have you here. Your account is now active.</p>
               <p>You can browse our collection of AI agents, simulate purchases, and manage your licenses directly from your personal workspace.</p>
-              <a href="https://norvi.com/account" style="display: inline-block; background: #c5f042; color: #000; padding: 12px 24px; text-decoration: none; font-weight: 600; border-radius: 4px; margin-top: 10px;">Go to My Workspace</a>
+              <a href="${c.env.APP_ORIGIN}/account" style="display: inline-block; background: #c5f042; color: #000; padding: 12px 24px; text-decoration: none; font-weight: 600; border-radius: 4px; margin-top: 10px;">Go to My Workspace</a>
             </div>
           `;
         } else if (task.kind === 'order_receipt') {
@@ -510,7 +582,7 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
               <p><b>Order ID:</b> ${order.id}</p>
               <p><b>Amount Paid:</b> ${order.currency} ${(order.amount_minor / 100).toFixed(2)}</p>
               <p>You can find your activation key and download your software in your account dashboard.</p>
-              <a href="https://norvi.com/account/licenses" style="display: inline-block; background: #c5f042; color: #000; padding: 12px 24px; text-decoration: none; font-weight: 600; border-radius: 4px; margin-top: 10px;">View My License</a>
+              <a href="${c.env.APP_ORIGIN}/account/licenses" style="display: inline-block; background: #c5f042; color: #000; padding: 12px 24px; text-decoration: none; font-weight: 600; border-radius: 4px; margin-top: 10px;">View My License</a>
             </div>
           `;
         } else if (task.kind === 'support_reply') {
@@ -524,7 +596,7 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
               <h1 style="font-size: 20px; font-weight: 600;">Update on your request</h1>
               <p>Our support team has responded to your request regarding "<b>${ticket.subject}</b>".</p>
               <p>Please log in to your workspace to view the response and continue the conversation.</p>
-              <a href="https://norvi.com/account/support" style="display: inline-block; background: #c5f042; color: #000; padding: 12px 24px; text-decoration: none; font-weight: 600; border-radius: 4px; margin-top: 10px;">View Request</a>
+              <a href="${c.env.APP_ORIGIN}/account/support" style="display: inline-block; background: #c5f042; color: #000; padding: 12px 24px; text-decoration: none; font-weight: 600; border-radius: 4px; margin-top: 10px;">View Request</a>
             </div>
           `;
         } else {

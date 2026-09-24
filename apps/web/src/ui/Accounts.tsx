@@ -1,4 +1,4 @@
-﻿import { useEffect, useState, type FormEvent, useRef, type ReactNode } from 'react';
+import { useEffect, useState, type FormEvent, useRef, type ReactNode } from 'react';
 import { ArrowRight, ShieldCheck, Plus, ArrowUpRight, Copy, X, KeyRound } from 'lucide-react';
 import { api, Badge, Field, Loading, Notice, PageHeading, useData, Empty } from './common';
 import { ProductForm, SettingsForm, CategoriesAdmin } from './Workspace';
@@ -110,12 +110,12 @@ export function LiveAdmin({ section }: { section: string }) {
 
     {section === '' && data?.customers !== undefined && <><div className="stat-grid"><div className="panel"><h3>Customers</h3><p className="stat-value">{data.customers}</p></div><div className="panel"><h3>Active Licenses</h3><p className="stat-value">{data.licenses}</p></div><div className="panel"><h3>Live Products</h3><p className="stat-value">{data.products}</p></div></div><div className="workspace-welcome"><div><span className="eyebrow">A STRONG START</span><h2>Letâ€™s make NORVI<br /><span className="serif">yours.</span></h2><p>Your business dashboard is fully active and connected to Supabase.</p></div></div></>}
     
-    {section === '/categories' && data?.categories && <CategoriesAdmin categories={data.categories} onSave={reload} />}
+    {section === '/categories' && (data?.categories ? <CategoriesAdmin categories={data.categories} onSave={reload} /> : <Notice kind="error">Categories data is missing. Please ensure you have run the latest database migration.</Notice>)}
     {section === '/products' && data?.items && <><div className="admin-products">{data.items.map((p: any) => <div className="panel admin-product" key={p.id || p.slug}><ProductIcon product={p} /><div className="grow"><h3>{p.name}</h3><p>{p.tagline}</p><span className="small-note">/{p.slug} Â· {p.price}</span></div><Badge>{p.status}</Badge><button className="button secondary" onClick={() => setEditing(p)}>Edit agent <ArrowUpRight size={15} /></button></div>)}</div>{!data.items.length && <Empty title="No products match." description="Change your filters or add your first agent." />}<Notice>This updates the live production catalog in the database.</Notice></>}
     
     {section === '/content' && data?.settings && <SettingsForm initial={data.settings} contentOnly onSave={reload} />}
     
-    {section === '/settings' && data?.settings && <><SettingsForm initial={data.settings} onSave={reload} /><div className="panel"><h3>Integration readiness</h3><div className="list-row"><span>Authentication - Supabase</span><Badge kind={data.system?.supabase ? 'good' : 'default'}>{data.system?.supabase ? 'Connected' : 'Missing keys'}</Badge></div><div className="list-row"><span>Email - Resend</span><Badge kind={data.system?.resend ? 'good' : 'default'}>{data.system?.resend ? 'Connected' : 'Missing keys'}</Badge></div><div className="list-row"><span>Storage - GitHub</span><Badge kind={data.system?.github ? 'good' : 'default'}>{data.system?.github ? 'Connected' : 'Missing keys'}</Badge></div><div className="list-row"><span>Payments - Razorpay</span><Badge kind={data.system?.razorpay ? 'good' : 'default'}>{data.system?.razorpay ? 'Connected' : 'Missing keys'}</Badge></div><p className="small-note">Provider secrets belong in protected server configuration, never in this form.</p></div></>}
+    {section === '/settings' && data?.settings && <><SettingsForm initial={data.settings} onSave={reload} /><div className="panel"><h3>Integration readiness</h3><div className="list-row"><span>Authentication - Supabase</span><Badge kind={data.system?.supabase ? 'good' : 'default'}>{data.system?.supabase ? 'Connected' : 'Missing keys'}</Badge></div><div className="list-row"><span>Email - Resend</span><Badge kind={data.system?.resend ? 'good' : 'default'}>{data.system?.resend ? 'Connected' : 'Missing keys'}</Badge></div><div className="list-row"><span>Storage - GitHub</span><Badge kind={data.system?.github ? 'good' : 'default'}>{data.system?.github ? 'Connected' : 'Missing keys'}</Badge></div><div className="list-row"><span>Payments - Razorpay</span><Badge kind={data.system?.razorpay ? 'good' : 'default'}>{data.system?.razorpay ? 'Connected' : 'Missing keys'}</Badge></div><p className="small-note">Provider secrets belong in protected server configuration, never in this form.</p></div><AdminAccountDeletion /></>}
 
     {section === '/customers' && data?.items && <><div className="table-wrap"><table><thead><tr><th>Customer</th><th>Email</th><th>Status</th><th>Purchases</th></tr></thead><tbody>{data.items.map((u: any) => <tr key={u.id}><td>{u.name}</td><td>{u.email}</td><td>{u.status}</td><td>{u.purchases}</td></tr>)}</tbody></table></div>{!data.items.length && <p>No customers on this page.</p>}<div className="row-actions"><button className="button secondary" disabled={!page} onClick={() => setPage(p => p - 1)}>Previous</button><span>Page {page + 1}</span><button className="button secondary" disabled={data.items.length < 50} onClick={() => setPage(p => p + 1)}>Next</button></div></>}
     
@@ -157,4 +157,19 @@ export function LiveAdmin({ section }: { section: string }) {
     
     {licenseAction && <Modal title={licenseAction.action === 'revoke' ? 'Revoke product access?' : licenseAction.action === 'rotate' ? 'Replace the activation key?' : 'Restore product access?'} onClose={() => setLicenseAction(null)}><form onSubmit={async e => { e.preventDefault(); const reason = new FormData(e.currentTarget).get('reason'); await action('/admin/licenses/' + licenseAction.id + '/' + licenseAction.action, { reason }); setLicenseAction(null); }}><Field label="Reason"><textarea name="reason" required minLength={5} maxLength={250} rows={3} /></Field><button className="button primary">Confirm {licenseAction.action}</button></form></Modal>}
   </>;
+}
+
+export function AdminAccountDeletion() {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  async function handleDelete() {
+    if (!confirm('Are you absolutely sure you want to delete your account? This action is irreversible.')) return;
+    setBusy(true); setError('');
+    try {
+      const result = await api('/auth/account', { method: 'DELETE' });
+      if (result.ok) location.href = '/';
+      else setError('Failed to delete account.');
+    } catch (e: any) { setError(e.message); setBusy(false); }
+  }
+  return <div className="panel"><h3>Danger zone</h3><p>Permanently delete this account.</p><div style={{marginTop: '1rem'}}><button className="button secondary" style={{ borderColor: 'var(--red)', color: 'var(--red)' }} disabled={busy} onClick={handleDelete}>{busy ? 'Deleting...' : 'Delete account'}</button></div>{error && <Notice kind="error">{error}</Notice>}</div>;
 }
