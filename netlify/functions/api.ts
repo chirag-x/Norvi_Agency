@@ -27,9 +27,4 @@ export default async function handler(request: Request): Promise<Response> {
 export const config: Config = {
   path: '/api/*',
   preferStatic: false,
-  rateLimit: {
-    windowLimit: 20,
-    windowSize: 60,
-    aggregateBy: ['ip', 'domain'],
-  },
 };
