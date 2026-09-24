@@ -8,5 +8,4 @@ dist/
 .dev.vars
 coverage/
 .wrangler/
-/docs/
 /tests/
