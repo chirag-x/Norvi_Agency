@@ -30,6 +30,8 @@ This document tracks the verification steps and testing plans for each phase of 
 ## Phase 5: Product Delivery & Email Automation
 - [x] Test Netlify Scheduled Function (`cron.ts`) pings the Outbox processor every 5 minutes. `[Tested by AI: Success]`
 - [x] Verify CSRF exemptions for internal webhooks and cron paths. `[Tested by AI: Success]`
+- [x] Verify GitHub PAT resolves to short-lived S3 download links. `[Manual Test Required]`
+- [x] Verify Discord Webhooks trigger on Sales, Downloads, and Security alerts. `[Manual Test Required]`
 
 ## Phase 6: Admin Operations
 - [x] Test inviting team members via Admin UI. `[Manual Test Required]`
