@@ -13,7 +13,7 @@ SET company = 'Norvi AI Agency'
 WHERE company = 'name_Company';
 
 UPDATE public.site_settings 
-SET domain = 'norviai.com' 
+SET domain = 'nor-vi.in' 
 WHERE domain = 'domain_Website';
 
 -- Notify PostgREST to reload schema
