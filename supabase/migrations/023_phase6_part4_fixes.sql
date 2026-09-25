@@ -41,7 +41,7 @@ grant execute on function public.admin_list_customers() to authenticated;
 
 
 -- 2. Fix admin_gift_license to query auth.users for email
-create or replace function public.admin_gift_license(p_email text, p_product_slug text)
+create or replace function public.admin_gift_license(p_email text, p_product_slug text, p_encryption_secret text)
 returns uuid language plpgsql security definer set search_path='' as $$
 declare
   v_role text;
@@ -50,6 +50,9 @@ declare
   v_price_id uuid;
   v_order_id uuid;
   v_license_id uuid;
+  v_raw_key text;
+  v_key_hash text;
+  v_encrypted_key text;
 begin
   select role into v_role from public.staff_memberships where user_id = auth.uid() and active = true;
   if coalesce(v_role, '') not in ('owner', 'administrator', 'product_manager') then
@@ -75,13 +78,23 @@ begin
   values (v_user_id, v_product_id, v_price_id, 'paid', 0, 'USD', 'gift_' || substr(md5(random()::text), 1, 10), 'gift_' || substr(md5(random()::text), 1, 10))
   returning id into v_order_id;
 
-  -- 4. Create License
-  insert into public.licenses (user_id, product_id, order_id, status)
-  values (v_user_id, v_product_id, v_order_id, 'active')
-  returning id into v_license_id;
+  -- 4. Generate Key
+  v_license_id := gen_random_uuid();
+  v_raw_key := 'NORVI-' || 
+               upper(substring(md5(random()::text) from 1 for 4)) || '-' ||
+               upper(substring(md5(random()::text) from 1 for 4)) || '-' ||
+               upper(substring(md5(random()::text) from 1 for 4)) || '-' ||
+               upper(substring(md5(random()::text) from 1 for 4));
+               
+  v_key_hash := encode(public.digest(v_raw_key, 'sha256'), 'hex');
+  v_encrypted_key := public.pgp_sym_encrypt(v_raw_key, p_encryption_secret);
 
-  -- 5. Issue Key
-  perform private.issue_license_key(v_license_id);
+  -- 5. Create License
+  insert into public.licenses (id, user_id, product_id, order_id, status, key_suffix, max_devices)
+  values (v_license_id, v_user_id, v_product_id, v_order_id, 'active', right(v_raw_key, 4), 3);
+
+  insert into private.license_secrets (license_id, key_hash, encrypted_key, encryption_key_version)
+  values (v_license_id, v_key_hash, v_encrypted_key, 1);
 
   -- 6. Audit log
   insert into private.audit_log (actor_id, action, target_id) 
@@ -90,8 +103,8 @@ begin
   return v_license_id;
 end;
 $$;
-revoke execute on function public.admin_gift_license(text, text) from public, anon;
-grant execute on function public.admin_gift_license(text, text) to authenticated;
+revoke execute on function public.admin_gift_license(text, text, text) from public, anon;
+grant execute on function public.admin_gift_license(text, text, text) to authenticated;
 
 
 -- 3. Fix list_announcements to properly aggregate and order
@@ -143,3 +156,7 @@ end;
 $$;
 revoke execute on function public.list_team() from public, anon;
 grant execute on function public.list_team() to authenticated;
+
+
+-- Refresh PostgREST schema cache to make new columns visible to the API
+NOTIFY pgrst, reload_schema;

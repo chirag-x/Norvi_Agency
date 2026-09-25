@@ -221,7 +221,7 @@ export function CategoriesAdmin({ categories, onSave }: { categories: Category[]
 }
 
 export function RolePermissionsAdmin({ settings, onSave }: { settings: Settings; onSave: () => void }) {
-  const [permissions, setPermissions] = useState(settings.permissions);
+  const [permissions, setPermissions] = useState(settings.permissions || { "support": ["/customers", "/licenses", "/orders"], "product_manager": ["/products", "/content"], "administrator": ["/products", "/customers", "/licenses", "/orders", "/subscriptions", "/team", "/content", "/settings", "/activity"] });
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
   const roles = ['administrator', 'product_manager', 'support'];
