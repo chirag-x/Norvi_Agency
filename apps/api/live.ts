@@ -724,7 +724,7 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
       app.post('/api/admin/licenses/:id/delete', async c => {
       if (!['owner', 'administrator'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
       const { error } = await c.get('db').rpc('admin_delete_license', { p_license_id: c.req.param('id') });
-      if (!error) fireLog(c, c.env.norvi_team_and_security, ??? **[Security Alert: License Deleted]**\n**License ID:** \n**Admin:** );
+      if (!error) fireLog(c, c.env.norvi_team_and_security, `\ud83d\udde1\ufe0f **[Security Alert: License Deleted]**\n**License ID:** ${c.req.param('id')}\n**Admin:** ${c.get('user').email}`);
       return error ? c.json({ error: 'License could not be deleted.' }, 400) : c.json({ ok: true });
     });
 
