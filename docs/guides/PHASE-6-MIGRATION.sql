@@ -208,6 +208,7 @@ create table if not exists public.announcements (
 alter table public.announcements enable row level security;
 
 -- Read policies
+drop policy if exists "Authenticated users can read announcements" on public.announcements;
 create policy "Authenticated users can read announcements" 
 on public.announcements for select 
 to authenticated 
@@ -218,6 +219,7 @@ using (
 );
 
 -- Write policies
+drop policy if exists "Owners can manage announcements" on public.announcements;
 create policy "Owners can manage announcements" 
 on public.announcements for all
 to authenticated
