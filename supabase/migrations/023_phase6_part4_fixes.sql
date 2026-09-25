@@ -1,5 +1,10 @@
 -- Phase 6, Part 4: Bug Fixes for Customers, Team, and Announcements
 
+-- 0. Allow free (gift) orders
+ALTER TABLE public.orders DROP CONSTRAINT IF EXISTS orders_amount_minor_check;
+ALTER TABLE public.orders ADD CONSTRAINT orders_amount_minor_check CHECK (amount_minor >= 0);
+
+
 -- 1. Fix admin_list_customers to join auth.users for email
 create or replace function public.admin_list_customers()
 returns json language plpgsql security definer set search_path='' as $$
@@ -42,6 +47,7 @@ declare
   v_role text;
   v_user_id uuid;
   v_product_id uuid;
+  v_price_id uuid;
   v_order_id uuid;
   v_license_id uuid;
 begin
@@ -61,10 +67,12 @@ begin
   if v_product_id is null then
     raise exception 'Product not found.';
   end if;
+  
+  select id into v_price_id from public.prices where product_id = v_product_id limit 1;
 
   -- 3. Create Manual Order
-  insert into public.orders (user_id, product_id, status, amount, currency, external_id)
-  values (v_user_id, v_product_id, 'completed', 0, 'USD', 'manual_gift_' || substr(md5(random()::text), 1, 10))
+  insert into public.orders (user_id, product_id, price_id, status, amount_minor, currency, provider_payment_id, idempotency_key)
+  values (v_user_id, v_product_id, v_price_id, 'paid', 0, 'USD', 'gift_' || substr(md5(random()::text), 1, 10), 'gift_' || substr(md5(random()::text), 1, 10))
   returning id into v_order_id;
 
   -- 4. Create License
