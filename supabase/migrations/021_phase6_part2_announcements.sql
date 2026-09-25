@@ -75,10 +75,9 @@ begin
     raise exception 'Permission denied.';
   end if;
 
-  select coalesce(json_agg(json_build_object('id', id, 'message', message, 'createdAt', created_at, 'authorId', author_id)), '[]'::json) into v_items
+  select coalesce(json_agg(json_build_object('id', id, 'message', message, 'createdAt', created_at, 'authorId', author_id) order by created_at desc), '[]'::json) into v_items
   from public.announcements 
-  where audience = p_audience
-  order by created_at desc;
+  where audience = p_audience;
 
   return coalesce(v_items, '[]'::json);
 end;

@@ -2,8 +2,8 @@
 
 -- Add Dynamic Role Permissions and Maintenance Mode to site_settings
 ALTER TABLE public.site_settings
-ADD COLUMN permissions JSONB DEFAULT '{"support": ["/customers", "/licenses", "/orders"], "product_manager": ["/products", "/content"], "administrator": ["/products", "/customers", "/licenses", "/orders", "/subscriptions", "/team", "/content", "/settings", "/activity"]}'::jsonb,
-ADD COLUMN maintenance_mode BOOLEAN NOT NULL DEFAULT false;
+ADD COLUMN IF NOT EXISTS permissions JSONB DEFAULT '{"support": ["/customers", "/licenses", "/orders"], "product_manager": ["/products", "/content"], "administrator": ["/products", "/customers", "/licenses", "/orders", "/subscriptions", "/team", "/content", "/settings", "/activity"]}'::jsonb,
+ADD COLUMN IF NOT EXISTS maintenance_mode BOOLEAN NOT NULL DEFAULT false;
 
 -- Update the RPC to allow modifying these advanced settings
 CREATE OR REPLACE FUNCTION public.admin_update_advanced_settings(

@@ -40,13 +40,14 @@ begin
   from (
     select 
       p.id, 
-      p.email, 
-      p.name, 
+      u.email, 
+      p.display_name as name, 
       p.suspended,
       p.created_at as "createdAt",
       (select count(*) from public.orders o where o.user_id = p.id) as "orderCount",
       (select count(*) from public.licenses l where l.user_id = p.id and l.status = 'active') as "activeLicenses"
     from public.profiles p
+    join auth.users u on u.id = p.id
     where not exists (select 1 from public.staff_memberships s where s.user_id = p.id) -- Exclude staff from customer list
     order by p.created_at desc
   ) c;
@@ -100,7 +101,7 @@ begin
   end if;
 
   -- 1. Find User
-  select id into v_user_id from public.profiles where email = p_email;
+  select id into v_user_id from auth.users where email = p_email;
   if v_user_id is null then
     raise exception 'Account with this email does not exist. They must register first.';
   end if;
@@ -277,10 +278,9 @@ begin
     raise exception 'Permission denied.';
   end if;
 
-  select coalesce(json_agg(json_build_object('id', id, 'message', message, 'createdAt', created_at, 'authorId', author_id)), '[]'::json) into v_items
+  select coalesce(json_agg(json_build_object('id', id, 'message', message, 'createdAt', created_at, 'authorId', author_id) order by created_at desc), '[]'::json) into v_items
   from public.announcements 
-  where audience = p_audience
-  order by created_at desc;
+  where audience = p_audience;
 
   return coalesce(v_items, '[]'::json);
 end;
@@ -324,3 +324,30 @@ END;
 $$;
 
 GRANT EXECUTE ON FUNCTION public.admin_update_advanced_settings TO authenticated;
+
+
+-- 13. Fix list_team to return correct shape and remove invalid sm.id
+create or replace function public.list_team()
+returns json
+language plpgsql security definer set search_path='' as 
+declare
+  v_role text; v_members json; v_invites json;
+begin
+  if auth.uid() is null then raise exception 'Permission denied: Not authenticated.'; end if;
+  
+  select role into v_role from public.staff_memberships where user_id = auth.uid() and active = true;
+  if coalesce(v_role, '') not in ('owner', 'administrator', 'product_manager', 'support') then
+    raise exception 'Permission denied.';
+  end if;
+
+  select coalesce(json_agg(json_build_object('id', sm.user_id, 'user_id', sm.user_id, 'role', sm.role, 'active', sm.active, 'email', u.email, 'name', p.display_name)), '[]'::json) into v_members
+  from public.staff_memberships sm join auth.users u on u.id = sm.user_id join public.profiles p on p.id = sm.user_id;
+
+  select coalesce(json_agg(json_build_object('id', id, 'email', email, 'role', role, 'status', status, 'created_at', created_at)), '[]'::json) into v_invites
+  from public.staff_invitations where status = 'pending';
+
+  return json_build_object('items', v_members, 'invitations', v_invites);
+end;
+;
+revoke execute on function public.list_team() from public, anon;
+grant execute on function public.list_team() to authenticated;

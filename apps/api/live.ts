@@ -315,6 +315,11 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     return error ? c.json({ error: 'Orders could not be loaded.' }, 503) : c.json(data);
   });
 
+  app.get('/api/admin/billing', async c => {
+    // Return empty for now as subscriptions are not implemented
+    return c.json({ items: [] });
+  });
+
   app.get('/api/admin/activity', async c => {
     if (!['owner', 'administrator', 'support'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
     const { data, error } = await c.get('db').rpc('admin_list_activity');
