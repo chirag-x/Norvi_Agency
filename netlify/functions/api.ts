@@ -2,7 +2,7 @@ import type { Config } from '@netlify/functions';
 import { createLiveApp } from '../../apps/api/live';
 
 // Always use real accounts, regardless of local NORVI_MODE. Never import preview data.
-const app = createLiveApp(undefined, { upstreamRateLimit: 'netlify'   norvi_system_alerts: process.env.norvi_system_alerts,`n  });
+const app = createLiveApp(undefined, { upstreamRateLimit: 'netlify' });
 
 export default async function handler(request: Request): Promise<Response> {
   return app.fetch(request, {
@@ -23,7 +23,8 @@ export default async function handler(request: Request): Promise<Response> {
     norvi_sales_and_orders: process.env.norvi_sales_and_orders,
     norvi_downloads: process.env.norvi_downloads,
     norvi_team_and_security: process.env.norvi_team_and_security,
-    norvi_system_alerts: process.env.norvi_system_alerts,`n  });
+    norvi_system_alerts: process.env.norvi_system_alerts,
+  });
 }
 
 // Custom paths disable the default /.netlify/functions/api URL. All API requests,
