@@ -59,7 +59,7 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     const supabase = factory(c);
     const [productsResult, settingsResult, categoriesResult] = await Promise.all([
       supabase.from('products')
-        .select('id, slug, name, categoryId:category_id, tagline, description, price:price_label, status, logoUrl:logo_url, features, version, requirements, releaseStatus:release_status, workflowHeading:workflow_heading, workflowDescription:workflow_description, workflowMediaUrl:workflow_media_url, workflowNote:workflow_note, updatedAt:updated_at')
+        .select('id, slug, name, categoryId:category_id, tagline, description, price:price_label, status, logoUrl:logo_url, features, version, requirements, releaseStatus:release_status, workflowHeading:workflow_heading, workflowDescription:workflow_description, workflowMediaUrl:workflow_media_url, workflowNote:workflow_note')
         .eq('status', 'published')
         .order('created_at', { ascending: true }),
       supabase.from('site_settings').select('name, headline, description, email, company, domain, maintenance_mode, permissions').single(),
@@ -230,6 +230,22 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     if (!(permissions[user.role] || []).includes(section)) return c.json({ error: 'Your role cannot access this section.' }, 403);
     await next();
   });
+  app.use('/api/admin/*', async (c, next) => {
+    await next();
+    if (['POST', 'PATCH', 'DELETE'].includes(c.req.method) && c.get('user') && c.get('db')) {
+      const db = c.get('db');
+      const ip = c.req.header('cf-connecting-ip') || c.req.header('x-forwarded-for') || '';
+      // Fire and forget
+      db.rpc('log_action', {
+        p_action: c.req.method + ' ' + c.req.path.replace('/api/admin', ''),
+        p_target_id: c.req.path,
+        p_reason: 'Status: ' + c.res.status,
+        p_metadata: { status: c.res.status, method: c.req.method },
+        p_ip_address: ip
+      }).then(() => {}).catch(() => {});
+    }
+  });
+
   app.patch('/api/me', async c => {
     const input = z.object({ name: z.string().trim().min(2).max(80) }).parse(await c.req.json());
     const { error } = await c.get('db').rpc('update_my_profile', { new_name: input.name });
