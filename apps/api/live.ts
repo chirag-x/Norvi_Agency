@@ -23,7 +23,7 @@ async function sendDiscordLog(webhookUrl: string | undefined, content: string) {
 }
 const fireLog = (c: any, webhookUrl: string | undefined, content: string) => {
   const p = sendDiscordLog(webhookUrl, content);
-  if (c.executionCtx && typeof c.executionCtx.waitUntil === 'function') c.executionCtx.waitUntil(p);
+  try { if (c.executionCtx && typeof c.executionCtx.waitUntil === 'function') c.executionCtx.waitUntil(p); } catch(e) {}
 };
 const email = z.object({ email: z.string().trim().email().max(254) });
 export function isConfigured(env: LiveEnv) {
