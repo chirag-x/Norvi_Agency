@@ -349,6 +349,33 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     return c.json({ ok: true, version: res.version });
   });
 
+  app.get('/api/admin/analytics', async c => {
+    if (!['owner', 'administrator', 'product_manager'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
+    const db = c.get('db');
+    
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    
+    // Revenue & Sales
+    const { data: recentOrders } = await db.from('orders').select('amount_minor').gte('created_at', thirtyDaysAgo).eq('status', 'completed');
+    const revenue = (recentOrders || []).reduce((acc: number, o: any) => acc + (o.amount_minor || 0), 0) / 100;
+    
+    // Active Licenses
+    const { count: activeLicenses } = await db.from('licenses').select('*', { count: 'exact', head: true }).eq('status', 'active');
+    
+    // Total Customers
+    const { count: totalCustomers } = await db.from('profiles').select('id', { count: 'exact', head: true }).not('id', 'in', `(${ (await db.from('staff_memberships').select('user_id')).data?.map((r:any) => r.user_id).join(',') || '00000000-0000-0000-0000-000000000000' })`);
+
+    return c.json({
+      items: [],
+      metrics: {
+        revenue: revenue,
+        activeLicenses: activeLicenses || 0,
+        recentSales: recentOrders?.length || 0,
+        totalCustomers: totalCustomers || 0
+      }
+    });
+  });
+
   app.get('/api/admin/categories', async c => {
     const { data, error } = await c.get('db').from('categories').select('*').order('created_at', { ascending: true });
     return error ? c.json({ error: error.message }, 500) : c.json(data);
@@ -460,26 +487,7 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     return error ? c.json({ error: 'Settings could not be saved.' }, 400) : c.json({ ok: true });
   });
   
-  app.get('/api/admin/team', async c => {
-    if (!['owner', 'administrator'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
-    const { data, error } = await c.get('db').rpc('list_team');
-    return error ? c.json({ error: 'Team could not be loaded: ' + error.message }, 503) : c.json(data);
-  });
-  
-  app.post('/api/admin/team/invite', async c => {
-    if (c.get('user').role !== 'owner') return c.json({ error: 'Owner permission required.' }, 403);
-    const input = z.object({ email: z.string().email().max(150), role: z.enum(['administrator', 'product_manager', 'support']) }).parse(await c.req.json());
-    const { error } = await c.get('db').rpc('invite_staff_member', { invite_email: input.email, invite_role: input.role });
-    return error ? c.json({ error: 'Could not send invitation. ' + error.message }, 400) : c.json({ ok: true });
-  });
-  
-  app.post('/api/admin/team/:id/suspend', async c => {
-    if (c.get('user').role !== 'owner') return c.json({ error: 'Owner permission required.' }, 403);
-    const { error } = await c.get('db').rpc('modify_staff_status', { p_user_id: c.req.param('id') });
-    return error ? c.json({ error: 'Could not modify staff status. ' + error.message }, 400) : c.json({ ok: true });
-  });
-
-  app.post('/api/checkout/create', async c => {
+  app.post('/api/checkout/create/old', async c => {
     const input = z.object({ productId: z.string() }).parse(await c.req.json());
     const user = c.get('user');
     const product = catalog.products.find(p => p.id === input.productId);

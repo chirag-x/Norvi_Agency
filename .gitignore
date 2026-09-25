@@ -9,5 +9,4 @@ dist/
 coverage/
 .wrangler/
 /tests/
-/supabase/
 scripts/local/
