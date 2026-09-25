@@ -33,3 +33,12 @@ You must place these keys securely in your **Netlify Environment Variables** (an
 ---
 
 *This file will be updated if we skip any other API integrations in future phases.*
+
+## 2. 'Login As' / Impersonation Feature
+
+The Login As button in the admin panel currently does not successfully change the session context on the frontend/backend when testing locally with the live Supabase instance. We have left this feature disabled/non-functional for now to proceed with other phases without breaking the working code.
+
+**What needs to be fixed later:**
+- Verify why the 
+orvi_impersonate cookie is either not being set, not being sent, or not being parsed correctly by hono/cookie.
+- Ensure the frontend properly re-fetches the user context after the /api/admin/impersonate POST request completes.
