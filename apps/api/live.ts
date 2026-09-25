@@ -222,13 +222,11 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
   });
 
   app.post('/api/licenses/:id/reveal', async c => {
-    const id = c.req.param('id'), uid = c.get('user').id;
-    const { data: license, error } = await c.get('db').from('licenses').select('id,status').eq('id', id).eq('user_id', uid).single();
+    const id = c.req.param('id'), user = c.get('user');
+    const { data: license, error } = await c.get('db').from('licenses').select('id,status,user_id').eq('id', id).single();
     if (error || !license) return c.json({ error: 'License not found.' }, 404);
+    if (license.user_id !== user.id && user.role !== 'owner') return c.json({ error: 'Permission denied.' }, 403);
     if (license.status !== 'active') return c.json({ error: 'License is revoked.' }, 403);
-    // In a real system, the full key is not stored plaintext.
-    // Assuming the full key was given once or we call a secure RPC to retrieve it if stored encrypted.
-    // For now, let's call an RPC that returns the decrypted key or error.
     const res = await c.get('db').rpc('reveal_license_key', { p_license_id: id, p_encryption_secret: c.env.CRON_SECRET! });
     if (res.error) return c.json({ error: res.error.message }, 403);
     return c.json({ key: res.data });

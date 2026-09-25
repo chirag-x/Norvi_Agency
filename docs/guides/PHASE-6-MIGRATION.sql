@@ -227,7 +227,10 @@ using (
   exists (select 1 from public.staff_memberships where user_id = auth.uid() and role = 'owner' and active = true)
 );
 
-alter publication supabase_realtime add table public.announcements;
+do $$ begin
+  alter publication supabase_realtime add table public.announcements;
+exception when duplicate_object then null;
+end $$;
 
 -- 1. admin_create_announcement
 create or replace function public.admin_create_announcement(p_message text, p_audience text)
