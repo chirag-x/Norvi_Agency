@@ -721,7 +721,14 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     }
   });
 
-  app.post('/api/admin/licenses/:id/device-reset', async c => {
+      app.post('/api/admin/licenses/:id/delete', async c => {
+      if (!['owner', 'administrator'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
+      const { error } = await c.get('db').rpc('admin_delete_license', { p_license_id: c.req.param('id') });
+      if (!error) fireLog(c, c.env.norvi_team_and_security, ??? **[Security Alert: License Deleted]**\n**License ID:** \n**Admin:** );
+      return error ? c.json({ error: 'License could not be deleted.' }, 400) : c.json({ ok: true });
+    });
+
+    app.post('/api/admin/licenses/:id/device-reset', async c => {
     const user = c.get('user');
     if (!['owner', 'administrator', 'support'].includes(user.role)) return c.json({ error: 'Permission denied.' }, 403);
     const { error } = await c.get('db').rpc('reset_license_devices', { p_license_id: c.req.param('id') });
