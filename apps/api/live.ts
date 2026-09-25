@@ -1,5 +1,5 @@
 import { Hono, type Context } from 'hono';
-import { getCookie, setCookie } from 'hono/cookie';
+import { getCookie, setCookie, deleteCookie } from 'hono/cookie';
 import { bodyLimit } from 'hono/body-limit';
 import { sign } from 'hono/jwt';
 import { createServerClient } from '@supabase/ssr';
@@ -179,8 +179,21 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     if (profile.error || membership.error || assurance.error) return c.json({ error: 'Account setup is incomplete or unavailable. Contact the owner.' }, 503);
     if (profile.data.suspended || (membership.data && !membership.data.active)) return c.json({ error: 'Account access is suspended.' }, 403);
     const role = membership.data?.role || 'customer';
-    c.set('user', { id: data.user.id, email: data.user.email || '', name: profile.data.display_name, role, status: 'active', createdAt: profile.data.created_at, lastLogin: data.user.last_sign_in_at || null });
-    c.set('mfaRequired', (role !== 'customer' || assurance.data.nextLevel === 'aal2') && assurance.data.currentLevel !== 'aal2'); await next();
+    let userObj: any = { id: data.user.id, email: data.user.email || '', name: profile.data.display_name, role, status: 'active', createdAt: profile.data.created_at, lastLogin: data.user.last_sign_in_at || null };
+
+    const imp = getCookie(c, 'norvi_impersonate');
+    if (imp && role === 'owner') {
+      const [impProfile, impMembership] = await Promise.all([
+        db.from('profiles').select('id,display_name,created_at').eq('id', imp).single(),
+        db.from('staff_memberships').select('role').eq('user_id', imp).maybeSingle()
+      ]);
+      if (impProfile.data) {
+        userObj = { id: imp, email: 'impersonated@hidden', name: impProfile.data.display_name, role: impMembership.data?.role || 'customer', status: 'active', createdAt: impProfile.data.created_at, lastLogin: null, isImpersonated: true };
+      }
+    }
+    
+    c.set('user', userObj);
+    c.set('mfaRequired', (userObj.role !== 'customer' || assurance.data.nextLevel === 'aal2') && assurance.data.currentLevel !== 'aal2'); await next();
   });
   app.get('/api/me', c => c.json({ user: c.get('user'), preview: false, mfaRequired: c.get('mfaRequired') }));
   app.get('/api/auth/mfa', async c => {
