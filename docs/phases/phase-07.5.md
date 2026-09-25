@@ -1,6 +1,6 @@
 # Phase 07.5: Razorpay Compliance & Website Readiness
 
-**Status:** Planned
+**Status:** Completed
 **Goal:** Upgrade the public-facing website and legal pages to strictly meet Razorpay and RBI compliance guidelines. This is a mandatory business blocker required to get approval for Live API keys.
 
 ## Why this phase exists

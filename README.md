@@ -1,10 +1,10 @@
-# Current update — September 23, 2026
+# Current update - September 26, 2026
 
-Omnix, Voro, and Rolvio are now in the catalog. Supabase account integration is implemented locally and awaits project setup. [Current phase status](./docs/10-phase-1-and-2-status.md) · [Supabase setup](./SUPABASE-SETUP.md) · [Product definitions](./docs/09-product-definitions.md).
+**Status:** Phases 1 through 7.5 are COMPLETELY DONE. The live website is deployed on Netlify, connected to Supabase, and fully functional with authentication, dual-logging (Discord + Supabase), Razorpay compliance pages, and Netlify Forms.
 
-# NORVI — Website and Planning Documents
+**Next Immediate Step:** Phase 10 - Agent Integration (NORVI Guard). We are skipping SEO (Phase 8) to focus on integrating the activation keys into the downloadable agents (Voro) to prevent piracy before the October 1st launch.
 
-Prepared: 22 September 2026. Status: first local website preview implemented; production integrations and deployment are pending.
+See `docs/phases` for detailed logs of completed and upcoming phases.
 
 ## Open the website
 
