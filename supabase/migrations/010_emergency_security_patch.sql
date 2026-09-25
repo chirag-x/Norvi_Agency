@@ -54,7 +54,7 @@ declare
   v_role text;
 begin
   if auth.uid() is null then raise exception 'Permission denied: Not authenticated.'; end if;
-  -- TODO (Phase 2): if (select coalesce(auth.jwt()->>'aal', '')) != 'aal2' then raise exception 'Permission denied: MFA (AAL2) required.'; end if;
+  if (select coalesce(auth.jwt()->>'aal', '')) != 'aal2' then raise exception 'Permission denied: MFA (AAL2) required.'; end if;
   select role into v_role from public.staff_memberships where user_id = auth.uid() and active = true;
   if coalesce(v_role, '') not in ('owner', 'administrator', 'product_manager') then
     raise exception 'Permission denied: Product manager access required.';
@@ -87,7 +87,7 @@ declare
   v_role text;
 begin
   if auth.uid() is null then raise exception 'Permission denied: Not authenticated.'; end if;
-  -- TODO (Phase 2): if (select coalesce(auth.jwt()->>'aal', '')) != 'aal2' then raise exception 'Permission denied: MFA (AAL2) required.'; end if;
+  if (select coalesce(auth.jwt()->>'aal', '')) != 'aal2' then raise exception 'Permission denied: MFA (AAL2) required.'; end if;
   select role into v_role from public.staff_memberships where user_id = auth.uid() and active = true;
   if coalesce(v_role, '') not in ('owner', 'administrator') then
     raise exception 'Permission denied: Administrator access required.';
@@ -112,7 +112,7 @@ declare
   v_role text; v_customers bigint; v_licenses bigint; v_products bigint;
 begin
   if auth.uid() is null then raise exception 'Permission denied: Not authenticated.'; end if;
-  -- TODO (Phase 2): if (select coalesce(auth.jwt()->>'aal', '')) != 'aal2' then raise exception 'Permission denied: MFA (AAL2) required.'; end if;
+  if (select coalesce(auth.jwt()->>'aal', '')) != 'aal2' then raise exception 'Permission denied: MFA (AAL2) required.'; end if;
   select role into v_role from public.staff_memberships where user_id = auth.uid() and active = true;
   if coalesce(v_role, '') not in ('owner', 'administrator', 'product_manager', 'support') then
     raise exception 'Permission denied.';
@@ -135,7 +135,7 @@ declare
   v_role text; v_items json;
 begin
   if auth.uid() is null then raise exception 'Permission denied: Not authenticated.'; end if;
-  -- TODO (Phase 2): if (select coalesce(auth.jwt()->>'aal', '')) != 'aal2' then raise exception 'Permission denied: MFA (AAL2) required.'; end if;
+  if (select coalesce(auth.jwt()->>'aal', '')) != 'aal2' then raise exception 'Permission denied: MFA (AAL2) required.'; end if;
   select role into v_role from public.staff_memberships where user_id = auth.uid() and active = true;
   if coalesce(v_role, '') not in ('owner', 'administrator', 'support') then
     raise exception 'Permission denied.';
@@ -162,7 +162,7 @@ declare
   v_role text; v_items json;
 begin
   if auth.uid() is null then raise exception 'Permission denied: Not authenticated.'; end if;
-  -- TODO (Phase 2): if (select coalesce(auth.jwt()->>'aal', '')) != 'aal2' then raise exception 'Permission denied: MFA (AAL2) required.'; end if;
+  if (select coalesce(auth.jwt()->>'aal', '')) != 'aal2' then raise exception 'Permission denied: MFA (AAL2) required.'; end if;
   select role into v_role from public.staff_memberships where user_id = auth.uid() and active = true;
   if coalesce(v_role, '') not in ('owner', 'administrator', 'support') then
     raise exception 'Permission denied.';
@@ -189,7 +189,7 @@ declare
   v_role text; v_items json; v_emails json;
 begin
   if auth.uid() is null then raise exception 'Permission denied: Not authenticated.'; end if;
-  -- TODO (Phase 2): if (select coalesce(auth.jwt()->>'aal', '')) != 'aal2' then raise exception 'Permission denied: MFA (AAL2) required.'; end if;
+  if (select coalesce(auth.jwt()->>'aal', '')) != 'aal2' then raise exception 'Permission denied: MFA (AAL2) required.'; end if;
   select role into v_role from public.staff_memberships where user_id = auth.uid() and active = true;
   if coalesce(v_role, '') not in ('owner', 'administrator', 'support') then
     raise exception 'Permission denied.';
@@ -223,7 +223,7 @@ declare
   v_role text;
 begin
   if auth.uid() is null then raise exception 'Permission denied: Not authenticated.'; end if;
-  -- TODO (Phase 2): if (select coalesce(auth.jwt()->>'aal', '')) != 'aal2' then raise exception 'Permission denied: MFA (AAL2) required.'; end if;
+  if (select coalesce(auth.jwt()->>'aal', '')) != 'aal2' then raise exception 'Permission denied: MFA (AAL2) required.'; end if;
   select role into v_role from public.staff_memberships where user_id = auth.uid() and active = true;
   if coalesce(v_role, '') not in ('owner', 'administrator') then
     raise exception 'Permission denied.';
@@ -245,7 +245,7 @@ declare
   v_caller_role text; v_invite_id uuid;
 begin
   if auth.uid() is null then raise exception 'Permission denied: Not authenticated.'; end if;
-  -- TODO (Phase 2): if (select coalesce(auth.jwt()->>'aal', '')) != 'aal2' then raise exception 'Permission denied: MFA (AAL2) required.'; end if;
+  if (select coalesce(auth.jwt()->>'aal', '')) != 'aal2' then raise exception 'Permission denied: MFA (AAL2) required.'; end if;
   select role into v_caller_role from public.staff_memberships where user_id = auth.uid();
   if coalesce(v_caller_role, '') != 'owner' then
     raise exception 'Permission denied: Only owners can invite staff.';
@@ -268,7 +268,7 @@ declare
   v_role text; v_members json; v_invites json;
 begin
   if auth.uid() is null then raise exception 'Permission denied: Not authenticated.'; end if;
-  -- TODO (Phase 2): if (select coalesce(auth.jwt()->>'aal', '')) != 'aal2' then raise exception 'Permission denied: MFA (AAL2) required.'; end if;
+  if (select coalesce(auth.jwt()->>'aal', '')) != 'aal2' then raise exception 'Permission denied: MFA (AAL2) required.'; end if;
   select role into v_role from public.staff_memberships where user_id = auth.uid() and active = true;
   if coalesce(v_role, '') not in ('owner', 'administrator', 'product_manager', 'support') then
     raise exception 'Permission denied.';
@@ -294,7 +294,7 @@ declare
   v_caller_role text;
 begin
   if auth.uid() is null then raise exception 'Permission denied: Not authenticated.'; end if;
-  -- TODO (Phase 2): if (select coalesce(auth.jwt()->>'aal', '')) != 'aal2' then raise exception 'Permission denied: MFA (AAL2) required.'; end if;
+  if (select coalesce(auth.jwt()->>'aal', '')) != 'aal2' then raise exception 'Permission denied: MFA (AAL2) required.'; end if;
   select role into v_caller_role from public.staff_memberships where user_id = auth.uid();
   if coalesce(v_caller_role, '') != 'owner' then
     raise exception 'Permission denied: Only owners can modify staff status.';

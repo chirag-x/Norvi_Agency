@@ -86,8 +86,8 @@ begin
                upper(substring(md5(random()::text) from 1 for 4)) || '-' ||
                upper(substring(md5(random()::text) from 1 for 4));
                
-  v_key_hash := encode(public.digest(v_raw_key, 'sha256'), 'hex');
-  v_encrypted_key := public.pgp_sym_encrypt(v_raw_key, p_encryption_secret);
+  v_key_hash := encode(extensions.digest(v_raw_key, 'sha256'), 'hex');
+  v_encrypted_key := extensions.pgp_sym_encrypt(v_raw_key, p_encryption_secret);
 
   -- 5. Create License
   insert into public.licenses (id, user_id, product_id, order_id, status, key_suffix, max_devices)
@@ -160,3 +160,91 @@ grant execute on function public.list_team() to authenticated;
 
 -- Refresh PostgREST schema cache to make new columns visible to the API
 NOTIFY pgrst, 'reload schema';
+
+-- 4. Fix pgcrypto schema references in Phase 4 functions
+create or replace function private.process_order(p_order_id uuid, p_encryption_secret text)
+returns void language plpgsql security definer set search_path='' as $body$
+declare
+  v_order record;
+  v_license_id uuid;
+  v_raw_key text;
+  v_key_hash text;
+  v_encrypted_key text;
+begin
+  select user_id, product_id, status into v_order from public.orders where id = p_order_id;
+  if not found or v_order.status != 'paid' then return; end if;
+
+  v_license_id := gen_random_uuid();
+  v_raw_key := 'NORVI-' || 
+               upper(substring(md5(random()::text) from 1 for 4)) || '-' ||
+               upper(substring(md5(random()::text) from 1 for 4)) || '-' ||
+               upper(substring(md5(random()::text) from 1 for 4)) || '-' ||
+               upper(substring(md5(random()::text) from 1 for 4));
+               
+  v_key_hash := encode(extensions.digest(v_raw_key, 'sha256'), 'hex');
+  v_encrypted_key := extensions.pgp_sym_encrypt(v_raw_key, p_encryption_secret);
+  
+  insert into public.licenses (id, user_id, product_id, order_id, status, key_suffix, max_devices)
+  values (v_license_id, v_order.user_id, v_order.product_id, p_order_id, 'active', right(v_raw_key, 4), 3);
+
+  insert into private.license_secrets (license_id, key_hash, encrypted_key, encryption_key_version)
+  values (v_license_id, v_key_hash, v_encrypted_key, 1);
+end;
+$body$;
+
+create or replace function private.reveal_license_key(p_license_id uuid, p_encryption_secret text)
+returns text language plpgsql security definer set search_path='' as $body$
+declare
+  v_encrypted_key text;
+  v_raw_key text;
+  v_is_owner boolean;
+begin
+  select active into v_is_owner from public.staff_memberships where user_id = auth.uid() and role = 'owner';
+  
+  if coalesce(v_is_owner, false) = false then
+    if not exists (select 1 from public.licenses where id = p_license_id and user_id = auth.uid()) then
+      raise exception 'License not found or access denied.';
+    end if;
+  end if;
+
+  select encrypted_key into v_encrypted_key from private.license_secrets where license_id = p_license_id;
+  if v_encrypted_key is null then
+    raise exception 'Key material missing.';
+  end if;
+
+  v_raw_key := extensions.pgp_sym_decrypt(v_encrypted_key::bytea, p_encryption_secret);
+  return v_raw_key;
+exception when others then
+  raise exception 'Failed to decrypt license key. The encryption secret may be invalid.';
+end;
+$body$;
+
+create or replace function private.rotate_license_key(p_license_id uuid, p_encryption_secret text)
+returns jsonb language plpgsql security definer set search_path='' as $body$
+declare
+  v_raw_key text;
+  v_key_hash text;
+  v_encrypted_key text;
+  v_version integer;
+begin
+  if not exists (select 1 from public.licenses where id = p_license_id and user_id = auth.uid()) then
+    raise exception 'License not found or access denied.';
+  end if;
+
+  v_raw_key := 'NORVI-' || 
+               upper(substring(md5(random()::text) from 1 for 4)) || '-' ||
+               upper(substring(md5(random()::text) from 1 for 4)) || '-' ||
+               upper(substring(md5(random()::text) from 1 for 4)) || '-' ||
+               upper(substring(md5(random()::text) from 1 for 4));
+               
+  v_key_hash := encode(extensions.digest(v_raw_key, 'sha256'), 'hex');
+  v_encrypted_key := extensions.pgp_sym_encrypt(v_raw_key, p_encryption_secret);
+  
+  update public.licenses set key_suffix = right(v_raw_key, 4), key_version = key_version + 1 where id = p_license_id returning key_version into v_version;
+  
+  update private.license_secrets set key_hash = v_key_hash, encrypted_key = v_encrypted_key, encryption_key_version = v_version where license_id = p_license_id;
+  
+  return json_build_object('key', v_raw_key, 'suffix', right(v_raw_key, 4), 'version', v_version);
+end;
+$body$;
+

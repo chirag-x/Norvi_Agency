@@ -15,9 +15,14 @@ export default async function handler(request: Request): Promise<Response> {
     CRON_SECRET: process.env.CRON_SECRET,
     RAZORPAY_KEY_ID: process.env.RAZORPAY_KEY_ID,
     RAZORPAY_KEY_SECRET: process.env.RAZORPAY_KEY_SECRET,
+    RAZORPAY_WEBHOOK_SECRET: process.env.RAZORPAY_WEBHOOK_SECRET,
+    LICENSE_ENCRYPTION_KEY: process.env.LICENSE_ENCRYPTION_KEY,
     GITHUB_PAT: process.env.GITHUB_PAT,
     GITHUB_REPO_OWNER: process.env.GITHUB_REPO_OWNER,
     GITHUB_REPO_NAME: process.env.GITHUB_REPO_NAME,
+    DISCORD_SALES_WEBHOOK: process.env.DISCORD_SALES_WEBHOOK,
+    DISCORD_DOWNLOADS_WEBHOOK: process.env.DISCORD_DOWNLOADS_WEBHOOK,
+    DISCORD_SECURITY_WEBHOOK: process.env.DISCORD_SECURITY_WEBHOOK,
   });
 }
 
@@ -27,4 +32,5 @@ export default async function handler(request: Request): Promise<Response> {
 export const config: Config = {
   path: '/api/*',
   preferStatic: false,
+  rateLimit: { windowLimit: 20, windowSize: 60, aggregateBy: ['ip', 'domain'] },
 };

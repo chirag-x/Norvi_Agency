@@ -8,12 +8,14 @@ import { createClient } from '@supabase/supabase-js';
 import { z } from 'zod';
 import catalog from '../../packages/shared/catalog.json';
 
-export type LiveEnv = { APP_ORIGIN?: string; SUPABASE_URL?: string; SUPABASE_ANON_KEY?: string; SUPABASE_SERVICE_ROLE_KEY?: string; AUTH_RATE_LIMITER?: { limit: (input: { key: string }) => Promise<{ success: boolean }> }; RAZORPAY_KEY_ID?: string; RAZORPAY_KEY_SECRET?: string; RESEND_API_KEY?: string; CRON_SECRET?: string; EMAIL_FROM?: string; GITHUB_PAT?: string; GITHUB_REPO_OWNER?: string; GITHUB_REPO_NAME?: string; DISCORD_SALES_WEBHOOK?: string; DISCORD_DOWNLOADS_WEBHOOK?: string; DISCORD_SECURITY_WEBHOOK?: string; };
+export type LiveEnv = { APP_ORIGIN?: string; SUPABASE_URL?: string; SUPABASE_ANON_KEY?: string; SUPABASE_SERVICE_ROLE_KEY?: string; AUTH_RATE_LIMITER?: { limit: (input: { key: string }) => Promise<{ success: boolean }> }; RAZORPAY_KEY_ID?: string; RAZORPAY_KEY_SECRET?: string; RAZORPAY_WEBHOOK_SECRET?: string; RESEND_API_KEY?: string; CRON_SECRET?: string; LICENSE_ENCRYPTION_KEY?: string; EMAIL_FROM?: string; GITHUB_PAT?: string; GITHUB_REPO_OWNER?: string; GITHUB_REPO_NAME?: string; DISCORD_SALES_WEBHOOK?: string; DISCORD_DOWNLOADS_WEBHOOK?: string; DISCORD_SECURITY_WEBHOOK?: string; };
 type Identity = { id: string; email: string; name: string; role: string; status: string; createdAt: string; lastLogin: string | null };
 type AppEnv = { Bindings: LiveEnv; Variables: { db: SupabaseClient; user: Identity; mfaRequired: boolean } };
 type Factory = (c: Context<AppEnv>) => SupabaseClient;
 const credentials = z.object({ email: z.string().trim().email().max(254), password: z.string().min(1).max(128) });
 const password = z.string().min(12, 'Use at least 12 characters.').max(128);
+const licenseSecret = (env: LiveEnv) => env.LICENSE_ENCRYPTION_KEY || env.CRON_SECRET;
+const defaultPermissions: Record<string, string[]> = { owner: ['*'], administrator: ['', '/products', '/categories', '/customers', '/licenses', '/orders', '/payments', '/support', '/subscriptions', '/announcements', '/content', '/activity'], product_manager: ['', '/products', '/categories', '/announcements', '/content'], support: ['', '/customers', '/licenses', '/orders', '/payments', '/support', '/announcements'] };
 
 async function sendDiscordLog(webhookUrl: string | undefined, content: string) {
   if (!webhookUrl) return;
@@ -46,7 +48,9 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     if (!['GET', 'HEAD'].includes(c.req.method) && !c.req.path.startsWith('/api/agent/') && !c.req.path.startsWith('/api/webhooks/') && !c.req.path.startsWith('/api/internal/') && requestOrigin !== allowedOrigin) return c.json({ error: 'Request origin is not allowed.' }, 403);
     await next();
   });
-  app.use('/api/*', bodyLimit({ maxSize: 16384, onError: c => c.json({ error: 'Request is too large.' }, 413) }));
+  const regularBodyLimit = bodyLimit({ maxSize: 16384, onError: c => c.json({ error: 'Request is too large.' }, 413) });
+  const uploadBodyLimit = bodyLimit({ maxSize: 10 * 1024 * 1024, onError: c => c.json({ error: 'Upload must be smaller than 10 MB.' }, 413) });
+  app.use('/api/*', (c, next) => c.req.path === '/api/admin/upload' ? uploadBodyLimit(c, next) : regularBodyLimit(c, next));
   app.onError((e, c) => c.json({ error: e instanceof z.ZodError ? e.errors.map(x => x.message).join(' ') : 'The account service could not complete this request.' }, e instanceof z.ZodError ? 400 : 500));
   app.get('/api/health', c => c.json({ mode: isConfigured(c.env) ? 'supabase' : 'unconfigured', livePayments: false }));
   app.get('/api/auth/config', c => c.json({ mode: isConfigured(c.env) ? 'supabase' : 'unconfigured', preview: false, registration: isConfigured(c.env) }));
@@ -58,11 +62,11 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
         .select('id, slug, name, categoryId:category_id, tagline, description, price:price_label, status, logoUrl:logo_url, features, version, requirements, releaseStatus:release_status, workflowHeading:workflow_heading, workflowDescription:workflow_description, workflowMediaUrl:workflow_media_url, workflowNote:workflow_note, updatedAt:updated_at')
         .eq('status', 'published')
         .order('created_at', { ascending: true }),
-      supabase.from('site_settings').select('name, headline, description, email, company, domain').single(),
+      supabase.from('site_settings').select('name, headline, description, email, company, domain, maintenance_mode, permissions').single(),
       supabase.from('categories').select('id, slug, name, createdAt:created_at')
     ]);
     const products = (productsResult.data || catalog.products).map(p => ({...p, category: (categoriesResult.data || catalog.categories).find(c => c.id === p.categoryId) || null}));
-    const settings = settingsResult.data || catalog.settings;
+    const settings = settingsResult.data ? { ...settingsResult.data, maintenanceMode: settingsResult.data.maintenance_mode } : catalog.settings;
     const categories = categoriesResult.data || catalog.categories;
     return c.json({ categories, products, settings, preview: false });
   });
@@ -165,7 +169,7 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     return c.json({ ok: true, lease: jwt, expires_at: new Date(leaseExp * 1000).toISOString() });
   });
   app.use('/api/*', async (c, next) => {
-    if (c.req.path.startsWith('/api/internal/')) return next();
+    if (c.req.path.startsWith('/api/internal/') || c.req.path.startsWith('/api/webhooks/')) return next();
     const db = c.get('db'); const { data, error } = await db.auth.getUser();
     if (error || !data.user?.email_confirmed_at) return c.json({ error: 'Sign in with a verified account to continue.' }, 401);
     const [profile, membership, assurance] = await Promise.all([
@@ -202,6 +206,17 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     if (c.get('mfaRequired')) return c.json({ error: 'Complete authenticator verification in Account security.', code: 'MFA_REQUIRED' }, 403);
     await next();
   });
+  app.use('/api/admin/*', async (c, next) => {
+    const user = c.get('user');
+    if (user.role === 'customer') return c.json({ error: 'Staff permission required.' }, 403);
+    if (user.role === 'owner') return next();
+    const first = c.req.path.slice('/api/admin'.length).split('/').filter(Boolean)[0] || '';
+    const section = first === 'analytics' ? '' : '/' + first;
+    const settings = await c.get('db').rpc('get_site_settings');
+    const permissions = settings.data?.permissions || defaultPermissions;
+    if (!(permissions[user.role] || []).includes(section)) return c.json({ error: 'Your role cannot access this section.' }, 403);
+    await next();
+  });
   app.patch('/api/me', async c => {
     const input = z.object({ name: z.string().trim().min(2).max(80) }).parse(await c.req.json());
     const { error } = await c.get('db').rpc('update_my_profile', { new_name: input.name });
@@ -227,7 +242,9 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     if (error || !license) return c.json({ error: 'License not found.' }, 404);
     if (license.user_id !== user.id && user.role !== 'owner') return c.json({ error: 'Permission denied.' }, 403);
     if (license.status !== 'active') return c.json({ error: 'License is revoked.' }, 403);
-    const res = await c.get('db').rpc('reveal_license_key', { p_license_id: id, p_encryption_secret: c.env.CRON_SECRET! });
+    const secret = licenseSecret(c.env);
+    if (!secret) return c.json({ error: 'License encryption is not configured.' }, 503);
+    const res = await c.get('db').rpc('reveal_license_key', { p_license_id: id, p_encryption_secret: secret });
     if (res.error) return c.json({ error: res.error.message }, 403);
     return c.json({ key: res.data });
   });
@@ -260,7 +277,9 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
   app.post('/api/admin/licenses/gift', async c => {
     if (!['owner', 'administrator', 'product_manager'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
     const { email, productSlug } = z.object({ email: z.string().email(), productSlug: z.string() }).parse(await c.req.json());
-    const { error, data } = await c.get('db').rpc('admin_gift_license', { p_email: email, p_product_slug: productSlug });
+    const secret = licenseSecret(c.env);
+    if (!secret) return c.json({ error: 'License encryption is not configured.' }, 503);
+    const { error, data } = await c.get('db').rpc('admin_gift_license', { p_email: email, p_product_slug: productSlug, p_encryption_secret: secret });
     return error ? c.json({ error: error.message }, 400) : c.json({ ok: true, licenseId: data });
   });
   app.get('/api/admin', async c => {
@@ -284,9 +303,7 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
 
   app.post('/api/admin/team/:id/suspend', async c => {
     if (c.get('user').role !== 'owner') return c.json({ error: 'Only owners can suspend staff.' }, 403);
-    const { data: member } = await c.get('db').from('staff_memberships').select('active').eq('user_id', c.req.param('id')).single();
-    if (!member) return c.json({ error: 'Staff member not found.' }, 404);
-    const { error } = await c.get('db').rpc('modify_staff_status', { p_user_id: c.req.param('id'), p_active: !member.active });
+    const { error } = await c.get('db').rpc('admin_toggle_staff_status', { p_user_id: c.req.param('id') });
     return error ? c.json({ error: 'Could not suspend staff.' }, 500) : c.json({ ok: true });
   });
 
@@ -300,6 +317,12 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
   app.delete('/api/admin/team/invite/:id', async c => {
     if (!['owner', 'administrator'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
     const { error } = await c.get('db').rpc('admin_delete_invitation', { p_invitation_id: c.req.param('id') });
+    return error ? c.json({ error: error.message }, 400) : c.json({ ok: true });
+  });
+
+  app.post('/api/admin/team/invite/:id/resend', async c => {
+    if (c.get('user').role !== 'owner') return c.json({ error: 'Only owners can resend invitations.' }, 403);
+    const { error } = await c.get('db').rpc('admin_resend_invitation', { p_invitation_id: c.req.param('id') });
     return error ? c.json({ error: error.message }, 400) : c.json({ ok: true });
   });
 
@@ -344,44 +367,24 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
   app.post('/api/admin/licenses/:id/rotate', async c => {
     if (!['owner', 'administrator'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
     const input = await c.req.json();
-    const { data: res, error } = await c.get('db').rpc('rotate_license_key', { p_license_id: c.req.param('id'), p_encryption_secret: c.env.CRON_SECRET! });
+    const secret = licenseSecret(c.env);
+    if (!secret) return c.json({ error: 'License encryption is not configured.' }, 503);
+    const { data: res, error } = await c.get('db').rpc('admin_rotate_license_key', { p_license_id: c.req.param('id'), p_reason: input.reason || 'Key rotation', p_encryption_secret: secret });
     if (error || (res && res.error)) return c.json({ error: error?.message || res.error }, 500);
     
-    await c.get('db').rpc('admin_set_license_status', { p_license_id: c.req.param('id'), p_status: 'active', p_reason: input.reason || 'Key rotation' });
     fireLog(c, c.env.DISCORD_SECURITY_WEBHOOK, `🔄 **[Security Alert: Key Rotated]**\n**License ID:** ${c.req.param('id')}\n**Admin:** ${c.get('user').email}\n**Reason:** ${input.reason || 'Key rotation'}`);
     return c.json({ ok: true, version: res.version });
   });
 
   app.get('/api/admin/analytics', async c => {
     if (!['owner', 'administrator', 'product_manager'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
-    const db = c.get('db');
-    
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-    
-    // Revenue & Sales
-    const { data: recentOrders } = await db.from('orders').select('amount_minor').gte('created_at', thirtyDaysAgo).eq('status', 'completed');
-    const revenue = (recentOrders || []).reduce((acc: number, o: any) => acc + (o.amount_minor || 0), 0) / 100;
-    
-    // Active Licenses
-    const { count: activeLicenses } = await db.from('licenses').select('*', { count: 'exact', head: true }).eq('status', 'active');
-    
-    // Total Customers
-    const { count: totalCustomers } = await db.from('profiles').select('id', { count: 'exact', head: true }).not('id', 'in', `(${ (await db.from('staff_memberships').select('user_id')).data?.map((r:any) => r.user_id).join(',') || '00000000-0000-0000-0000-000000000000' })`);
-
-    return c.json({
-      items: [],
-      metrics: {
-        revenue: revenue,
-        activeLicenses: activeLicenses || 0,
-        recentSales: recentOrders?.length || 0,
-        totalCustomers: totalCustomers || 0
-      }
-    });
+    const { data, error } = await c.get('db').rpc('admin_analytics');
+    return error ? c.json({ error: 'Analytics could not be loaded.' }, 503) : c.json(data);
   });
 
   app.get('/api/admin/categories', async c => {
     const { data, error } = await c.get('db').from('categories').select('*').order('created_at', { ascending: true });
-    return error ? c.json({ error: error.message }, 500) : c.json(data);
+    return error ? c.json({ error: error.message }, 500) : c.json({ items: data, categories: data });
   });
   
   app.post('/api/admin/categories', async c => {
@@ -410,12 +413,15 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
       const file = body['file'];
       if (!file || typeof file === 'string') return c.json({ error: 'No file uploaded.' }, 400);
       
-      const ext = file.name.split('.').pop();
-      const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`;
-      const { error } = await factory(c).storage.from('product-assets').upload(fileName, file as any, { contentType: file.type });
+      const allowedTypes: Record<string, string> = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp', 'image/gif': 'gif', 'video/mp4': 'mp4', 'video/webm': 'webm' };
+      const ext = allowedTypes[file.type];
+      if (!ext) return c.json({ error: 'Upload a PNG, JPG, WebP, GIF, MP4, or WebM file.' }, 400);
+      if (file.size > 10 * 1024 * 1024) return c.json({ error: 'Upload must be smaller than 10 MB.' }, 413);
+      const fileName = `${crypto.randomUUID()}.${ext}`;
+      const { error } = await c.get('db').storage.from('product-assets').upload(fileName, file as any, { contentType: file.type, upsert: false });
       if (error) return c.json({ error: error.message }, 500);
       
-      const { data } = factory(c).storage.from('product-assets').getPublicUrl(fileName);
+      const { data } = c.get('db').storage.from('product-assets').getPublicUrl(fileName);
       return c.json({ url: data.publicUrl });
     } catch (e: any) {
       return c.json({ error: 'Upload failed: ' + e.message }, 500);
@@ -473,10 +479,7 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
   app.patch('/api/admin/content', async c => {
     if (!['owner', 'administrator'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
     const input = await c.req.json();
-    const { error } = await c.get('db').rpc('admin_update_settings', {
-      p_name: input.name, p_headline: input.headline, p_description: input.description,
-      p_email: input.email, p_company: input.company, p_domain: input.domain
-    });
+    const { error } = await c.get('db').rpc('admin_update_content', { p_headline: input.headline, p_description: input.description });
     return error ? c.json({ error: 'Settings could not be saved.' }, 400) : c.json({ ok: true });
   });
 
@@ -487,33 +490,23 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
       p_name: input.name, p_headline: input.headline, p_description: input.description,
       p_email: input.email, p_company: input.company, p_domain: input.domain
     });
-    return error ? c.json({ error: 'Settings could not be saved.' }, 400) : c.json({ ok: true });
+    if (error) return c.json({ error: 'Settings could not be saved: ' + error.message }, 400);
+    if (c.get('user').role === 'owner' && typeof input.maintenanceMode === 'boolean') {
+      const advanced = await c.get('db').rpc('admin_update_advanced_settings', { p_maintenance_mode: input.maintenanceMode, p_permissions: input.permissions || {} });
+      if (advanced.error) return c.json({ error: 'Advanced settings could not be saved: ' + advanced.error.message }, 400);
+    }
+    return c.json({ ok: true });
+  });
+
+  app.patch('/api/admin/permissions', async c => {
+    if (c.get('user').role !== 'owner') return c.json({ error: 'Owner permission required.' }, 403);
+    const permissions = z.record(z.array(z.string().max(80)).max(30)).parse(await c.req.json());
+    const current = await c.get('db').rpc('get_site_settings');
+    if (current.error) return c.json({ error: 'Settings could not be loaded.' }, 503);
+    const { error } = await c.get('db').rpc('admin_update_advanced_settings', { p_maintenance_mode: !!current.data?.maintenanceMode, p_permissions: permissions });
+    return error ? c.json({ error: error.message }, 400) : c.json({ ok: true });
   });
   
-  app.post('/api/checkout/create/old', async c => {
-    const input = z.object({ productId: z.string() }).parse(await c.req.json());
-    const user = c.get('user');
-    const product = catalog.products.find(p => p.id === input.productId);
-    if (!product) return c.json({ error: 'Product not found.' }, 404);
-    if (product.releaseStatus === 'development') return c.json({ error: 'Product is not available for purchase.' }, 400);
-
-    if (!c.env.RAZORPAY_KEY_ID || !c.env.RAZORPAY_KEY_SECRET) return c.json({ error: 'Payment gateway is not configured.' }, 503);
-
-    // Temporary testing amount (₹500.00) until catalog has dynamic pricing
-    const amountMinor = 50000;
-    const currency = 'INR';
-
-    const auth = btoa(`${c.env.RAZORPAY_KEY_ID}:${c.env.RAZORPAY_KEY_SECRET}`);
-    const rzpRes = await fetch('https://api.razorpay.com/v1/orders', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Basic ${auth}` },
-      body: JSON.stringify({ amount: amountMinor, currency, receipt: `receipt_${crypto.randomUUID().slice(0, 8)}`, notes: { productId: product.id, userId: user.id } })
-    });
-    if (!rzpRes.ok) return c.json({ error: 'Failed to initialize checkout with payment gateway.' }, 500);
-
-    const orderData = await rzpRes.json();
-    return c.json({ orderId: orderData.id, amount: orderData.amount, currency: orderData.currency, keyId: c.env.RAZORPAY_KEY_ID });
-  });
   app.post('/api/licenses/:id/download', async c => {
     const id = c.req.param('id');
     const db = c.get('db');
@@ -524,7 +517,7 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     const { data: license, error } = await db.from('licenses').select('status, products(slug)').eq('id', id).single();
     if (error || !license) return c.json({ error: 'License not found.' }, 404);
     if (license.status !== 'active') {
-      fireLog(c, c.env.DISCORD_SECURITY_WEBHOOK, `🚨 **[Security Alert: Blocked Download]**\n**User:** ${c.get('user').email}\n**Reason:** License is ${license.status}\n**Product:** ${license.products?.slug}`);
+      fireLog(c, c.env.DISCORD_SECURITY_WEBHOOK, `🚨 **[Security Alert: Blocked Download]**\n**User:** ${c.get('user').email}\n**Reason:** License is ${license.status}\n**Product:** ${(license.products as any)?.slug || 'unknown'}`);
       return c.json({ error: 'This license is revoked or inactive.' }, 403);
     }
     
@@ -590,82 +583,51 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     const { data: settings } = await db.rpc('get_site_settings');
     if (settings?.maintenance_mode) return c.json({ error: 'Store is temporarily closed for maintenance. Please check back later.' }, 503);
     const input = z.object({ productId: z.string().uuid() }).parse(await c.req.json());
-    const { data: user } = await db.auth.getUser();
-    if (!user.user) return c.json({ error: 'Not authenticated' }, 401);
-
-    // Get active price
-    const { data: priceData, error: priceError } = await db.from('prices').select('*, products(name, catalog_key)').eq('product_id', input.productId).eq('active', true).maybeSingle();
-    if (priceError || !priceData) return c.json({ error: 'Product is currently not available for purchase.' }, 400);
-
-    const amount = priceData.amount_minor;
-    const currency = priceData.currency;
-    const idempotency = `checkout_${user.user.id}_${input.productId}_${Date.now()}`;
-
-    // Create a pending order in DB
-    const { data: order, error: orderError } = await db.from('orders').insert({
-      user_id: user.user.id,
-      product_id: input.productId,
-      price_id: priceData.id,
-      amount_minor: amount,
-      currency,
-      status: 'pending',
-      idempotency_key: idempotency
-    }).select().single();
-
-    if (orderError || !order) return c.json({ error: 'Could not create order.' }, 500);
-
-    // If Razorpay keys are configured, call Razorpay API
-    if (c.env.RAZORPAY_KEY_ID && c.env.RAZORPAY_KEY_SECRET && !c.env.RAZORPAY_KEY_ID.includes('YOUR_KEY_HERE')) {
-      try {
+    if (!c.env.RAZORPAY_KEY_ID || !c.env.RAZORPAY_KEY_SECRET || c.env.RAZORPAY_KEY_ID.includes('YOUR_KEY_HERE')) {
+      return c.json({ error: 'Payment gateway is not configured.' }, 503);
+    }
+    const { data: checkout, error: checkoutError } = await db.rpc('create_checkout_order', { p_product_id: input.productId });
+    if (checkoutError || !checkout?.order_id) return c.json({ error: checkoutError?.message || 'Could not create order.' }, 400);
+    const amount = checkout.amount;
+    const currency = checkout.currency;
+    try {
         const auth = btoa(`${c.env.RAZORPAY_KEY_ID}:${c.env.RAZORPAY_KEY_SECRET}`);
         const rzpRes = await fetch('https://api.razorpay.com/v1/orders', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Basic ${auth}` },
-          body: JSON.stringify({ amount, currency, receipt: order.id })
+          body: JSON.stringify({ amount, currency, receipt: checkout.order_id, notes: { order_id: checkout.order_id } })
         });
         const rzpData = await rzpRes.json();
         if (!rzpRes.ok) throw new Error(rzpData.error?.description || 'Razorpay order creation failed');
         
-        await db.from('orders').update({ provider_order_id: rzpData.id }).eq('id', order.id);
+        const attached = await db.rpc('attach_checkout_provider_order', { p_order_id: checkout.order_id, p_provider_order_id: rzpData.id });
+        if (attached.error) throw new Error('Could not attach the payment order.');
         
         return c.json({
           ok: true,
-          order_id: order.id,
+          order_id: checkout.order_id,
           razorpay_order_id: rzpData.id,
           amount,
           currency,
           key_id: c.env.RAZORPAY_KEY_ID,
-          name: priceData.products.name,
+          name: checkout.name,
           mock: false
         });
-      } catch (e: any) {
-        return c.json({ error: 'Checkout service unavailable: ' + e.message }, 503);
-      }
+    } catch (e: any) {
+      return c.json({ error: 'Checkout service unavailable: ' + e.message }, 503);
     }
-
-    // Mock Mode fallback
-    return c.json({
-      ok: true,
-      order_id: order.id,
-      razorpay_order_id: 'order_mock_' + order.id,
-      amount,
-      currency,
-      key_id: 'mock_key',
-      name: priceData.products.name,
-      mock: true
-    });
   });
 
   app.post('/api/webhooks/razorpay', async c => {
     // Read the raw body as text for signature verification
     const bodyText = await c.req.text();
     const signature = c.req.header('x-razorpay-signature');
-    if (!signature || !c.env.RAZORPAY_KEY_SECRET) return c.json({ error: 'Invalid webhook configuration' }, 400);
+    if (!signature || !c.env.RAZORPAY_WEBHOOK_SECRET) return c.json({ error: 'Invalid webhook configuration' }, 400);
 
     try {
       // Use Web Crypto API to verify HMAC SHA256 signature
       const enc = new TextEncoder();
-      const key = await crypto.subtle.importKey('raw', enc.encode(c.env.RAZORPAY_KEY_SECRET), { name: 'HMAC', hash: 'SHA-256' }, false, ['verify']);
+      const key = await crypto.subtle.importKey('raw', enc.encode(c.env.RAZORPAY_WEBHOOK_SECRET), { name: 'HMAC', hash: 'SHA-256' }, false, ['verify']);
       
       const sigBytes = new Uint8Array(signature.length / 2);
       for (let i = 0; i < signature.length; i += 2) sigBytes[i / 2] = parseInt(signature.substr(i, 2), 16);
@@ -677,10 +639,9 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
       const adminDb = createClient(c.env.SUPABASE_URL!, c.env.SUPABASE_SERVICE_ROLE_KEY!);
       
       // Store the event
-      await adminDb.from('webhook_events').insert({
-        provider_event_id: event.id || `evt_${Date.now()}`,
-        payload: event
-      }).onConflict('provider_event_id').ignore();
+      const stored = await adminDb.rpc('record_webhook_event', { p_provider_event_id: event.id || `evt_${Date.now()}`, p_payload: event });
+      if (stored.error) return c.json({ error: 'Webhook could not be recorded.' }, 503);
+      if (!stored.data) return c.json({ ok: true, duplicate: true });
 
       // Process payment.authorized or payment.captured
       if (event.event === 'payment.captured' || event.event === 'payment.authorized') {
@@ -694,10 +655,12 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
         // Find our internal order ID
         const { data: internalOrder } = await adminDb.from('orders').select('id').eq('provider_order_id', rzpOrderId).single();
         if (internalOrder) {
+          const secret = licenseSecret(c.env);
+          if (!secret) return c.json({ error: 'License encryption is not configured.' }, 503);
           const { data: res, error } = await adminDb.rpc('process_payment_webhook', {
             p_order_id: internalOrder.id,
             p_payment_id: payment.id,
-            p_encryption_secret: c.env.CRON_SECRET!
+            p_encryption_secret: secret
           });
           if (!error && res && res.ok) {
             fireLog(c, c.env.DISCORD_SALES_WEBHOOK, `🎉 **[New Sale (Razorpay)]**\n**Order ID:** ${internalOrder.id}\n**Payment ID:** ${payment.id}\nLicense generated successfully.`);
@@ -708,16 +671,6 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     } catch (e: any) {
       return c.json({ error: 'Webhook processing failed' }, 500);
     }
-  });
-
-  // Internal test endpoint to simulate a webhook if in mock mode
-  app.post('/api/internal/mock-webhook', async c => {
-    const { order_id, payment_id } = await c.req.json();
-    const adminDb = createClient(c.env.SUPABASE_URL!, c.env.SUPABASE_SERVICE_ROLE_KEY!);
-    const { data: res, error } = await adminDb.rpc('process_payment_webhook', { p_order_id: order_id, p_payment_id: payment_id, p_encryption_secret: c.env.CRON_SECRET! });
-    if (error || (res && res.error)) return c.json({ error: error?.message || res.error }, 500);
-    fireLog(c, c.env.DISCORD_SALES_WEBHOOK, `🎉 **[New Sale]**\n**Order ID:** ${order_id}\n**Payment ID:** ${payment_id}\nLicense generated successfully.`);
-    return c.json({ ok: true });
   });
 
   app.post('/api/admin/licenses/:id/device-reset', async c => {

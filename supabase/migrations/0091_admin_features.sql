@@ -158,7 +158,7 @@ begin
     'version', p.version, 'requirements', p.requirements,
     'releaseStatus', p.release_status, 'workflowHeading', p.workflow_heading,
     'workflowDescription', p.workflow_description, 'workflowMediaUrl', p.workflow_media_url,
-    'workflowNote', p.workflow_note, 
+    'workflowNote', p.workflow_note
   ) order by p.created_at asc), '[]'::json) into v_products
   from public.products p
   left join public.categories c on p.category_id = c.id;
