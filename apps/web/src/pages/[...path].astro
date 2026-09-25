@@ -2,11 +2,100 @@
 import App from '../ui/App';
 import '../styles/global.css';
 import { routes } from '../../../../packages/shared/model';
+import catalog from '../../../../packages/shared/catalog.json';
+
 export function getStaticPaths() {
-  const fixed = routes.filter(p=>!p.startsWith('agents/')&&!p.startsWith('checkout/'));
-  return fixed.map(path => ({ params: { path: path || undefined } }));
+  const fixed = routes.filter(p=>!p.startsWith('checkout/'));
+  // Ensure we use slugs for agents, not IDs
+  const staticRoutes = fixed.map(p => {
+    if (p.startsWith('agents/')) {
+      const id = p.split('/')[1];
+      const product = catalog.products.find(prod => prod.id === id);
+      if (product) return `agents/${product.slug}`;
+    }
+    return p;
+  });
+  
+  return staticRoutes.map(path => ({ params: { path: path || undefined } }));
 }
+
 const path = '/' + (Astro.params.path || '');
 const privatePage = /\/(account|admin|checkout|orders|login|register)/.test(path);
+const settings = catalog.settings;
+
+let title = settings.name + " - AI agents for your everyday work";
+let description = settings.description;
+let ogImage = "https://nor-vi.in/logo.jpg";
+let isProduct = false;
+let productJsonLd = "";
+
+if (path.startsWith('/agents/')) {
+  const slug = path.split('/')[2];
+  const product = catalog.products.find(p => p.slug === slug);
+  if (product) {
+    isProduct = true;
+    title = product.name + " - " + product.tagline + " | " + settings.name;
+    description = product.description;
+    
+    productJsonLd = JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": product.name,
+      "applicationCategory": "BusinessApplication",
+      "operatingSystem": product.requirements || "Windows",
+      "offers": {
+        "@type": "Offer",
+        "price": "999.00",
+        "priceCurrency": "INR"
+      },
+      "description": product.description
+    });
+  }
+} else if (path === '/agents') {
+  title = "All AI Agents | " + settings.name;
+} else if (path === '/contact') {
+  title = "Contact Us | " + settings.name;
+}
+
+const orgJsonLd = JSON.stringify({
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "name": settings.name,
+  "url": "https://nor-vi.in",
+  "logo": "https://nor-vi.in/logo.jpg"
+});
 ---
-<!doctype html><html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><meta name="description" content="Explore AI agents, find your next workflow, and manage your products with NORVI."/><meta name="robots" content={privatePage ? 'noindex,nofollow' : 'noindex'}/><link rel="icon" href="/favicon.jpg"/><title>NORVI — AI agents for your everyday work</title></head><body><form name="contact" data-netlify="true" netlify-honeypot="bot-field" hidden style="display:none;"><input type="text" name="name" /><input type="email" name="email" /><textarea name="message"></textarea></form><App initialPath={path} client:load /><noscript>This website needs JavaScript for accounts and checkout. Enable it to continue.</noscript></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <link rel="icon" href="/favicon.jpg"/>
+  
+  <title>{title}</title>
+  <meta name="description" content={description}/>
+  
+  <meta property="og:title" content={title} />
+  <meta property="og:description" content={description} />
+  <meta property="og:image" content={ogImage} />
+  <meta property="og:type" content={isProduct ? "product" : "website"} />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content={title} />
+  <meta name="twitter:description" content={description} />
+  <meta name="twitter:image" content={ogImage} />
+  
+  <meta name="robots" content={privatePage ? 'noindex,nofollow' : 'index,follow'}/>
+  
+  {!privatePage && <script type="application/ld+json" set:html={orgJsonLd}></script>}
+  {isProduct && <script type="application/ld+json" set:html={productJsonLd}></script>}
+</head>
+<body>
+  <form name="contact" data-netlify="true" netlify-honeypot="bot-field" hidden style="display:none;">
+    <input type="text" name="name" />
+    <input type="email" name="email" />
+    <textarea name="message"></textarea>
+  </form>
+  <App initialPath={path} client:load />
+  <noscript>This website needs JavaScript for accounts and checkout. Enable it to continue.</noscript>
+</body>
+</html>

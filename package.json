@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@astrojs/react": "6.0.6",
+    "@astrojs/sitemap": "^3.7.4",
     "@hono/node-server": "^1.19.0",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.57.0",

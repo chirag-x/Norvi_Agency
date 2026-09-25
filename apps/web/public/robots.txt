@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Disallow: /account
+Disallow: /admin
+Disallow: /checkout
+Disallow: /login
+
+Sitemap: https://nor-vi.in/sitemap-index.xml
