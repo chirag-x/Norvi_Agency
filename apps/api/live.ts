@@ -8,7 +8,7 @@ import { createClient } from '@supabase/supabase-js';
 import { z } from 'zod';
 import catalog from '../../packages/shared/catalog.json';
 
-export type LiveEnv = { APP_ORIGIN?: string; SUPABASE_URL?: string; SUPABASE_ANON_KEY?: string; SUPABASE_SERVICE_ROLE_KEY?: string; AUTH_RATE_LIMITER?: { limit: (input: { key: string }) => Promise<{ success: boolean }> }; RAZORPAY_KEY_ID?: string; RAZORPAY_KEY_SECRET?: string; RAZORPAY_WEBHOOK_SECRET?: string; RESEND_API_KEY?: string; CRON_SECRET?: string; LICENSE_ENCRYPTION_KEY?: string; EMAIL_FROM?: string; GITHUB_PAT?: string; GITHUB_REPO_OWNER?: string; GITHUB_REPO_NAME?: string; DISCORD_SALES_WEBHOOK?: string; DISCORD_DOWNLOADS_WEBHOOK?: string; DISCORD_SECURITY_WEBHOOK?: string; };
+export type LiveEnv = { APP_ORIGIN?: string; SUPABASE_URL?: string; SUPABASE_ANON_KEY?: string; SUPABASE_SERVICE_ROLE_KEY?: string; AUTH_RATE_LIMITER?: { limit: (input: { key: string }) => Promise<{ success: boolean }> }; RAZORPAY_KEY_ID?: string; RAZORPAY_KEY_SECRET?: string; RAZORPAY_WEBHOOK_SECRET?: string; RESEND_API_KEY?: string; CRON_SECRET?: string; LICENSE_ENCRYPTION_KEY?: string; EMAIL_FROM?: string; GITHUB_PAT?: string; GITHUB_REPO_OWNER?: string; GITHUB_REPO_NAME?: string; norvi_sales_and_orders?: string; norvi_downloads?: string; norvi_team_and_security?: string; norvi_system_alerts?: string; };
 type Identity = { id: string; email: string; name: string; role: string; status: string; createdAt: string; lastLogin: string | null };
 type AppEnv = { Bindings: LiveEnv; Variables: { db: SupabaseClient; user: Identity; mfaRequired: boolean } };
 type Factory = (c: Context<AppEnv>) => SupabaseClient;
@@ -150,7 +150,7 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     const hashHex = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
     const { data, error } = await c.get('db').rpc('activate_agent_license', { p_key_hash: hashHex, p_product_id: input.productId, p_device_id: input.deviceId });
     if (error || data.error) {
-      fireLog(c, c.env.DISCORD_SECURITY_WEBHOOK, `🚨 **[Security Alert: Failed Activation]**\n**Reason:** ${error?.message || data.error}\n**Product ID:** ${input.productId}\n**Device ID:** ${input.deviceId}`);
+      fireLog(c, c.env.norvi_team_and_security, `🚨 **[Security Alert: Failed Activation]**\n**Reason:** ${error?.message || data.error}\n**Product ID:** ${input.productId}\n**Device ID:** ${input.deviceId}`);
       return c.json({ error: error?.message || data.error || 'Activation could not be authorized.' }, 403);
     }
 
@@ -307,6 +307,19 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     return error ? c.json({ error: 'Team could not be loaded.' }, 503) : c.json(data);
   });
 
+
+  app.post('/api/admin/impersonate', async c => { 
+    if (c.get('user').role !== 'owner') return c.json({ error: 'Permission denied.' }, 403); 
+    const { id } = await c.req.json(); 
+    setCookie(c, 'norvi_impersonate', id, { path: '/' }); 
+    return c.json({ ok: true }); 
+  });
+  
+  app.delete('/api/admin/impersonate', c => { 
+    deleteCookie(c, 'norvi_impersonate', { path: '/' }); 
+    return c.json({ ok: true }); 
+  });
+
   app.post('/api/admin/team/invite', async c => {
     if (c.get('user').role !== 'owner') return c.json({ error: 'Only owners can invite staff.' }, 403);
     const input = await c.req.json();
@@ -366,7 +379,7 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     if (!['owner', 'administrator'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
     const input = await c.req.json();
     const { error } = await c.get('db').rpc('admin_set_license_status', { p_license_id: c.req.param('id'), p_status: 'revoked', p_reason: input.reason || 'Manual revocation' });
-    if (!error) fireLog(c, c.env.DISCORD_SECURITY_WEBHOOK, `🔒 **[Security Alert: License Revoked]**\n**License ID:** ${c.req.param('id')}\n**Admin:** ${c.get('user').email}\n**Reason:** ${input.reason || 'Manual revocation'}`);
+    if (!error) fireLog(c, c.env.norvi_team_and_security, `🔒 **[Security Alert: License Revoked]**\n**License ID:** ${c.req.param('id')}\n**Admin:** ${c.get('user').email}\n**Reason:** ${input.reason || 'Manual revocation'}`);
     return error ? c.json({ error: 'License could not be revoked.' }, 400) : c.json({ ok: true });
   });
 
@@ -385,7 +398,7 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     const { data: res, error } = await c.get('db').rpc('admin_rotate_license_key', { p_license_id: c.req.param('id'), p_reason: input.reason || 'Key rotation', p_encryption_secret: secret });
     if (error || (res && res.error)) return c.json({ error: error?.message || res.error }, 500);
     
-    fireLog(c, c.env.DISCORD_SECURITY_WEBHOOK, `🔄 **[Security Alert: Key Rotated]**\n**License ID:** ${c.req.param('id')}\n**Admin:** ${c.get('user').email}\n**Reason:** ${input.reason || 'Key rotation'}`);
+    fireLog(c, c.env.norvi_team_and_security, `🔄 **[Security Alert: Key Rotated]**\n**License ID:** ${c.req.param('id')}\n**Admin:** ${c.get('user').email}\n**Reason:** ${input.reason || 'Key rotation'}`);
     return c.json({ ok: true, version: res.version });
   });
 
@@ -530,7 +543,7 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     const { data: license, error } = await db.from('licenses').select('status, products(slug)').eq('id', id).single();
     if (error || !license) return c.json({ error: 'License not found.' }, 404);
     if (license.status !== 'active') {
-      fireLog(c, c.env.DISCORD_SECURITY_WEBHOOK, `🚨 **[Security Alert: Blocked Download]**\n**User:** ${c.get('user').email}\n**Reason:** License is ${license.status}\n**Product:** ${(license.products as any)?.slug || 'unknown'}`);
+      fireLog(c, c.env.norvi_team_and_security, `🚨 **[Security Alert: Blocked Download]**\n**User:** ${c.get('user').email}\n**Reason:** License is ${license.status}\n**Product:** ${(license.products as any)?.slug || 'unknown'}`);
       return c.json({ error: 'This license is revoked or inactive.' }, 403);
     }
     
@@ -580,7 +593,7 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
       if (assetRes.status === 302 || assetRes.status === 301) {
         const downloadUrl = assetRes.headers.get('location');
         if (downloadUrl) {
-          fireLog(c, c.env.DISCORD_DOWNLOADS_WEBHOOK, `⬇️ **[Agent Download]**\n**User:** ${c.get('user').email}\n**Product:** ${slug}\n**License ID:** ${id}`);
+          fireLog(c, c.env.norvi_downloads, `⬇️ **[Agent Download]**\n**User:** ${c.get('user').email}\n**Product:** ${slug}\n**License ID:** ${id}`);
           return c.json({ url: downloadUrl });
         }
       }
@@ -676,7 +689,7 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
             p_encryption_secret: secret
           });
           if (!error && res && res.ok) {
-            fireLog(c, c.env.DISCORD_SALES_WEBHOOK, `🎉 **[New Sale (Razorpay)]**\n**Order ID:** ${internalOrder.id}\n**Payment ID:** ${payment.id}\nLicense generated successfully.`);
+            fireLog(c, c.env.norvi_sales_and_orders, `🎉 **[New Sale (Razorpay)]**\n**Order ID:** ${internalOrder.id}\n**Payment ID:** ${payment.id}\nLicense generated successfully.`);
           }
         }
       }
