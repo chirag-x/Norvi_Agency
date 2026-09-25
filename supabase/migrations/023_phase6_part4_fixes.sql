@@ -159,4 +159,4 @@ grant execute on function public.list_team() to authenticated;
 
 
 -- Refresh PostgREST schema cache to make new columns visible to the API
-NOTIFY pgrst, reload_schema;
+NOTIFY pgrst, 'reload schema';
