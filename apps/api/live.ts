@@ -251,12 +251,18 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
 
   app.post('/api/licenses/:id/reveal', async c => {
     const id = c.req.param('id'), user = c.get('user');
-    const { data: license, error } = await c.get('db').from('licenses').select('id,status,user_id').eq('id', id).single();
+    const secret = licenseSecret(c.env);
+    if (!secret) return c.json({ error: 'License encryption is not configured.' }, 503);
+    
+    // Bypass RLS using service role client so Owner can view other users' licenses.
+    // The RPC function below will enforce proper authorization.
+    const serviceDb = createClient(c.env.SUPABASE_URL!, c.env.SUPABASE_SERVICE_ROLE_KEY!);
+    const { data: license, error } = await serviceDb.from('licenses').select('id,status,user_id').eq('id', id).single();
+    
     if (error || !license) return c.json({ error: 'License not found.' }, 404);
     if (license.user_id !== user.id && user.role !== 'owner') return c.json({ error: 'Permission denied.' }, 403);
     if (license.status !== 'active') return c.json({ error: 'License is revoked.' }, 403);
-    const secret = licenseSecret(c.env);
-    if (!secret) return c.json({ error: 'License encryption is not configured.' }, 503);
+    
     const res = await c.get('db').rpc('reveal_license_key', { p_license_id: id, p_encryption_secret: secret });
     if (res.error) return c.json({ error: res.error.message }, 403);
     return c.json({ key: res.data });
