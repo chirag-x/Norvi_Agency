@@ -19,6 +19,10 @@ async function sendDiscordLog(webhookUrl: string | undefined, content: string) {
   if (!webhookUrl) return;
   try { await fetch(webhookUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content }) }); } catch (e) { console.error('Discord log failed', e); }
 }
+const fireLog = (c: any, webhookUrl: string | undefined, content: string) => {
+  const p = sendDiscordLog(webhookUrl, content);
+  if (c.executionCtx && typeof c.executionCtx.waitUntil === 'function') c.executionCtx.waitUntil(p);
+};
 const email = z.object({ email: z.string().trim().email().max(254) });
 export function isConfigured(env: LiveEnv) {
   try { const origin = new URL(env.APP_ORIGIN || ''); const provider = new URL(env.SUPABASE_URL || '');
@@ -142,7 +146,7 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     const hashHex = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
     const { data, error } = await c.get('db').rpc('activate_agent_license', { p_key_hash: hashHex, p_product_id: input.productId, p_device_id: input.deviceId });
     if (error || data.error) {
-      c.executionCtx.waitUntil(sendDiscordLog(c.env.DISCORD_SECURITY_WEBHOOK, `🚨 **[Security Alert: Failed Activation]**\n**Reason:** ${error?.message || data.error}\n**Product ID:** ${input.productId}\n**Device ID:** ${input.deviceId}`));
+      fireLog(c, c.env.DISCORD_SECURITY_WEBHOOK, `🚨 **[Security Alert: Failed Activation]**\n**Reason:** ${error?.message || data.error}\n**Product ID:** ${input.productId}\n**Device ID:** ${input.deviceId}`);
       return c.json({ error: error?.message || data.error || 'Activation could not be authorized.' }, 403);
     }
 
@@ -299,7 +303,7 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     if (!['owner', 'administrator'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
     const input = await c.req.json();
     const { error } = await c.get('db').rpc('admin_set_license_status', { p_license_id: c.req.param('id'), p_status: 'revoked', p_reason: input.reason || 'Manual revocation' });
-    if (!error) c.executionCtx.waitUntil(sendDiscordLog(c.env.DISCORD_SECURITY_WEBHOOK, `🔒 **[Security Alert: License Revoked]**\n**License ID:** ${c.req.param('id')}\n**Admin:** ${c.get('user').email}\n**Reason:** ${input.reason || 'Manual revocation'}`));
+    if (!error) fireLog(c, c.env.DISCORD_SECURITY_WEBHOOK, `🔒 **[Security Alert: License Revoked]**\n**License ID:** ${c.req.param('id')}\n**Admin:** ${c.get('user').email}\n**Reason:** ${input.reason || 'Manual revocation'}`);
     return error ? c.json({ error: 'License could not be revoked.' }, 400) : c.json({ ok: true });
   });
 
@@ -317,7 +321,7 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     if (error || (res && res.error)) return c.json({ error: error?.message || res.error }, 500);
     
     await c.get('db').rpc('admin_set_license_status', { p_license_id: c.req.param('id'), p_status: 'active', p_reason: input.reason || 'Key rotation' });
-    c.executionCtx.waitUntil(sendDiscordLog(c.env.DISCORD_SECURITY_WEBHOOK, `🔄 **[Security Alert: Key Rotated]**\n**License ID:** ${c.req.param('id')}\n**Admin:** ${c.get('user').email}\n**Reason:** ${input.reason || 'Key rotation'}`));
+    fireLog(c, c.env.DISCORD_SECURITY_WEBHOOK, `🔄 **[Security Alert: Key Rotated]**\n**License ID:** ${c.req.param('id')}\n**Admin:** ${c.get('user').email}\n**Reason:** ${input.reason || 'Key rotation'}`);
     return c.json({ ok: true, version: res.version });
   });
 
@@ -465,7 +469,7 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     const { data: license, error } = await db.from('licenses').select('status, products(slug)').eq('id', id).single();
     if (error || !license) return c.json({ error: 'License not found.' }, 404);
     if (license.status !== 'active') {
-      c.executionCtx.waitUntil(sendDiscordLog(c.env.DISCORD_SECURITY_WEBHOOK, `🚨 **[Security Alert: Blocked Download]**\n**User:** ${c.get('user').email}\n**Reason:** License is ${license.status}\n**Product:** ${license.products?.slug}`));
+      fireLog(c, c.env.DISCORD_SECURITY_WEBHOOK, `🚨 **[Security Alert: Blocked Download]**\n**User:** ${c.get('user').email}\n**Reason:** License is ${license.status}\n**Product:** ${license.products?.slug}`);
       return c.json({ error: 'This license is revoked or inactive.' }, 403);
     }
     
@@ -515,7 +519,7 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
       if (assetRes.status === 302 || assetRes.status === 301) {
         const downloadUrl = assetRes.headers.get('location');
         if (downloadUrl) {
-          c.executionCtx.waitUntil(sendDiscordLog(c.env.DISCORD_DOWNLOADS_WEBHOOK, `⬇️ **[Agent Download]**\n**User:** ${c.get('user').email}\n**Product:** ${slug}\n**License ID:** ${id}`));
+          fireLog(c, c.env.DISCORD_DOWNLOADS_WEBHOOK, `⬇️ **[Agent Download]**\n**User:** ${c.get('user').email}\n**Product:** ${slug}\n**License ID:** ${id}`);
           return c.json({ url: downloadUrl });
         }
       }
@@ -639,7 +643,7 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
             p_encryption_secret: c.env.CRON_SECRET!
           });
           if (!error && res && res.ok) {
-            c.executionCtx.waitUntil(sendDiscordLog(c.env.DISCORD_SALES_WEBHOOK, `🎉 **[New Sale (Razorpay)]**\n**Order ID:** ${internalOrder.id}\n**Payment ID:** ${payment.id}\nLicense generated successfully.`));
+            fireLog(c, c.env.DISCORD_SALES_WEBHOOK, `🎉 **[New Sale (Razorpay)]**\n**Order ID:** ${internalOrder.id}\n**Payment ID:** ${payment.id}\nLicense generated successfully.`);
           }
         }
       }
@@ -655,7 +659,7 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     const adminDb = createClient(c.env.SUPABASE_URL!, c.env.SUPABASE_SERVICE_ROLE_KEY!);
     const { data: res, error } = await adminDb.rpc('process_payment_webhook', { p_order_id: order_id, p_payment_id: payment_id, p_encryption_secret: c.env.CRON_SECRET! });
     if (error || (res && res.error)) return c.json({ error: error?.message || res.error }, 500);
-    c.executionCtx.waitUntil(sendDiscordLog(c.env.DISCORD_SALES_WEBHOOK, `🎉 **[New Sale]**\n**Order ID:** ${order_id}\n**Payment ID:** ${payment_id}\nLicense generated successfully.`));
+    fireLog(c, c.env.DISCORD_SALES_WEBHOOK, `🎉 **[New Sale]**\n**Order ID:** ${order_id}\n**Payment ID:** ${payment_id}\nLicense generated successfully.`);
     return c.json({ ok: true });
   });
 
