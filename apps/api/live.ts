@@ -66,7 +66,7 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
       supabase.from('categories').select('id, slug, name, createdAt:created_at')
     ]);
     const products = (productsResult.data || catalog.products).map(p => ({...p, category: (categoriesResult.data || catalog.categories).find(c => c.id === p.categoryId) || null}));
-    const settings = settingsResult.data ? { ...settingsResult.data, maintenanceMode: settingsResult.data.maintenance_mode } : catalog.settings;
+    const settings = settingsResult.data ? { ...settingsResult.data, maintenanceMode: settingsResult.data.maintenance_mode, permissions: (Object.keys(settingsResult.data.permissions || {}).length > 0) ? settingsResult.data.permissions : defaultPermissions } : catalog.settings;
     const categories = categoriesResult.data || catalog.categories;
     return c.json({ categories, products, settings, preview: false });
   });
