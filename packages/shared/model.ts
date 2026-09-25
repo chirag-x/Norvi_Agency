@@ -7,9 +7,10 @@ export type Order = { id: string; userId: string; productId: string; status: 'si
 export type Audit = { id: string; actor: string; action: string; target: string; createdAt: string };
 export type Ticket = { id: string; userId: string; subject: string; message: string; status: 'open' | 'closed'; createdAt: string };
 export type Invite = { id: string; email: string; role: Role; status: 'pending' | 'revoked'; createdAt: string };
-export type Settings = { name: string; headline: string; description: string; email: string; company: string; domain: string };
-export type Store = { categories: Category[]; products: Product[]; users: User[]; licenses: License[]; orders: Order[]; audit: Audit[]; tickets: Ticket[]; invitations: Invite[]; settings: Settings; emails: { id: string; userId: string; orderId: string; status: string; createdAt: string }[] };
-export const settings: Settings = { name: 'NORVI', headline: 'Less busywork.\nMore possibility.', description: 'Make room for the work that matters. Discover AI agents built to take everyday tasks off your hands.', email: 'email_Support', company: 'name_Company', domain: 'domain_Website' };
+export type Settings = { name: string; headline: string; description: string; email: string; company: string; domain: string; maintenanceMode: boolean; permissions: Record<string, string[]> };
+export type Announcement = { id: string; authorId: string; audience: 'customer' | 'team'; message: string; createdAt: string };
+export type Store = { categories: Category[]; products: Product[]; users: User[]; licenses: License[]; orders: Order[]; audit: Audit[]; tickets: Ticket[]; invitations: Invite[]; settings: Settings; emails: { id: string; userId: string; orderId: string; status: string; createdAt: string }[]; announcements: Announcement[] };
+export const settings: Settings = { name: 'NORVI', headline: 'Less busywork.\nMore possibility.', description: 'Make room for the work that matters. Discover AI agents built to take everyday tasks off your hands.', email: 'email_Support', company: 'name_Company', domain: 'domain_Website', maintenanceMode: false, permissions: { owner: ['*'], administrator: ['', '/products', '/categories', '/customers', '/licenses', '/orders', '/subscriptions', '/announcements', '/content', '/activity'], product_manager: ['', '/products', '/categories', '/announcements', '/content'], support: ['', '/customers', '/licenses', '/orders', '/announcements'] } };
 export const categories: Category[] = [
   { id: 'cat-1', slug: 'desktop-automation', name: 'Desktop automation' },
   { id: 'cat-2', slug: 'interview-assistance', name: 'Interview assistance' },
@@ -105,6 +106,6 @@ export function seed(): Store {
     { id: 'preview-nonbuyer', name: 'name_Visitor', email: 'visitor@example.invalid', role: 'customer', status: 'active', createdAt: date, lastLogin: date },
     { id: 'preview-support', name: 'name_Support', email: 'support@example.invalid', role: 'support', status: 'active', createdAt: date, lastLogin: null },
     { id: 'preview-product', name: 'name_Editor', email: 'editor@example.invalid', role: 'product_manager', status: 'active', createdAt: date, lastLogin: null },
-  ], licenses: [], orders: [], audit: [], tickets: [], invitations: [], emails: [] };
+  ], licenses: [], orders: [], audit: [], tickets: [], invitations: [], emails: [], announcements: [] };
 }
 export const routes = ['', 'agents', 'agents/agent-1', 'agents/agent-2', 'agents/agent-3', 'pricing', 'about', 'contact', 'help', 'privacy', 'terms', 'refunds', 'license', 'register', 'login', 'verify-email', 'reset-password', 'update-password', 'auth/confirm', 'account/security', 'onboarding', 'account', 'account/agents', 'account/licenses', 'account/billing', 'account/settings', 'account/support', 'checkout/agent-1', 'checkout/agent-2', 'checkout/agent-3', 'orders', 'admin', 'admin/login', 'admin/customers', 'admin/licenses', 'admin/orders', 'admin/subscriptions', 'admin/products', 'admin/activity', 'admin/settings', 'admin/team', 'admin/content'];

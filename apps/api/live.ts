@@ -214,10 +214,11 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
       db.from('orders').select('id,product_id,status,amount_minor,currency,created_at').eq('user_id', uid),
       db.from('support_requests').select('id,subject,message,status,created_at').eq('user_id', uid),
       db.from('devices').select('id,license_id,installation_id,active,last_seen_at').eq('active', true),
+      db.from('announcements').select('id,message,created_at').eq('audience', 'customer').order('created_at', { ascending: false })
     ]);
     if (results.some(r => r.error)) return c.json({ error: 'Account records could not be loaded.' }, 503);
     const devices = results[3].data || [];
-    return c.json({ user: c.get('user'), licenses: results[0].data!.map(l => ({ ...l, productId: l.product_id, suffix: l.key_suffix, createdAt: l.created_at, expiresAt: l.expires_at, devices: devices.filter(d => d.license_id === l.id) })), orders: results[1].data!.map(o => ({ ...o, productId: o.product_id, createdAt: o.created_at, amount: `${o.currency} ${(o.amount_minor / 100).toFixed(2)}` })), tickets: results[2].data!.map(t => ({ ...t, createdAt: t.created_at })), emails: [], preview: false });
+    return c.json({ user: c.get('user'), licenses: results[0].data!.map(l => ({ ...l, productId: l.product_id, suffix: l.key_suffix, createdAt: l.created_at, expiresAt: l.expires_at, devices: devices.filter(d => d.license_id === l.id) })), orders: results[1].data!.map(o => ({ ...o, productId: o.product_id, createdAt: o.created_at, amount: `${o.currency} ${(o.amount_minor / 100).toFixed(2)}` })), tickets: results[2].data!.map(t => ({ ...t, createdAt: t.created_at })), announcements: (results[4].data || []).map(a => ({ ...a, createdAt: a.created_at })), emails: [], preview: false });
   });
 
   app.post('/api/licenses/:id/reveal', async c => {
@@ -249,9 +250,20 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
   });
   app.get('/api/admin/customers', async c => {
     if (!['owner', 'administrator', 'support'].includes(c.get('user').role)) return c.json({ error: 'Your role cannot access customers.' }, 403);
-    const page = z.coerce.number().int().min(0).max(100000).parse(c.req.query('page') || 0);
-    const { data, error } = await c.get('db').rpc('list_customers', { page_number: page });
-    return error ? c.json({ error: 'Customers could not be loaded.' }, 503) : c.json({ items: data, page, pageSize: 50 });
+    const { data, error } = await c.get('db').rpc('admin_list_customers');
+    return error ? c.json({ error: 'Customers could not be loaded.' }, 503) : c.json(data);
+  });
+  app.post('/api/admin/customers/:id/suspend', async c => {
+    if (!['owner', 'administrator', 'support'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
+    const { suspended } = z.object({ suspended: z.boolean() }).parse(await c.req.json());
+    const { error } = await c.get('db').rpc('admin_set_customer_status', { p_customer_id: c.req.param('id'), p_suspended: suspended });
+    return error ? c.json({ error: 'Status could not be updated.' }, 400) : c.json({ ok: true });
+  });
+  app.post('/api/admin/licenses/gift', async c => {
+    if (!['owner', 'administrator', 'product_manager'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
+    const { email, productSlug } = z.object({ email: z.string().email(), productSlug: z.string() }).parse(await c.req.json());
+    const { error, data } = await c.get('db').rpc('admin_gift_license', { p_email: email, p_product_slug: productSlug });
+    return error ? c.json({ error: error.message }, 400) : c.json({ ok: true, licenseId: data });
   });
   app.get('/api/admin', async c => {
     if (!['owner', 'administrator', 'support'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
@@ -274,11 +286,23 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
 
   app.post('/api/admin/team/:id/suspend', async c => {
     if (c.get('user').role !== 'owner') return c.json({ error: 'Only owners can suspend staff.' }, 403);
-    // Note: To properly toggle, we would need to check current status. For simplicity, we just toggle.
     const { data: member } = await c.get('db').from('staff_memberships').select('active').eq('user_id', c.req.param('id')).single();
     if (!member) return c.json({ error: 'Staff member not found.' }, 404);
     const { error } = await c.get('db').rpc('modify_staff_status', { p_user_id: c.req.param('id'), p_active: !member.active });
     return error ? c.json({ error: 'Could not suspend staff.' }, 500) : c.json({ ok: true });
+  });
+
+  app.post('/api/admin/team/:id/role', async c => {
+    if (c.get('user').role !== 'owner') return c.json({ error: 'Only owners can change roles.' }, 403);
+    const { role } = z.object({ role: z.enum(['administrator', 'product_manager', 'support']) }).parse(await c.req.json());
+    const { error } = await c.get('db').rpc('admin_update_staff_role', { p_user_id: c.req.param('id'), p_role: role });
+    return error ? c.json({ error: error.message }, 400) : c.json({ ok: true });
+  });
+
+  app.delete('/api/admin/team/invite/:id', async c => {
+    if (!['owner', 'administrator'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
+    const { error } = await c.get('db').rpc('admin_delete_invitation', { p_invitation_id: c.req.param('id') });
+    return error ? c.json({ error: error.message }, 400) : c.json({ ok: true });
   });
 
   app.get('/api/admin/licenses', async c => {
@@ -382,6 +406,24 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     return error ? c.json({ error: 'Product could not be saved. ' + error.message }, 400) : c.json({ ok: true });
   });
 
+  app.get('/api/admin/announcements/:audience', async c => {
+    const { data, error } = await c.get('db').rpc('list_announcements', { p_audience: c.req.param('audience') });
+    return error ? c.json({ error: error.message }, 400) : c.json({ items: data });
+  });
+
+  app.post('/api/admin/announcements', async c => {
+    if (c.get('user').role !== 'owner') return c.json({ error: 'Permission denied.' }, 403);
+    const { message, audience } = z.object({ message: z.string().min(1), audience: z.enum(['customer', 'team']) }).parse(await c.req.json());
+    const { error } = await c.get('db').rpc('admin_create_announcement', { p_message: message, p_audience: audience });
+    return error ? c.json({ error: error.message }, 400) : c.json({ ok: true });
+  });
+
+  app.delete('/api/admin/announcements/:id', async c => {
+    if (c.get('user').role !== 'owner') return c.json({ error: 'Permission denied.' }, 403);
+    const { error } = await c.get('db').rpc('admin_delete_announcement', { p_id: c.req.param('id') });
+    return error ? c.json({ error: error.message }, 400) : c.json({ ok: true });
+  });
+
   app.get('/api/admin/content', async c => {
     const { data, error } = await c.get('db').rpc('get_site_settings');
     return error ? c.json({ error: 'Settings could not be loaded.' }, 503) : c.json({ settings: data });
@@ -464,6 +506,8 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
   app.post('/api/licenses/:id/download', async c => {
     const id = c.req.param('id');
     const db = c.get('db');
+    const { data: settings } = await db.rpc('get_site_settings');
+    if (settings?.maintenance_mode) return c.json({ error: 'Downloads are temporarily disabled for maintenance.' }, 503);
     
     // Fetch license status and join with products to get the slug for the file name
     const { data: license, error } = await db.from('licenses').select('status, products(slug)').eq('id', id).single();
@@ -531,8 +575,10 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
   });
   
   app.post('/api/checkout/create', async c => {
-    const input = z.object({ productId: z.string().uuid() }).parse(await c.req.json());
     const db = c.get('db');
+    const { data: settings } = await db.rpc('get_site_settings');
+    if (settings?.maintenance_mode) return c.json({ error: 'Store is temporarily closed for maintenance. Please check back later.' }, 503);
+    const input = z.object({ productId: z.string().uuid() }).parse(await c.req.json());
     const { data: user } = await db.auth.getUser();
     if (!user.user) return c.json({ error: 'Not authenticated' }, 401);
 
