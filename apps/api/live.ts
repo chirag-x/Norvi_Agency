@@ -666,7 +666,48 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     }
   });
 
-  app.post('/api/webhooks/razorpay', async c => {
+  app.post('/api/store/checkout/verify', async c => {
+      const input = await c.req.json();
+      const { orderId, razorpay_payment_id, razorpay_order_id, razorpay_signature } = input;
+      
+      const secret = c.env.RAZORPAY_WEBHOOK_SECRET;
+      const keySecret = c.env.RAZORPAY_KEY_SECRET;
+      
+      if (!keySecret) return c.json({ error: 'Razorpay secret not configured' }, 503);
+      
+      // Verify Razorpay Signature (razorpay_order_id + "|" + razorpay_payment_id)
+      const enc = new TextEncoder();
+      const key = await crypto.subtle.importKey('raw', enc.encode(keySecret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+      const sigBytes = await crypto.subtle.sign('HMAC', key, enc.encode(`${razorpay_order_id}|${razorpay_payment_id}`));
+      const expectedSig = Array.from(new Uint8Array(sigBytes)).map(b => b.toString(16).padStart(2, '0')).join('');
+      
+      if (expectedSig !== razorpay_signature) {
+        return c.json({ error: 'Invalid payment signature.' }, 403);
+      }
+      
+      const adminDb = createClient(c.env.SUPABASE_URL!, c.env.SUPABASE_SERVICE_ROLE_KEY!);
+      const encSecret = licenseSecret(c.env);
+      if (!encSecret) return c.json({ error: 'License encryption is not configured.' }, 503);
+      
+      const { data: res, error } = await adminDb.rpc('process_payment_webhook', {
+        p_order_id: orderId,
+        p_payment_id: razorpay_payment_id,
+        p_encryption_secret: encSecret
+      });
+      
+      if (error) return c.json({ error: error.message }, 400);
+      
+      if (res && res.ok && res.license_id) {
+         fireLog(c, c.env.norvi_sales_and_orders, `?? **[New Sale (Verified)]**
+**Order ID:** ${orderId}
+**Payment ID:** ${razorpay_payment_id}
+License generated successfully.`);
+      }
+      
+      return c.json({ ok: true });
+    });
+
+    app.post('/api/webhooks/razorpay', async c => {
     // Read the raw body as text for signature verification
     const bodyText = await c.req.text();
     const signature = c.req.header('x-razorpay-signature');
