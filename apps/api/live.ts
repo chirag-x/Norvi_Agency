@@ -646,10 +646,10 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
           body: JSON.stringify({ amount, currency, receipt: checkout.order_id, notes: { order_id: checkout.order_id } })
         });
         const rzpData = await rzpRes.json();
-        if (!rzpRes.ok) throw new Error(rzpData.error?.description || 'Razorpay order creation failed');
+        if (!rzpRes.ok) return c.json({ error: rzpData.error?.description || 'Razorpay order creation failed' }, 400);
         
         const attached = await db.rpc('attach_checkout_provider_order', { p_order_id: checkout.order_id, p_provider_order_id: rzpData.id });
-        if (attached.error) throw new Error('Could not attach the payment order.');
+        if (attached.error) return c.json({ error: 'Could not attach the payment order.' }, 400);
         
         return c.json({
           ok: true,
