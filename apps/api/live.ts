@@ -626,6 +626,16 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     }
   });
   
+  app.post('/api/store/trial/create', async c => {
+    const db = c.get('db');
+    const secret = licenseSecret(c.env);
+    if (!secret) return c.json({ error: 'License encryption is not configured.' }, 503);
+    const input = z.object({ productSlug: z.string() }).parse(await c.req.json());
+    const { data: licenseId, error } = await db.rpc('claim_free_trial', { p_product_slug: input.productSlug, p_encryption_secret: secret });
+    if (error) return c.json({ error: error.message }, 400);
+    return c.json({ ok: true, licenseId });
+  });
+
   app.post('/api/checkout/create', async c => {
     const db = c.get('db');
     const { data: settings } = await db.rpc('get_site_settings');

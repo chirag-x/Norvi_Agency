@@ -85,7 +85,7 @@ const orgJsonLd = JSON.stringify({
   <meta name="twitter:image" content={ogImage} />
   
   <meta name="robots" content={privatePage ? 'noindex,nofollow' : 'index,follow'}/>
-  
+  <meta name="google-site-verification" content="CGX36wKy06XEm7c6O0Uq5TG7JzOFqSLGZKA4maz4xMI" />
   {!privatePage && <script type="application/ld+json" set:html={orgJsonLd}></script>}
   {isProduct && <script type="application/ld+json" set:html={productJsonLd}></script>}
 </head>
