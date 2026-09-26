@@ -59,18 +59,6 @@ export function Checkout({product}:{product:Product|undefined}){
   const {data:config}=useData('/auth/config');
   const [busy,setBusy]=useState(false),[error,setError]=useState(''),[accepted,setAccepted]=useState(false),[success,setSuccess]=useState(false);
   
-    if (success) {
-      return (
-        <div className="container page" style={{textAlign: 'center', maxWidth: 500, margin: '80px auto'}}>
-          <div style={{display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 64, height: 64, borderRadius: '50%', background: 'var(--green)', color: 'var(--black)', marginBottom: 24}}>
-             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-          </div>
-          <h2 style={{fontSize: 32, marginBottom: 16}}>Payment Successful!</h2>
-          <p style={{marginBottom: 32}}>Thank you for your purchase. Your unique activation key for <b>{product.name}</b> has been generated instantly.</p>
-          <a className="button primary" href="/account/licenses" style={{display: 'inline-flex', width: '100%', justifyContent: 'center', padding: '16px'}}>View License Key & Download</a>
-        </div>
-      );
-    }
     if(!product)return <NotFound/>;
 
   if(product.releaseStatus==='development')return <div className="container page"><PageHeading title={product.name} description={'In development. Purchasing is unavailable.'}/><a className="button secondary" href={'/agents/'+product.slug}>Back to agent</a></div>;
