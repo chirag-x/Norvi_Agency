@@ -92,7 +92,7 @@ export function Checkout({product}:{product:Product|undefined}){
                 setBusy(false);
               } catch (e: any) {
                 setBusy(false);
-                setError("Payment was successful, but validation was delayed. Please check your account dashboard in a few minutes.");
+                setError("API Error: " + (e.message || "Unknown error"));
               }
             },
             theme:{color:"#C6F077"}
