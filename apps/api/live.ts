@@ -666,7 +666,7 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     }
   });
 
-  app.post('/api/store/checkout/verify', async c => {
+  app.post('/api/checkout/verify', async c => {
       const input = await c.req.json();
       const { orderId, razorpay_payment_id, razorpay_order_id, razorpay_signature } = input;
       
