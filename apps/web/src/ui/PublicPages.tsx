@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ArrowRight,ArrowUpRight,Search,Check,ShieldCheck,KeyRound,Download,Mail,LifeBuoy,Workflow } from 'lucide-react';
 import type { Product,Settings } from '../../../../packages/shared/model';
 import { ProductCard,ProductIcon } from './App';
@@ -82,7 +82,7 @@ export function Catalog({products}:{products:Product[]}){const [query,setQuery]=
           ) : (
             <>
               <h2>{product.price}</h2>
-              <p>One-time purchase &middot; 1-day free trial included</p>
+              <p>Flexible access &middot; Try before you buy</p>
               {product.releaseStatus === 'development' ? (
                 <button className="button secondary full" disabled>In development &mdash; sales unavailable</button>
               ) : (
@@ -171,6 +171,12 @@ export function Legal({kind}:{kind:string}){const doc=legal[kind];return <div cl
 export function Checkout({product}:{product:Product|undefined}){
   const {data:config}=useData('/auth/config');
   const [busy,setBusy]=useState(false),[error,setError]=useState(''),[accepted,setAccepted]=useState(false),[success,setSuccess]=useState(false);
+  const [duration, setDuration] = useState('lifetime');
+  const [renewalId, setRenewalId] = useState<string|null>(null);
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.has('renew')) setRenewalId(params.get('renew'));
+  }, []);
   
         if (success) {
       return (
@@ -179,7 +185,7 @@ export function Checkout({product}:{product:Product|undefined}){
              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
           </div>
           <h2 style={{fontSize: 32, marginBottom: 16}}>Payment Successful!</h2>
-          <p style={{marginBottom: 32}}>Thank you for your purchase. Your unique activation key for <b>{product.name}</b> has been generated instantly.</p>
+          <p style={{marginBottom: 32}}>Thank you for your purchase. Your unique activation key for <b>{product?.name}</b> has been generated instantly.</p>
           <a className="button primary" href="/account/licenses" style={{display: 'inline-flex', width: '100%', justifyContent: 'center', padding: '16px'}}>View License Key & Download</a>
         </div>
       );
@@ -195,7 +201,11 @@ export function Checkout({product}:{product:Product|undefined}){
         const {order}=await api('/preview/purchase',{method:'POST',body:JSON.stringify({productId:product!.id})});
         location.href='/orders?id='+order.id;
       }else{
-        const data=await api('/checkout/create',{method:'POST',body:JSON.stringify({productId:product!.id})});
+        const data=await api('/checkout/create',{method:'POST',body:JSON.stringify({
+          productId:product!.id, 
+          duration,
+          renewalLicenseId: renewalId
+        })});
         
         if (data.mock) {
           // MOCK CHECKOUT FLOW (Keys are missing in .env)
@@ -261,15 +271,33 @@ export function Checkout({product}:{product:Product|undefined}){
         <button className="button primary full" disabled={busy||!accepted} onClick={purchase}>{busy?'Processing...':(isPreview?'Simulate purchase — no charge':`Pay Securely`)}<ArrowRight size={17}/></button>
       </div>
       <aside className="panel order-summary">
-        <ProductIcon product={product}/>
-        <h3>{product.name}</h3>
-        <p>{product.tagline}</p>
-        <hr/>
-        <div className="summary-row"><span>Price</span><b>{product.price || '₹0.00'}</b></div>
-        <div className="summary-row total"><span>Total today</span><b>{product.price || '₹0.00'}</b></div>
-        <p className="small-note">Includes a product-specific activation key to unlock the agent on your desktop.</p>
-        <a href="/terms" className="text-button">Read terms <ArrowUpRight size={15}/></a>
-      </aside>
+          <ProductIcon product={product!}/>
+          <div>
+            <h3>{renewalId ? `Renew ${product!.name}` : product!.name}</h3>
+            <p>{product!.description}</p>
+          </div>
+          <div className="pricing-toggles" style={{display:'flex', flexDirection:'column', gap:12, margin:'20px 0'}}>
+            {Number(product?.price1m) > 0 && <label style={{display:'flex', alignItems:'center', gap:12, padding:'16px', border: duration==='1_month'?'2px solid var(--accent)':'1px solid var(--border)', borderRadius:8, cursor:'pointer', background: duration==='1_month'?'rgba(200,255,100,0.05)':'transparent'}} onClick={()=>setDuration('1_month')}>
+              <input type="radio" checked={duration==='1_month'} readOnly style={{ width:18, height:18, flexShrink:0, margin:0, accentColor:'var(--accent)' }} />
+              <div style={{display:'flex', justifyContent:'space-between', flexGrow:1, alignItems:'center'}}>
+                <b>1 Month</b><div style={{color:'var(--text-light)', fontWeight:500}}>₹{product?.price1m}</div>
+              </div>
+            </label>}
+            {Number(product?.price3m) > 0 && <label style={{display:'flex', alignItems:'center', gap:12, padding:'16px', border: duration==='3_months'?'2px solid var(--accent)':'1px solid var(--border)', borderRadius:8, cursor:'pointer', background: duration==='3_months'?'rgba(200,255,100,0.05)':'transparent'}} onClick={()=>setDuration('3_months')}>
+              <input type="radio" checked={duration==='3_months'} readOnly style={{ width:18, height:18, flexShrink:0, margin:0, accentColor:'var(--accent)' }} />
+              <div style={{display:'flex', justifyContent:'space-between', flexGrow:1, alignItems:'center'}}>
+                <b>3 Months</b><div style={{color:'var(--text-light)', fontWeight:500}}>₹{product?.price3m}</div>
+              </div>
+            </label>}
+            <label style={{display:'flex', alignItems:'center', gap:12, padding:'16px', border: duration==='lifetime'?'2px solid var(--accent)':'1px solid var(--border)', borderRadius:8, cursor:'pointer', background: duration==='lifetime'?'rgba(200,255,100,0.05)':'transparent'}} onClick={()=>setDuration('lifetime')}>
+              <input type="radio" checked={duration==='lifetime'} readOnly style={{ width:18, height:18, flexShrink:0, margin:0, accentColor:'var(--accent)' }} />
+              <div style={{display:'flex', justifyContent:'space-between', flexGrow:1, alignItems:'center'}}>
+                <b>Lifetime Access</b><div style={{color:'var(--text-light)', fontWeight:500}}>₹{product?.price_lifetime || '999'}</div>
+              </div>
+            </label>
+          </div>
+          <p className="small-note">Includes a product-specific activation key to unlock the agent on your desktop.</p>
+        </aside>
     </div>
   </div>;
 }

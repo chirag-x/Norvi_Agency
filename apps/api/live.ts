@@ -45,7 +45,7 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     c.header('Cache-Control', 'no-store'); c.header('X-Content-Type-Options', 'nosniff'); c.header('Referrer-Policy', 'no-referrer');
     const allowedOrigin = (c.env.APP_ORIGIN || '').replace(/\/$/, '').replace(/^["']|["']$/g, '');
     const requestOrigin = (c.req.header('origin') || '').replace(/\/$/, '');
-    if (!['GET', 'HEAD'].includes(c.req.method) && !c.req.path.startsWith('/api/agent/') && !c.req.path.startsWith('/api/webhooks/') && !c.req.path.startsWith('/api/internal/') && requestOrigin !== allowedOrigin) return c.json({ error: 'Request origin is not allowed.' }, 403);
+    if (!['GET', 'HEAD'].includes(c.req.method) && !c.req.path.startsWith('/api/agent/') && !c.req.path.startsWith('/api/agent-auth/') && !c.req.path.startsWith('/api/webhooks/') && !c.req.path.startsWith('/api/internal/') && requestOrigin !== allowedOrigin) return c.json({ error: 'Request origin is not allowed.' }, 403);
     await next();
   });
   const regularBodyLimit = bodyLimit({ maxSize: 16384, onError: c => c.json({ error: 'Request is too large.' }, 413) });
@@ -59,7 +59,7 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     const supabase = factory(c);
     const [productsResult, settingsResult, categoriesResult] = await Promise.all([
       supabase.from('products')
-        .select('id, slug, name, categoryId:category_id, tagline, description, price:price_label, status, logoUrl:logo_url, features, version, requirements, releaseStatus:release_status, workflowHeading:workflow_heading, workflowDescription:workflow_description, workflowMediaUrl:workflow_media_url, workflowNote:workflow_note')
+        .select('id, slug, name, categoryId:category_id, tagline, description, price:price_label, price1m:price_1m, price3m:price_3m, price_lifetime:price_lifetime, status, logoUrl:logo_url, features, version, requirements, releaseStatus:release_status, workflowHeading:workflow_heading, workflowDescription:workflow_description, workflowMediaUrl:workflow_media_url, workflowNote:workflow_note')
         .eq('status', 'published')
         .order('created_at', { ascending: true }),
       supabase.from('site_settings').select('name, headline, description, email, company, domain, maintenance_mode, permissions').single(),
@@ -94,6 +94,185 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     if (data.session) { await c.get('db').auth.signOut(); return c.json({ error: 'Email confirmation must be enabled before registration is available.' }, 503); }
     return c.json({ message: 'If this address can be registered, check your email for a confirmation link.' });
   });
+
+  // Phase 10: Desktop Agent Auth & Hardware Registration
+  app.post('/api/agent-auth/login', async c => {
+    const input = z.object({ email: z.string().email(), password: z.string() }).parse(await c.req.json());
+    // Use the admin or service client? No, regular client is fine for login
+    const { data, error } = await c.get('db').auth.signInWithPassword({ email: input.email, password: input.password });
+    if (error || !data.session) return c.json({ error: 'Sign-in failed. Check your email and password.' }, 401);
+    
+    // Return the access token that the agent will use as a Bearer token
+    return c.json({ ok: true, access_token: data.session.access_token });
+  });
+
+
+  app.post('/api/agent-auth/check-updates', async c => {
+    const authHeader = c.req.header('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) return c.json({ error: 'Missing or invalid token.' }, 401);
+    const token = authHeader.split(' ')[1];
+    
+    // Verify JWT Lease (HMAC SHA-256)
+    const secret = licenseSecret(c.env);
+    if (!secret) return c.json({ error: 'Encryption secret not configured' }, 503);
+    
+    try {
+        const parts = token.split('.');
+        if (parts.length !== 2) throw new Error("Invalid token format");
+        const signatureData = parts[0];
+        const signature = parts[1];
+        
+        const encoder = new TextEncoder();
+        const key = await crypto.subtle.importKey("raw", encoder.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["verify"]);
+        
+        // Reconstruct base64
+        let sigBase64 = signature.replace(/-/g, "+").replace(/_/g, "/");
+        sigBase64 += '='.repeat((4 - sigBase64.length % 4) % 4);
+        const sigBuffer = Uint8Array.from(atob(sigBase64), c => c.charCodeAt(0));
+        
+        const isValid = await crypto.subtle.verify("HMAC", key, sigBuffer, encoder.encode(signatureData));
+        if (!isValid) throw new Error("Invalid signature");
+        
+        let payloadBase64 = signatureData.split('.')[1];
+        payloadBase64 += '='.repeat((4 - payloadBase64.length % 4) % 4);
+        const payload = JSON.parse(atob(payloadBase64));
+        
+        if (payload.exp && Math.floor(Date.now() / 1000) > payload.exp) {
+            return c.json({ error: 'License lease has expired. Please authenticate again.' }, 403);
+        }
+        
+        const input = z.object({
+            productSlug: z.string(),
+            currentVersion: z.string().optional()
+        }).parse(await c.req.json());
+        
+        const slug = input.productSlug;
+        
+        if (!c.env.GITHUB_PAT || !c.env.GITHUB_REPO_OWNER || !c.env.GITHUB_REPO_NAME) {
+            return c.json({ error: 'GitHub storage is not configured.' }, 503);
+        }
+        
+        const releaseRes = await fetch(`https://api.github.com/repos/${c.env.GITHUB_REPO_OWNER}/${c.env.GITHUB_REPO_NAME}/releases?per_page=30`, {
+          headers: {
+            'Authorization': `Bearer ${c.env.GITHUB_PAT}`,
+            'Accept': 'application/vnd.github.v3+json',
+            'User-Agent': 'Norvi-App'
+          }
+        });
+        if (!releaseRes.ok) throw new Error('Releases not found.');
+        const releases = await releaseRes.json() as any[];
+        const release = releases.find((r: any) => r.tag_name && r.tag_name.toLowerCase().startsWith(slug.toLowerCase() + '-'));
+        if (!release) throw new Error(`No release tag found starting with ${slug}-`);
+        
+        const asset = release.assets.find((a: any) => 
+          a.name.toLowerCase().includes(slug.toLowerCase()) && 
+          (a.name.toLowerCase().endsWith('.zip') || a.name.toLowerCase().endsWith('.exe'))
+        );
+        if (!asset) throw new Error('Release binary not found.');
+        
+        // Extract version from tag (e.g. voro-v1.3.0 -> 1.3.0)
+        let latestVersion = release.tag_name.replace(slug.toLowerCase() + '-', '').replace('v', '');
+        
+        // Intercept download redirect
+        const assetRes = await fetch(asset.url, {
+          method: 'GET',
+          redirect: 'manual',
+          headers: {
+            'Authorization': `Bearer ${c.env.GITHUB_PAT}`,
+            'Accept': 'application/octet-stream',
+            'User-Agent': 'Norvi-App'
+          }
+        });
+        
+        let downloadUrl = '';
+        if (assetRes.status === 302 || assetRes.status === 301) {
+            downloadUrl = assetRes.headers.get('location') || '';
+        }
+        
+        return c.json({
+            latest_version: latestVersion,
+            download_url: downloadUrl,
+            release_notes: release.body || 'No release notes provided.'
+        });
+        
+    } catch (e: any) {
+        return c.json({ error: e.message || 'Updates failed.' }, 401);
+    }
+  });
+
+  app.post('/api/agent-auth/activate', async c => {
+    const authHeader = c.req.header('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) return c.json({ error: 'Missing or invalid token.' }, 401);
+    const token = authHeader.split(' ')[1];
+    
+    const db = c.get('db');
+    // Important: we manually set the session using the Bearer token because the browser cookie logic won't capture it
+    const { data: userData, error: userError } = await db.auth.getUser(token);
+    if (userError || !userData.user) return c.json({ error: 'Invalid or expired session.' }, 401);
+    
+    const input = z.object({
+      licenseKey: z.string(),
+      deviceId: z.string(),
+      productSlug: z.string()
+    }).parse(await c.req.json());
+    
+    const secret = licenseSecret(c.env);
+    if (!secret) return c.json({ error: 'Encryption secret not configured' }, 503);
+    
+    // We must manually pass the Authorization header to RPC if we want it to run as the user, OR set the session
+    const userClient = createClient(c.env.SUPABASE_URL!, c.env.SUPABASE_ANON_KEY!, {
+      global: { headers: { Authorization: authHeader } }
+    });
+    
+    // Get product ID
+    const { data: product } = await userClient.from('products').select('id').eq('slug', input.productSlug).single();
+    if (!product) return c.json({ error: 'Product not found.' }, 404);
+    
+    // Check hash
+    // We need to import crypto or use WebCrypto, wait, pgp_sym_encrypt hashes are just SHA256 hex!
+    // But we can let the frontend hash it, OR we hash it here using standard WebCrypto.
+    const encoder = new TextEncoder();
+    const data = encoder.encode(input.licenseKey);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const keyHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    
+    const { data: result, error } = await userClient.rpc('activate_agent_license', {
+      p_key_hash: keyHash,
+      p_product_id: product.id,
+      p_device_id: input.deviceId
+    });
+    
+    if (error || !result || result.error) return c.json({ error: error?.message || result?.error || 'Activation failed.' }, 403);
+    
+    // Generate the cryptographic lease JWT for the agent
+    // Since we are in edge runtime/Cloudflare, we'll use a simple HMAC JWT
+    const header = btoa(JSON.stringify({ alg: "HS256", typ: "JWT" })).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
+    
+    // Lease valid for 7 days, or until trial expires
+    let exp = Math.floor(Date.now() / 1000) + (7 * 24 * 60 * 60);
+    if (result.expires_at) {
+      const trialExp = Math.floor(new Date(result.expires_at).getTime() / 1000);
+      if (trialExp < exp) exp = trialExp;
+    }
+    
+    const payload = btoa(JSON.stringify({
+      license_id: result.license_id,
+      device_id: input.deviceId,
+      exp: exp,
+      product: input.productSlug
+    })).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
+    
+    const signatureData = header + "." + payload;
+    const key = await crypto.subtle.importKey("raw", encoder.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+    const signatureBuffer = await crypto.subtle.sign("HMAC", key, encoder.encode(signatureData));
+    const signature = btoa(String.fromCharCode(...new Uint8Array(signatureBuffer))).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
+    
+    const lease = signatureData + "." + signature;
+    
+    return c.json({ ok: true, lease, expires_at: result.expires_at });
+  });
+
   app.post('/api/auth/login', async c => {
     const input = credentials.parse(await c.req.json());
     const { data, error } = await c.get('db').auth.signInWithPassword(input);
@@ -242,7 +421,7 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
         p_reason: 'Status: ' + c.res.status,
         p_metadata: { status: c.res.status, method: c.req.method },
         p_ip_address: ip
-      }).then(() => {}).catch(() => {});
+      });
     }
   });
 
@@ -310,11 +489,11 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     return error ? c.json({ error: 'Status could not be updated.' }, 400) : c.json({ ok: true });
   });
   app.post('/api/admin/licenses/gift', async c => {
-    if (!['owner', 'administrator', 'product_manager'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
-    const { email, productSlug } = z.object({ email: z.string().email(), productSlug: z.string() }).parse(await c.req.json());
-    const secret = licenseSecret(c.env);
-    if (!secret) return c.json({ error: 'License encryption is not configured.' }, 503);
-    const { error, data } = await c.get('db').rpc('admin_gift_license', { p_email: email, p_product_slug: productSlug, p_encryption_secret: secret });
+      if (!['owner', 'administrator', 'product_manager'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
+      const { email, productSlug, duration } = z.object({ email: z.string().email(), productSlug: z.string(), duration: z.string().optional().default('lifetime') }).parse(await c.req.json());
+      const secret = licenseSecret(c.env);
+      if (!secret) return c.json({ error: 'License encryption is not configured.' }, 503);
+      const { error, data } = await c.get('db').rpc('admin_gift_license', { p_email: email, p_product_slug: productSlug, p_encryption_secret: secret, p_duration: duration });
     return error ? c.json({ error: error.message }, 400) : c.json({ ok: true, licenseId: data });
   });
   app.get('/api/admin', async c => {
@@ -485,8 +664,11 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
       p_status: input.status, p_logo_url: input.logoUrl || null, p_features: input.features || [],
       p_version: input.version, p_requirements: input.requirements, p_release_status: input.releaseStatus,
       p_workflow_heading: input.workflowHeading || 'Built for your workflow.', p_workflow_description: input.workflowDescription || '',
-      p_workflow_media_url: input.workflowMediaUrl || null, p_workflow_note: input.workflowNote || ''
-    });
+      p_workflow_media_url: input.workflowMediaUrl || null, p_workflow_note: input.workflowNote || '',
+        p_price_1m: parseFloat(input.price_1m) || 0,
+        p_price_3m: parseFloat(input.price_3m) || 0,
+        p_price_lifetime: parseFloat(input.price_lifetime) || 999
+      });
     return error ? c.json({ error: 'Product could not be saved. ' + error.message }, 400) : c.json({ ok: true });
   });
 
@@ -640,11 +822,21 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     const db = c.get('db');
     const { data: settings } = await db.rpc('get_site_settings');
     if (settings?.maintenance_mode) return c.json({ error: 'Store is temporarily closed for maintenance. Please check back later.' }, 503);
-    const input = z.object({ productId: z.string().uuid() }).parse(await c.req.json());
-    if (!c.env.RAZORPAY_KEY_ID || !c.env.RAZORPAY_KEY_SECRET || c.env.RAZORPAY_KEY_ID.includes('YOUR_KEY_HERE')) {
-      return c.json({ error: 'Payment gateway is not configured.' }, 503);
-    }
-    const { data: checkout, error: checkoutError } = await db.rpc('create_checkout_order', { p_product_id: input.productId });
+    const input = z.object({ 
+        productId: z.string().uuid(),
+        duration: z.string().optional().default('lifetime'),
+        renewalLicenseId: z.string().uuid().optional().nullable()
+      }).parse(await c.req.json());
+      
+      if (!c.env.RAZORPAY_KEY_ID || !c.env.RAZORPAY_KEY_SECRET || c.env.RAZORPAY_KEY_ID.includes('YOUR_KEY_HERE')) {
+        return c.json({ error: 'Payment gateway is not configured.' }, 503);
+      }
+      
+      const { data: checkout, error: checkoutError } = await db.rpc('create_checkout_order', { 
+        p_product_id: input.productId,
+        p_duration: input.duration,
+        p_renewal_for_license_id: input.renewalLicenseId || null
+      });
     if (checkoutError || !checkout?.order_id) return c.json({ error: checkoutError?.message || 'Could not create order.' }, 400);
     const amount = checkout.amount;
     const currency = checkout.currency;

@@ -1,9 +1,13 @@
-# Phase 10 - Two-Step Account-Tied Licensing (Anti-Piracy)
+﻿# Phase 10 - Two-Step Account-Tied Licensing (Anti-Piracy)
 
-**Status:** Pending
+**Status:** Completed
 
-## Plan:
-- **Two-Step Desktop Login:** When a user opens the desktop agent, they must first log in using their NORVI Email and Password (Step 1). On the second screen, they must enter their specific Activation Key (Step 2).
-- **Strict Database Validation:** The backend API will strictly verify that the provided Activation Key actually belongs to the authenticated Email Address.
-- **Hardware Detection & Device Limits (Step 3):** Implement hardware fingerprinting. A user cannot access an agent from more than 3 devices, even with correct credentials. The NORVI profile dashboard will display active devices for each agent, allowing the user to remove an old device if they wish to log in on a new one.
-- **Bulletproof Revocation:** If abuse is detected, the admin can click "Rotate Key" in the dashboard. The desktop agent will instantly lock the user out until the new key is provided.
+## Implementation Summary:
+- **Backend Gatekeeper API:** Implemented highly-secure /api/agent-auth/login and /api/agent-auth/activate endpoints in live.ts (Migration 032).
+- **Strict User Verification:** The backend strictly verifies that the provided Activation Key belongs to the exact Supabase User ID (email) that just logged in.
+- **Hardware Fingerprinting:** A standalone 
+orvi_gatekeeper.py engine generates a unique hardware ID (MAC address + Node name) and registers it against the user's 3-device limit.
+- **Agent Integrations (Zero-Code Modification):**
+  - **Voro (PySide6):** Injected natively before the QApplication event loop, halting the app with a dark-mode login dialog.
+  - **Rolvio (Streamlit):** Injected at the top of pp.py and across all pages/*.py to render a native Streamlit login form and completely hide the sidebar using custom CSS st.stop().
+- **Cryptographic Leases:** Agents store a 7-day signed JWT locally. If the lease expires, or hardware changes, or trial ends, the app instantly locks down again.
