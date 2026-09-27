@@ -5,8 +5,8 @@ import type { Category, Product, Settings, User } from '../../../../packages/sha
 import { ProductCard, ProductIcon } from './App';
 import { api, Badge, date, Empty, Field, Loading, Notice, PageHeading, uploadFile, useData } from './common';
 const customerNav = [['', 'Overview', LayoutDashboard], ['/agents', 'My agents', Box], ['/licenses', 'Keys & devices', KeyRound], ['/billing', 'Billing & orders', CreditCard], ['/support', 'Support', LifeBuoy], ['/partner', 'Partner program', Users], ['/settings', 'Profile & security', SettingsIcon]] as const;
-const staffNav = [['', 'Overview', LayoutDashboard], ['/products', 'Products & releases', Box], ['/categories', 'Categories', Box], ['/customers', 'Customers', Users], ['/licenses', 'Licenses', KeyRound], ['/orders', 'Orders', CreditCard], ['/subscriptions', 'Subscriptions', Activity], ['/affiliates', 'Partners & Payouts', Users], ['/team', 'Team', Users], ['/announcements', 'Announcements', Mail], ['/content', 'Content', FileText], ['/activity', 'Audit & delivery', Activity], ['/ai-agent', 'AI Support Agent', Bot], ['/marketing', 'Broadcasts', Megaphone], ['/settings', 'Settings', SettingsIcon]] as const;
-const allowed: Record<string, string[]> = { owner: ['*'], administrator: ['', '/marketing', '/products', '/categories', '/customers', '/licenses', '/orders', '/subscriptions', '/announcements', '/content', '/activity', '/affiliates', '/ai-agent'], product_manager: ['', '/marketing', '/products', '/categories', '/announcements', '/content'], support: ['', '/customers', '/licenses', '/orders', '/announcements'] };
+const staffNav = [['', 'Overview', LayoutDashboard], ['/products', 'Products & releases', Box], ['/categories', 'Categories', Box], ['/customers', 'Customers', Users], ['/licenses', 'Licenses', KeyRound], ['/orders', 'Orders', CreditCard], ['/promotions', 'Promotions', Activity], ['/affiliates', 'Partners & Payouts', Users], ['/team', 'Team', Users], ['/announcements', 'Announcements', Mail], ['/content', 'Content', FileText], ['/activity', 'Audit & delivery', Activity], ['/ai-agent', 'AI Support Agent', Bot], ['/marketing', 'Broadcasts', Megaphone], ['/settings', 'Settings', SettingsIcon]] as const;
+const allowed: Record<string, string[]> = { owner: ['*'], administrator: ['', '/marketing', '/products', '/categories', '/customers', '/licenses', '/orders', '/promotions', '/announcements', '/content', '/activity', '/affiliates', '/ai-agent'], product_manager: ['', '/marketing', '/products', '/categories', '/announcements', '/content'], support: ['', '/customers', '/licenses', '/orders', '/announcements'] };
 function CommandPalette({ user }: { user: User }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -401,6 +401,200 @@ function MarketingManager() {
   );
 }
 
+
+
+function CouponsManager() {
+  const { data, error, reload } = useData('/admin/coupons');
+  const { data: productsData } = useData('/admin/products');
+  const [busy, setBusy] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+
+  if (error) return <Notice kind="error">{error}</Notice>;
+  if (!data || !productsData) return <Loading />;
+
+  return (
+    <div className="panel" style={{ marginTop: 24 }}>
+      <h3>Coupon Codes</h3>
+      <p>Generate promo codes for your customers. A 100% discount will automatically bypass the payment gateway.</p>
+      
+      <div className="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Code</th>
+              <th>Discount</th>
+              <th>Target</th>
+              <th>Expires</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.map((c: any) => (
+              <tr key={c.id}>
+                <td><b>{c.code}</b></td>
+                <td><Badge>{c.discount_percentage}% OFF</Badge></td>
+                <td>
+                   <small className="block">Agent: {c.product_id ? productsData.items.find((p:any)=>p.id === c.product_id)?.name || c.product_id : 'All Agents'}</small>
+                   <small className="block">Duration: {c.duration_type === 'all' || !c.duration_type ? 'All Durations' : c.duration_type.replace('_', ' ')}</small>
+                </td>
+                <td>{c.expires_at ? new Date(c.expires_at).toLocaleString() : 'Never'}</td>
+                <td>
+                  <button className="text-button bare" style={{color: 'var(--red)'}} onClick={async () => {
+                    if (window.confirm('Delete this coupon?')) {
+                      await api('/admin/coupons/' + c.id, { method: 'DELETE' });
+                      reload();
+                    }
+                  }}>Delete</button>
+                </td>
+              </tr>
+            ))}
+            {!data.length && <tr><td colSpan={5} style={{textAlign:'center'}}>No active coupons.</td></tr>}
+          </tbody>
+        </table>
+      </div>
+
+      <form className="form-grid" style={{marginTop: 20, paddingTop: 20, borderTop: '1px solid var(--border)'}} onSubmit={async e => {
+        e.preventDefault();
+        setBusy(true); setErrorMsg('');
+        const form = new FormData(e.currentTarget);
+        try {
+          await api('/admin/coupons', {
+            method: 'POST',
+            body: JSON.stringify({
+              code: form.get('code'),
+              discount: parseInt(form.get('discount') as string),
+              productId: form.get('productId') || null,
+              duration: form.get('duration') || null,
+              expiresAt: form.get('expiresAt') ? new Date(form.get('expiresAt') as string).toISOString() : null
+            })
+          });
+          reload();
+          (e.target as HTMLFormElement).reset();
+        } catch (err: any) {
+          setErrorMsg(err.message);
+        }
+        setBusy(false);
+      }}>
+        <Field label="Coupon Code"><input name="code" required placeholder="e.g. LAUNCH100" style={{textTransform: 'uppercase'}} /></Field>
+        <Field label="Discount %"><input name="discount" type="number" required min="1" max="100" placeholder="100" /></Field>
+        <Field label="Specific Agent">
+          <select name="productId">
+            <option value="">All Agents</option>
+            {productsData.items.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
+          </select>
+        </Field>
+        <Field label="Specific Duration">
+          <select name="duration">
+            <option value="">All Durations</option>
+            <option value="1_month">1 Month</option>
+            <option value="3_months">3 Months</option>
+            <option value="lifetime">Lifetime</option>
+          </select>
+        </Field>
+        <Field label="Expiry (Optional)"><input type="datetime-local" name="expiresAt" /></Field>
+        <div style={{gridColumn: '1 / -1'}}>
+          {errorMsg && <Notice kind="error">{errorMsg}</Notice>}
+          <button className="button secondary" disabled={busy}>Create Coupon</button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+
+function PromotionsManager() {
+  const { data, error, reload } = useData('/admin/settings');
+  const { data: productsData } = useData('/admin/products');
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState('');
+
+  if (error) return <Notice kind="error">{error}</Notice>;
+  if (!data || !productsData) return <Loading />;
+
+  const settings = data.settings;
+  const products = productsData.items || [];
+  
+  const handleSave = async (e: any) => {
+    e.preventDefault();
+    setBusy(true); setMessage('');
+    const formElement = e.currentTarget;
+    const form = new FormData(formElement);
+    const selectedAgents = products.map((p: any) => p.id).filter((id: string) => form.get(`agent_${id}`) === 'on');
+    
+    try {
+      await api('/admin/promotions', {
+        method: 'POST',
+        body: JSON.stringify({
+          bannerText: form.get('bannerText'),
+          saleActive: form.get('saleActive') === 'on',
+          salePercentage: parseInt(form.get('salePercentage') as string) || 0,
+          saleProductIds: selectedAgents
+        })
+      });
+      setMessage('Successfully updated promotions and announcements. Changes are live.');
+      reload();
+    } catch (err: any) {
+      setMessage(err.message);
+    }
+    setBusy(false);
+  };
+
+  return (
+    <div className="promotions-manager">
+      <form className="panel" onSubmit={handleSave}>
+        <h3>Global Website Banner</h3>
+        <p>Type a message to appear across the top of your public website. Leave empty to hide.</p>
+        <Field label="Banner Announcement Text">
+          <textarea name="bannerText" rows={2} defaultValue={settings.bannerText || ''} placeholder="e.g. V2 Launching Next Week! Get 20% off all agents." />
+        </Field>
+        
+        <div style={{ marginTop: 40, borderTop: '1px solid var(--border)', paddingTop: 30 }}>
+          <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-end', marginBottom: 15}}>
+            <div>
+              <h3 style={{margin:0}}>Targeted Flash Sale</h3>
+              <p style={{margin:'5px 0 0 0'}}>Toggle this mode to activate the dynamic pricing engine for selected agents.</p>
+            </div>
+            <button type="button" className="button secondary" onClick={(e) => {
+              const form = (e.target as any).closest('form');
+              const checkboxes = form.querySelectorAll('input[type="checkbox"][name^="agent_"]');
+              checkboxes.forEach((c: HTMLInputElement) => c.checked = true);
+            }}>Select All Agents</button>
+          </div>
+          
+          <div style={{ display: 'flex', gap: 20, alignItems: 'center', marginBottom: 30 }}>
+            <label style={{ display: 'flex', gap: 10, alignItems: 'center', background: 'var(--surface)', padding: 15, borderRadius: 8, border: '1px solid var(--border)', flex: 1 }}>
+              <input type="checkbox" name="saleActive" defaultChecked={settings.saleActive} style={{ width: 18, height: 18 }} />
+              <div>
+                <b>Sale Mode Active</b>
+                <p style={{ margin: 0, fontSize: 13, color: 'var(--text-light)' }}>Enable discounted pricing on the storefront.</p>
+              </div>
+            </label>
+            <div style={{ flex: 1 }}>
+              <Field label="Discount Percentage (%)">
+                <input type="number" name="salePercentage" defaultValue={settings.salePercentage || 0} min="0" max="100" />
+              </Field>
+            </div>
+          </div>
+          
+          <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: 15, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 15 }}>
+            {products.map((p: any) => (
+              <label key={p.id} style={{ display: 'flex', gap: 12, alignItems: 'center', justifyContent: 'flex-start', margin: 0, padding: '12px 16px', background: 'rgba(200, 255, 100, 0.05)', border: '1px solid var(--border)', borderRadius: 6, cursor: 'pointer' }}>
+                  <input type="checkbox" name={`agent_${p.id}`} defaultChecked={p.is_on_sale} style={{ width: 18, height: 18, margin: 0, flexShrink: 0 }} />
+                  <div style={{ flex: 1, textAlign: 'left' }}><b style={{ fontSize: 14 }}>{p.name}</b></div>
+                </label>
+            ))}
+          </div>
+        </div>
+        
+        <div style={{ marginTop: 30 }}>
+          <button className="button primary" disabled={busy}>Publish Changes <Activity size={16} style={{marginLeft: 8}} /></button>
+        </div>
+        {message && <div style={{marginTop:15}}><Notice>{message}</Notice></div>}
+      </form>
+    </div>
+  );
+}
+
 function AffiliateManager() {
   const { data: affiliates, error: aError, reload: aReload } = useData('/admin/affiliates');
   const { data: payouts, error: pError, reload: pReload } = useData('/admin/payouts');
@@ -482,19 +676,19 @@ function AffiliateManager() {
 }
 
 function Admin({ section, user, settings, onCatalogChange }: { section: string; user: User; settings: Settings; onCatalogChange: () => void }) {
-    const map: Record<string, string> = { '': 'analytics', '/products': 'products', '/categories': 'categories', '/customers': 'customers', '/licenses': 'licenses', '/orders': 'orders', '/subscriptions': 'billing', '/team': 'team', '/announcements': 'announcements/team', '/content': 'content', '/activity': 'activity', '/settings': 'settings' }; const endpoint = section === '' && user.role === 'support' ? 'customers' : map[section] || 'products'; const { data, error, reload } = useData('/admin/' + endpoint); const [query, setQuery] = useState(''), [filter, setFilter] = useState('all'), [editing, setEditing] = useState<Product | null | undefined>(undefined), [feedback, setFeedback] = useState(''), [licenseAction, setLicenseAction] = useState<{ id: string; action: string } | null>(null), [giftModal, setGiftModal] = useState(false);
-    const titles: Record<string, string> = { '': 'Your agency, at a glance.', '/products': 'Your agent collection.', '/customers': 'The people behind the accounts.', '/licenses': 'Access, under your control.', '/orders': 'Every order, in one place.', '/subscriptions': 'Keep track of recurring access.', '/team': 'Good work takes a team.', '/announcements': 'Internal directives.', '/content': 'Make it sound like you.', '/activity': 'A clear record of every change.', '/settings': 'The details that make it yours.' };
+    const map: Record<string, string> = { '': 'analytics', '/products': 'products', '/categories': 'categories', '/customers': 'customers', '/licenses': 'licenses', '/orders': 'orders', '/promotions': 'settings', '/team': 'team', '/announcements': 'announcements/team', '/content': 'content', '/activity': 'activity', '/settings': 'settings' }; const endpoint = section === '' && user.role === 'support' ? 'customers' : map[section] || 'products'; const { data, error, reload } = useData('/admin/' + endpoint); const [query, setQuery] = useState(''), [filter, setFilter] = useState('all'), [editing, setEditing] = useState<Product | null | undefined>(undefined), [feedback, setFeedback] = useState(''), [licenseAction, setLicenseAction] = useState<{ id: string; action: string } | null>(null), [giftModal, setGiftModal] = useState(false);
+    const titles: Record<string, string> = { '': 'Your agency, at a glance.', '/products': 'Your agent collection.', '/customers': 'The people behind the accounts.', '/licenses': 'Access, under your control.', '/orders': 'Every order, in one place.', '/promotions': 'Run sales and global announcements.', '/team': 'Good work takes a team.', '/announcements': 'Internal directives.', '/content': 'Make it sound like you.', '/activity': 'A clear record of every change.', '/settings': 'The details that make it yours.' };
     const items = (data?.items || []) as any[]; const filtered = items.filter(item => JSON.stringify(item).toLowerCase().includes(query.toLowerCase()) && (filter === 'all' || (filter === 'nonbuyers' ? item.purchases === 0 : item.status === filter)));
     async function action(path: string, body?: object, method: string = 'POST') { try { await api(path, { method, body: Object.keys(body || {}).length ? JSON.stringify(body) : undefined }); reload(); setFeedback('Action completed successfully.'); } catch (e: any) { setFeedback(e.message); } }
     return <><PageHeading eyebrow={section === '' ? 'WELCOME TO YOUR WORKSPACE' : 'AGENCY MANAGEMENT'} title={titles[section] || 'Workspace'} description={section === '' ? 'Start with the essentials. Build your collection, get to know your customers, and keep things moving.' : undefined} action={section === '/products' ? <button className="button primary" onClick={() => setEditing(null)}><Plus size={17} />Add agent</button> : section === '/customers' ? <button className="button secondary" onClick={() => exportCsv('customers.csv', ['ID', 'Email', 'Name', 'Status', 'Registered'], items.map(u => [u.id, u.email, u.name, u.suspended ? 'suspended' : u.status || 'active', u.createdAt]))}><Download size={17} />Export CSV</button> : section === '/orders' ? <button className="button secondary" onClick={() => exportCsv('orders.csv', ['ID', 'Customer', 'Product', 'Amount', 'Date'], items.map(o => [o.id, o.customer, o.product, o.amount, o.createdAt]))}><Download size={17} />Export CSV</button> : section === '/licenses' && user.role !== 'support' ? <button className="button primary" onClick={() => setGiftModal(true)}><Plus size={17} />Gift License</button> : undefined} />{error ? <Notice kind="error">{error}</Notice> : !data ? <Loading /> : <>{feedback && <Notice>{feedback}</Notice>}
         {section === '' && <><div className="stat-grid"><Stat label="Total Revenue (30d)" value={'₹' + (data?.metrics?.revenue || 0).toLocaleString()} icon={<CreditCard />} /><Stat label="Active Licenses" value={data?.metrics?.activeLicenses || 0} icon={<KeyRound />} /><Stat label="Recent Sales (30d)" value={data?.metrics?.recentSales || 0} icon={<Activity />} /></div><div className="workspace-welcome"><div><span className="eyebrow">A STRONG START</span><h2>Let’s make NORVI<br /><span className="serif">yours.</span></h2><p>Your website is taking shape. Add your product details and explore the customer journey.</p><a className="button primary" href={user.role === 'support' ? '/admin/customers' : '/admin/products'}>{user.role === 'support' ? 'Explore customers' : 'Manage your agents'}<ArrowUpRight size={17} /></a></div><div className="setup-list">{[['Website name', 'NORVI is ready', true], ['Product details', 'Names, features, prices, and releases', false], ['Secure accounts', 'Connect your authentication service', false], ['Payments & email', 'Connect your business accounts', false]].map(([title, desc, done]) => <div key={String(title)}><span className={done ? 'check-circle done' : 'check-circle'}>{done ? <Check size={14} /> : <span />}</span><div><b>{title}</b><small>{desc}</small></div></div>)}</div></div><div className="panel-heading"><h3>Find your next step</h3><a href="/" className="text-button">View website <ArrowUpRight size={15} /></a></div><div className="quick-links">{(user.role === 'support' ? [['Customers', 'Find accounts, including non-buyers', '/admin/customers', Users], ['Licenses', 'Help with devices and access', '/admin/licenses', KeyRound]] : [['Your products', 'Add, edit, and publish your agents', '/admin/products', Box], ['Website content', 'Edit your headline and description', '/admin/content', FileText]]).map(([title, desc, href, Icon]: any) => <a className="panel" href={href} key={title}><Icon size={22} /><h3>{title}</h3><p>{desc}</p><ArrowUpRight size={19} /></a>)}</div></>}
         {['/products', '/categories', '/customers', '/licenses'].includes(section) && <div className="catalog-toolbar"><label className="search"><Search size={17} /><input aria-label="Search records" placeholder={section === '/customers' ? 'Search name or email…' : 'Search records…'} value={query} onChange={e => setQuery(e.target.value)} /></label><select aria-label="Filter records" value={filter} onChange={e => setFilter(e.target.value)}><option value="all">All records</option>{section === '/products' ? <><option value="published">Published</option><option value="draft">Drafts</option><option value="archived">Archived</option></> : section === '/customers' ? <option value="nonbuyers">No purchases</option> : <><option value="active">Active</option><option value="revoked">Revoked</option></>}</select></div>}
         {section === '/categories' && <CategoriesAdmin categories={data.categories} onSave={() => { reload(); onCatalogChange(); }} />}
-        {section === '/products' && <><div className="admin-products">{filtered.map((p: Product) => <div className="panel admin-product" key={p.id}><ProductIcon product={p} /><div className="grow" style={{ flex: 1, minWidth: 0 }}><h3>{p.name}</h3><p>{p.tagline}</p><span className="small-note">/{p.slug} · {p.price}</span></div><Badge>{p.status}</Badge><button className="button secondary" onClick={() => setEditing(p)}>Edit agent <ArrowUpRight size={15} /></button></div>)}</div>{!filtered.length && <Empty title="No products match." description="Change your filters or add your first agent." />}<Notice>Publishing here updates the local catalog. Release uploads and public deployment are not connected yet.</Notice></>}
+        {section === '/products' && <><div className="admin-products">{filtered.map((p: Product) => <div className="panel admin-product" key={p.id}><ProductIcon product={p} /><div className="grow" style={{ flex: 1, minWidth: 0 }}><h3>{p.name}</h3><p>{p.tagline}</p><span className="small-note">/{p.slug} · {p.price}</span></div><Badge>{p.status}</Badge><div style={{display:"flex", gap: 8}}><button className="button secondary" onClick={() => setEditing(p)}>Edit <ArrowUpRight size={15} /></button><button className="button secondary" style={{color: "var(--red)", borderColor: "var(--red)"}} onClick={() => { if(window.confirm("Are you sure you want to permanently delete this agent?")) { action("/admin/products/" + p.id, {}, "DELETE"); } }}>Delete</button></div></div>)}</div>{!filtered.length && <Empty title="No products match." description="Change your filters or add your first agent." />}</>}
         {section === '/customers' && <><div className="table-wrap"><table><thead><tr><th>Customer</th><th>Registered</th><th>Purchases</th><th>Licenses</th><th>Status</th><th>Actions</th></tr></thead><tbody>{filtered.map(u => <tr key={u.id}><td><b>{u.name || 'Unnamed'}</b><small className="block">{u.email}</small></td><td>{date(u.createdAt)}</td><td>{u.orderCount || u.purchases || 0}</td><td>{u.activeLicenses || u.licenseCount || 0}</td><td><Badge>{u.suspended ? 'suspended' : u.status || 'active'}</Badge></td><td><div className="row-actions"><button className="button secondary" onClick={() => action('/admin/customers/' + u.id + '/suspend', { suspended: !(u.suspended || u.status === 'suspended') })}>{(u.suspended || u.status === 'suspended') ? 'Restore account' : 'Suspend account'}</button>{user.role === 'owner' && <button className="button secondary" onClick={async () => { await action('/admin/impersonate', { id: u.id }); window.location.href = u.role === 'customer' ? '/account' : '/admin'; }}>Login As</button>}</div></td></tr>)}</tbody></table></div>{!filtered.length && <Empty title="No matching customers." description="Try a different search or filter." />}</>}
         {section === '/licenses' && (!filtered.length ? <Empty title="No licenses issued yet." description="Open a customer preview and simulate a purchase. The resulting license will appear here." href="/login" label="Explore customer flow" /> : <div className="license-list">{filtered.map(l => <div className="panel" key={l.id}><div className="panel-heading"><div><h3>{l.product}</h3><p>{l.customer}</p></div><Badge>{l.status}</Badge></div><code>NORVI-XXXX-XXXX-XXXX-{l.suffix}</code><div className="row-actions">{user.role !== 'support' && <><button className="button secondary" onClick={() => setLicenseAction({ id: l.id, action: l.status === 'active' ? 'revoke' : 'restore' })}>{l.status === 'active' ? 'Revoke access' : 'Restore access'}</button><button className="button secondary" onClick={() => setLicenseAction({ id: l.id, action: 'rotate' })}>Rotate key</button></>}<button className="button secondary" style={{color: 'var(--red)', borderColor: 'var(--red)'}} onClick={() => setLicenseAction({ id: l.id, action: 'delete' })}>Delete</button><button className="button secondary" disabled={!l.device} onClick={() => action('/licenses/' + l.id + '/device-reset')}>Reset device</button>{user.role === 'owner' && <OwnerReveal id={l.id} />}</div></div>)}</div>)}
-        {section === '/orders' && <><OrderTable items={items} /><Notice>Payment collection, refunds, and receipts remain disabled until the live payment provider is connected.</Notice></>}
-        {section === '/subscriptions' && <Empty title="No recurring agreements yet." description="Real subscriptions will appear here after billing plans and the payment provider are configured. Simulated purchases do not create recurring charges." />}
+        {section === '/orders' && <><OrderTable items={items} /></>}
+        {section === '/promotions' && <><PromotionsManager /><CouponsManager /></>}
         {section === '/marketing' && <MarketingManager />}
           {section === '/ai-agent' && <AIAgentManager />}
           {section === '/affiliates' && <AffiliateManager />}

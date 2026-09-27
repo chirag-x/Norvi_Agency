@@ -59,14 +59,14 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     const supabase = factory(c);
     const [productsResult, settingsResult, categoriesResult] = await Promise.all([
       supabase.from('products')
-        .select('id, slug, name, categoryId:category_id, tagline, description, price:price_label, price1m:price_1m, price3m:price_3m, price_lifetime:price_lifetime, status, logoUrl:logo_url, features, version, requirements, releaseStatus:release_status, workflowHeading:workflow_heading, workflowDescription:workflow_description, workflowMediaUrl:workflow_media_url, workflowNote:workflow_note')
+        .select('id, slug, name, categoryId:category_id, tagline, description, price:price_label, price1m:price_1m, price3m:price_3m, price_lifetime:price_lifetime, status, logoUrl:logo_url, features, version, requirements, releaseStatus:release_status, workflowHeading:workflow_heading, workflowDescription:workflow_description, workflowMediaUrl:workflow_media_url, workflowNote:workflow_note, is_on_sale')
         .eq('status', 'published')
         .order('created_at', { ascending: true }),
-      supabase.from('site_settings').select('name, headline, description, email, company, domain, maintenance_mode, permissions').single(),
+      supabase.from('site_settings').select('name, headline, description, email, company, domain, maintenance_mode, permissions, banner_text, sale_active, sale_percentage').single(),
       supabase.from('categories').select('id, slug, name, createdAt:created_at')
     ]);
     const products = (productsResult.data || catalog.products).map(p => ({...p, category: (categoriesResult.data || catalog.categories).find(c => c.id === p.categoryId) || null}));
-    const settings = settingsResult.data ? { ...settingsResult.data, maintenanceMode: settingsResult.data.maintenance_mode, permissions: (Object.keys(settingsResult.data.permissions || {}).length > 0) ? settingsResult.data.permissions : defaultPermissions } : catalog.settings;
+    const settings = settingsResult.data ? { ...settingsResult.data, maintenanceMode: settingsResult.data.maintenance_mode, bannerText: settingsResult.data.banner_text, saleActive: settingsResult.data.sale_active, salePercentage: settingsResult.data.sale_percentage, permissions: (Object.keys(settingsResult.data.permissions || {}).length > 0) ? settingsResult.data.permissions : defaultPermissions } : catalog.settings;
     const categories = categoriesResult.data || catalog.categories;
     return c.json({ categories, products, settings, preview: false });
   });
@@ -820,10 +820,13 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
 
   
     app.post('/api/checkout/validate-code', async c => {
-      const { code } = z.object({ code: z.string() }).parse(await c.req.json());
-      const { data, error } = await c.get('db').rpc('validate_referral_code', { p_code: code });
-      if (error) return c.json({ valid: false });
-      return c.json({ valid: !!data });
+      const { code, productId, duration } = await c.req.json();
+      if (!code || !productId) return c.json({ valid: false });
+      const { data } = await c.get('db').rpc('validate_promo_code', { p_code: code, p_product_id: productId, p_duration: duration || 'lifetime' });
+      if (data && data.type) {
+        return c.json({ valid: true, type: data.type, discount: data.discount });
+      }
+      return c.json({ valid: false });
     });
 
     app.post('/api/checkout/create', async c => {
@@ -849,9 +852,36 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
         });
     if (checkoutError || !checkout?.order_id) return c.json({ error: checkoutError?.message || 'Could not create order.' }, 400);
     const amount = checkout.amount;
-    const currency = checkout.currency;
-    try {
-        const auth = btoa(`${c.env.RAZORPAY_KEY_ID}:${c.env.RAZORPAY_KEY_SECRET}`);
+      const currency = checkout.currency;
+      
+      // 100% Free Bypass Logic
+      if (amount === 0) {
+        try {
+          const adminDb = createClient(c.env.SUPABASE_URL!, c.env.SUPABASE_SERVICE_ROLE_KEY!);
+          const secret = licenseSecret(c.env);
+          
+          // Removed redundant update so process_payment_webhook can generate the license
+          
+          const { data: res, error } = await adminDb.rpc('process_payment_webhook', {
+            p_order_id: checkout.order_id,
+            p_payment_id: 'free_' + checkout.order_id,
+            p_encryption_secret: secret
+          });
+          
+          if (!error && res && res.ok) {
+            fireLog(c, c.env.norvi_sales_and_orders, `🚀 **[100% Free Checkout]**
+**Order ID:** ${checkout.order_id}
+License generated successfully.`);
+            return c.json({ ok: true, order_id: checkout.order_id, skipped_payment: true });
+          }
+          return c.json({ error: 'Failed to generate free license. Reason: ' + (error ? error.message : JSON.stringify(res)) }, 500);
+        } catch (e: any) {
+          return c.json({ error: 'Internal bypass error: ' + e.message }, 500);
+        }
+      }
+      
+      try {
+          const auth = btoa(`${c.env.RAZORPAY_KEY_ID}:${c.env.RAZORPAY_KEY_SECRET}`);
         const rzpRes = await fetch('https://api.razorpay.com/v1/orders', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Basic ${auth}` },
@@ -1351,6 +1381,48 @@ License generated successfully.`);
       try { if (c.executionCtx && typeof c.executionCtx.waitUntil === 'function') c.executionCtx.waitUntil(dispatchPromise); } catch(e) {}
 
       return c.json({ ok: true, queued: addresses.length });
+    });
+
+
+    app.get('/api/admin/coupons', async c => {
+      if (!['owner', 'administrator', 'product_manager'].includes(c.get('user').role)) return c.json({ error: 'Permission denied' }, 403);
+      const { data, error } = await c.get('db').rpc('admin_list_coupons');
+      return error ? c.json({ error: error.message }, 400) : c.json(data);
+    });
+
+    app.post('/api/admin/coupons', async c => {
+      if (!['owner', 'administrator', 'product_manager'].includes(c.get('user').role)) return c.json({ error: 'Permission denied' }, 403);
+      const input = await c.req.json();
+      const { error } = await c.get('db').rpc('admin_upsert_coupon', { 
+        p_id: input.id || null, p_code: input.code, p_discount: input.discount, 
+        p_product_id: input.productId || null, p_duration: input.duration || null, p_expires_at: input.expiresAt || null 
+      });
+      return error ? c.json({ error: error.message }, 400) : c.json({ ok: true });
+    });
+
+    app.delete('/api/admin/products/:id', async c => {
+      if (!['owner', 'administrator'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
+      const { error } = await c.get('db').rpc('admin_delete_product', { p_product_id: c.req.param('id') });
+      return error ? c.json({ error: error.message }, 400) : c.json({ ok: true });
+    });
+
+    app.post('/api/admin/promotions', async c => {
+      const user = c.get('user');
+      if (!['owner', 'administrator', 'product_manager'].includes(user.role)) return c.json({ error: 'Permission denied.' }, 403);
+      const input = await c.req.json();
+      const { error } = await c.get('db').rpc('admin_update_promotions', {
+        p_banner_text: input.bannerText || '',
+        p_sale_active: !!input.saleActive,
+        p_sale_percentage: input.salePercentage || 0,
+        p_sale_product_ids: input.saleProductIds || []
+      });
+      return error ? c.json({ error: 'Failed to update promotions: ' + error.message }, 400) : c.json({ ok: true });
+    });
+
+    app.delete('/api/admin/coupons/:id', async c => {
+      if (!['owner', 'administrator'].includes(c.get('user').role)) return c.json({ error: 'Permission denied' }, 403);
+      const { error } = await c.get('db').rpc('admin_delete_coupon', { p_id: c.req.param('id') });
+      return error ? c.json({ error: error.message }, 400) : c.json({ ok: true });
     });
 
   app.all('/api/*', c => c.json({ error: 'This operation belongs to a later integration phase. Real purchases, activation, and commerce administration are not enabled.' }, 503));

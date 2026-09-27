@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
-import { ArrowRight,ArrowUpRight,Search,Check,ShieldCheck,KeyRound,Download,Mail,LifeBuoy,Workflow } from 'lucide-react';
+import { ArrowRight,ArrowUpRight,Search,Check,ShieldCheck,KeyRound,Download,Mail,LifeBuoy,Workflow , Activity} from 'lucide-react';
 import type { Product,Settings } from '../../../../packages/shared/model';
 import { ProductCard,ProductIcon } from './App';
 import { PageHeading,Notice,Field,Empty,api,useData } from './common';
-export function Catalog({products}:{products:Product[]}){const [query,setQuery]=useState('');const filtered=products.filter(p=>(p.name+' '+p.category+' '+p.description).toLowerCase().includes(query.toLowerCase()));return <div className="container page"><PageHeading eyebrow="YOUR NEXT WORKFLOW STARTS HERE" title="Meet your next agent." description="— collection of tools for a little less routine and a lot more possibility."/><div className="catalog-toolbar"><span className="tab active">All agents <b>{products.length}</b></span><label className="search"><Search size={17}/><input aria-label="Search agents" placeholder="Find an agent…" value={query} onChange={e=>setQuery(e.target.value)}/></label></div><div className="product-grid">{filtered.map(p=><ProductCard key={p.id} product={p}/>)}</div>{!filtered.length&&<Empty title="No matches just yet." description="Try another name or clear your search."/>}<div className="inline-callout"><div><h3>Not sure where to start?</h3><p>Learn how purchase, download, and activation will work.</p></div><a className="text-button" href="/help">Get a little guidance <ArrowUpRight size={18}/></a></div></div>;}
-  export function Detail({product}:{product:Product|undefined}){
+export function Catalog({products, settings}:{products:Product[]; settings?:Settings}){const [query,setQuery]=useState('');const filtered=products.filter(p=>(p.name+' '+p.category+' '+p.description).toLowerCase().includes(query.toLowerCase()));return <div className="container page"><PageHeading eyebrow="YOUR NEXT WORKFLOW STARTS HERE" title="Meet your next agent." description="— collection of tools for a little less routine and a lot more possibility."/><div className="catalog-toolbar"><span className="tab active">All agents <b>{products.length}</b></span><label className="search"><Search size={17}/><input aria-label="Search agents" placeholder="Find an agent…" value={query} onChange={e=>setQuery(e.target.value)}/></label></div><div className="product-grid">{filtered.map(p=><ProductCard key={p.id} product={p}/>)}</div>{!filtered.length&&<Empty title="No matches just yet." description="Try another name or clear your search."/>}<div className="inline-callout"><div><h3>Not sure where to start?</h3><p>Learn how purchase, download, and activation will work.</p></div><a className="text-button" href="/help">Get a little guidance <ArrowUpRight size={18}/></a></div></div>;}
+  export function Detail({product, settings}:{product:Product|undefined; settings?:Settings}){
   const { data: account, reload } = useData('/account');
   const ownsProduct = account?.licenses?.some((l:any) => l.productId === product?.id && l.status === 'active');
   const [trialModal, setTrialModal] = useState(false);
@@ -81,7 +81,16 @@ export function Catalog({products}:{products:Product[]}){const [query,setQuery]=
             </>
           ) : (
             <>
-              <h2>{product.price}</h2>
+              <h2 style={{display:'flex', flexDirection:'column'}}>
+  {(settings?.saleActive && settings?.salePercentage && product.is_on_sale && /\d/.test(product.price || '')) ? (
+    <>
+      <span style={{textDecoration:'line-through', fontSize:'0.5em', opacity:0.6, marginBottom: '-10px'}}>{product.price}</span>
+      <span style={{color:'var(--green)'}}>
+        {product.price?.replace(/(\d+(?:,\d+)?)/, (match: string) => Math.floor(parseFloat(match.replace(/,/g, '')) * (1 - (settings?.salePercentage || 0) / 100)).toLocaleString())}
+      </span>
+    </>
+  ) : product.price}
+</h2>
               <p>Flexible access &middot; Try before you buy</p>
               {product.releaseStatus === 'development' ? (
                 <button className="button secondary full" disabled>In development &mdash; sales unavailable</button>
@@ -132,9 +141,37 @@ export function Catalog({products}:{products:Product[]}){const [query,setQuery]=
     </div>
   );
 }
-export function Pricing({products}:{products:Product[]}){return <div className="container page"><PageHeading eyebrow="— TOOL THAT FITS. — PRICE THAT MAKES SENSE." title="Your work. Your choice." description="Choose the agent you need. Every product has its own license and account access."/><div className="product-grid pricing-grid">{products.map(p=><div className="panel price-card" key={p.id}><ProductIcon product={p}/><h3>{p.name}</h3><p>{p.tagline}</p><div className="price">{p.price}</div><span className="small-note">One-time purchase (1-day free trial)</span><a className="button primary full" href={'/agents/'+p.slug}>View agent <ArrowUpRight size={17}/></a><ul className="check-list">{['Personal activation key','Account access to your license','Product-specific download',...(p.features||[])].map(f=><li key={f}><Check size={15}/>{f}</li>)}</ul></div>)}</div><div className="inline-callout"><div><h3>Clarity before checkout.</h3><p>UPI, cards, and international methods will be available subject to payment-provider approval.</p></div><a href="/refunds" className="text-button">Refund policy <ArrowUpRight size={17}/></a></div></div>;}
-const helpItems=[['Getting started','Create your account, verify your email, and explore the collection. Each product page will show its requirements before you buy.'],['Finding your key','Open My account → Keys & devices. Choose Reveal key for the product you purchased. Never share the key publicly.'],['Installing an agent','Download the correct version from My agents. Open the agent and enter the key for that product. Download the installer for your OS once activated.'],['Device limits','Each license supports 1 active device. Release an old device from Keys & devices before moving to a new one.'],['Payments and renewals','Your billing page keeps purchase records. Purchases are one-time payments. You also get a 1-day free trial.'],['Trouble activating?','Check that you selected the correct product and have an internet connection. An expired, revoked, or wrong-product key cannot activate the agent.']];
-export function Help(){const [query,setQuery]=useState('');return <div className="container page"><PageHeading eyebrow="THE NORVI HELP CENTER" title="— little help goes a long way." description="Find your way from your first visit to your first activation."/><label className="search large-search"><Search size={20}/><input aria-label="Search help" placeholder="Search activation, downloads, payments…" value={query} onChange={e=>setQuery(e.target.value)}/></label><div className="help-grid">{helpItems.filter(([t,d])=>(t+d).toLowerCase().includes(query.toLowerCase())).map(([t,d],i)=><article className="panel" key={t}><span className="help-number">0{i+1}</span><h3>{t}</h3><p>{d}</p></article>)}</div><div className="inline-callout"><div><h3>Still need a hand?</h3><p>Your account keeps your support requests together.</p></div><a className="button secondary" href="/account/support">Contact support <ArrowRight size={16}/></a></div></div>;}
+
+const helpItems=[['Getting started','Create your account, verify your email, and explore the collection. Each product page will show its requirements before you buy.'],['Finding your key','Open My account -> Keys & devices. Choose Reveal key for the product you purchased. Never share the key publicly.'],['Installing an agent','Download the correct version from My agents. Open the agent and enter the key for that product. Download the installer for your OS once activated.'],['Device limits','Each license supports 1 active device. Release an old device from Keys & devices before moving to a new one.'],['Payments and renewals','Your billing page keeps purchase records. Purchases are one-time payments. You also get a 1-day free trial.'],['Trouble activating?','Check that you selected the correct product and have an internet connection. An expired, revoked, or wrong-product key cannot activate the agent.']];
+export function Help(){const [query,setQuery]=useState('');return <div className="container page"><PageHeading eyebrow="THE NORVI HELP CENTER" title="A little help goes a long way." description="Find your way from your first visit to your first activation."/><label className="search large-search"><Search size={20}/><input aria-label="Search help" placeholder="Search activation, downloads, payments..." value={query} onChange={e=>setQuery(e.target.value)}/></label><div className="help-grid">{helpItems.filter(([t,d])=>(t+d).toLowerCase().includes(query.toLowerCase())).map(([t,d],i)=><article className="panel" key={t}><span className="help-number">0{i+1}</span><h3>{t}</h3><p>{d}</p></article>)}</div><div className="inline-callout"><div><h3>Still need a hand?</h3><p>Your account keeps your support requests together.</p></div><a className="button secondary" href="/account/support">Contact support <ArrowRight size={16}/></a></div></div>;}
+
+export function PartnerProgram
+({settings}: {settings?: any}) {
+  return <div className="container page"><PageHeading eyebrow="PARTNER PROGRAM" title="Grow with NORVI." description="Join our affiliate program and earn commissions by recommending our AI agents."/>
+  <div className="two-column" style={{marginTop: '40px'}}>
+    <div className="panel" style={{display: 'flex', flexDirection: 'column', gap: '20px'}}>
+      <h3><Activity className="accent" size={24} style={{verticalAlign: 'middle', marginRight: '10px'}}/>How it works</h3>
+      <p>We believe in rewarding those who help us grow. By joining the NORVI Partner Program, you receive a unique referral code. When new customers use your code to purchase an agent, they get a discount, and you earn a direct commission on the sale.</p>
+      <ul style={{paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '10px'}}>
+        <li><b>Generous Commissions:</b> Earn a percentage of every successful referral.</li>
+        <li><b>Customer Discounts:</b> Your audience gets an exclusive discount.</li>
+        <li><b>Transparent Payouts:</b> Track your earnings and payouts directly from your dashboard.</li>
+      </ul>
+      <a href="/login" className="button primary" style={{marginTop: 'auto', alignSelf: 'flex-start'}}>Join the Partner Program <ArrowUpRight size={17}/></a>
+    </div>
+    <div className="panel" style={{display: 'flex', flexDirection: 'column', gap: '20px'}}>
+      <h3><ShieldCheck className="accent" size={24} style={{verticalAlign: 'middle', marginRight: '10px'}}/>Program Criteria</h3>
+      <p>Our program is designed for creators, agencies, and tech enthusiasts who understand the value of AI automation.</p>
+      <div style={{background: 'rgba(200, 255, 100, 0.05)', padding: '20px', borderRadius: '8px', border: '1px solid var(--border)'}}>
+        <h4 style={{margin: '0 0 10px 0'}}>Getting Started</h4>
+        <p style={{margin: 0, fontSize: '14px', color: 'var(--text-light)'}}>Create a standard NORVI account, then navigate to your dashboard and open the "Partners & Payouts" tab to generate your unique referral code instantly.</p>
+      </div>
+      <a href="/account/affiliates" className="text-button" style={{marginTop: 'auto', alignSelf: 'flex-start'}}>Go to Partner Dashboard <ArrowRight size={16}/></a>
+    </div>
+  </div>
+  </div>;
+}
+
 export function About(){return <div className="container page"><PageHeading eyebrow="THE IDE— BEHIND NORVI" title="More room for meaningful work." description="We’re building a collection of AI agents to help people spend less time on repetitive tasks."/><div className="about-feature"><span className="serif">Possibility<br/>starts with<br/>a little space.</span><div><span className="eyebrow">OUR STARTING POINT</span><h2>Useful tools.<br/>— human purpose.</h2><p>NORVI is taking its first steps. Our aim is simple: make it easier to discover, purchase, and manage AI agents that fit the way you work.</p><p>Every product will have a clear purpose, an honest demonstration, and an explanation of what you need to use it.</p></div></div><div className="steps"><div className="step"><span>01</span><h3>Start with the task.</h3><p>Build around a real problem, not a list of buzzwords.</p></div><div className="step"><span>02</span><h3>Keep things clear.</h3><p>Explain capabilities, requirements, usage, and access before purchase.</p></div><div className="step"><span>03</span><h3>Grow thoughtfully.</h3><p>Learn from customers and make the useful things better.</p></div></div><div className="panel"><h3>Norvi AI Agency</h3><p>Based in India. Founded by <a href="https://chirag-portfolio-v3.netlify.app/" target="_blank" rel="noreferrer" style={{textDecoration:"underline", color:"inherit"}}>Chirag Sharma</a> to simplify workflows and make AI accessible.</p></div></div>;}
 export function Contact({settings}:{settings:Settings}){
   const [busy,setBusy]=useState(false);
@@ -168,25 +205,35 @@ export function Contact({settings}:{settings:Settings}){
 }
 const legal:Record<string,{title:string;sections:[string,string][]}>={privacy:{title:'Privacy policy',sections:[['Data we expect to collect','Account identity, profile details, purchase references, licenses, device activation records, and support requests.'],['How information will be used','To operate accounts, fulfill purchases, validate access, deliver support, and protect the service. Registration will not automatically opt you into marketing.'],['Service providers','We use secure providers like Supabase for accounts, Razorpay for payments, and Resend for email.'],['Retention and requests','You can delete your account at any time from your dashboard. For privacy inquiries, email chiragsharmawork95@gmail.com.'],['Grievance Officer','In accordance with the Information Technology Act 2000, the name and contact details of the Grievance Officer are provided below.\n\nName: Gopal Ji Yadav\nEmail: Gopal2nd5654@gmail.com\nPhone: +91-6397916325\nAddress: Norvi AI Agency, Kunj Vihar, Gole ka mandir, Gwalior, Madhya Pradesh, India, 474005.']]},terms:{title:'Terms of service',sections:[['Business and Jurisdiction','These Terms govern your use of products and services offered by Norvi AI Agency, a registered entity in India. These Terms are subject to the exclusive jurisdiction of the courts in Gwalior, Madhya Pradesh, India.'],['Service scope','Norvi sells access to AI agents. Each product includes a 1-day free trial.'],['Accounts and acceptable use','Customers will be responsible for keeping account credentials and activation keys private and using the products under their agreed license.'],['Payments and access','Payments are handled securely via Razorpay. All sales are final after the trial period.']]},refunds:{title:'Refund & Cancellation Policy',sections:[['Eligibility','Because we offer a 1-day free trial, all sales are final once the purchase is completed. We do not offer refunds.'],['Cancellation','As our products are digital AI agents, orders cannot be cancelled once the payment is processed and the unique license key is generated and dispatched to your dashboard.'],['Request process','For technical issues preventing you from accessing the software, contact chiragsharmawork95@gmail.com within 7 days.']]},delivery:{title:'Shipping & Delivery Policy',sections:[['Digital Delivery','We sell digital AI agent software and license keys. We do not ship physical products.'],['Instant Fulfillment','Upon successful payment, your unique activation key is delivered instantly to your registered email address.'],['Dashboard Access','Your purchased license key and the software download links will be immediately available in your account dashboard under "Keys & devices".']]},license:{title:'License agreement',sections:[['Product-specific access','Each license belongs to a customer and a particular product. — key for one agent cannot unlock another.'],['Devices and sharing','Each license is valid for 1 active device. You may rotate devices from your dashboard.'],['Connection requirements','The agent requires periodic online validation. An offline authorization lease lasts for 7 days.'],['Expiry and revocation','Licenses may be revoked for fraud or violation of terms.'],['Updates and support','Lifetime access to the purchased major version.']]}};
 export function Legal({kind}:{kind:string}){const doc=legal[kind];return <div className="container page legal"><PageHeading eyebrow="THE DETAILS" title={doc.title}/>{doc.sections.map(([title,body],i)=><section key={title}><h2>{i+1}. {title}</h2><p style={{whiteSpace:"pre-wrap"}}>{body}</p></section>)}<a href="/contact" className="text-button">Questions? Contact us <ArrowRight size={16}/></a></div>;}
-export function Checkout({product}:{product:Product|undefined}){
+export function Checkout({product, settings}:{product:Product|undefined; settings?:Settings}){
   const {data:config}=useData('/auth/config');
   const [busy,setBusy]=useState(false),[error,setError]=useState(''),[accepted,setAccepted]=useState(false),[success,setSuccess]=useState(false);
   const [duration, setDuration] = useState('lifetime');
     const [referralCode, setReferralCode] = useState('');
-    const [referralValid, setReferralValid] = useState<boolean|null>(null);
+    const [referralValid, setReferralValid] = useState<{valid: boolean; type?: string; discount?: number}|null>(null);
     const [checkingRef, setCheckingRef] = useState(false);
     useEffect(() => {
       if (!referralCode || referralCode.trim() === '') { setReferralValid(null); return; }
       const delay = setTimeout(async () => {
-        setCheckingRef(true);
-        try {
-          const res = await api('/checkout/validate-code', { method: 'POST', body: JSON.stringify({ code: referralCode }) });
-          setReferralValid(res.valid);
-        } catch { setReferralValid(false); }
-        setCheckingRef(false);
-      }, 500);
-      return () => clearTimeout(delay);
-    }, [referralCode]);
+          setCheckingRef(true);
+          try {
+            const res = await api('/checkout/validate-code', { method: 'POST', body: JSON.stringify({ code: referralCode, productId: product?.id, duration }) });
+            setReferralValid(res.valid ? res : {valid: false});
+          } catch { setReferralValid({valid: false}); }
+          setCheckingRef(false);
+        }, 500);
+        return () => clearTimeout(delay);
+      }, [referralCode, duration, product?.id]);
+
+      const getPrice = (d: string) => {
+        const base = d === '1_month' ? Number(product?.price1m) : d === '3_months' ? Number(product?.price3m) : Number(product?.price_lifetime);
+        if (!base) return 0;
+        const hasSale = settings?.saleActive && settings?.salePercentage && product?.is_on_sale;
+        const saleMultiplier = hasSale ? (1 - (settings?.salePercentage || 0) / 100) : 1;
+        const refMultiplier = referralValid?.valid && referralValid?.discount ? (1 - referralValid.discount / 100) : (referralValid?.valid ? 0.9 : 1);
+        return Math.max(0, base * saleMultiplier * refMultiplier);
+      };
+      const currentFinalPrice = getPrice(duration);
   const [renewalId, setRenewalId] = useState<string|null>(null);
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -220,10 +267,15 @@ export function Checkout({product}:{product:Product|undefined}){
           productId:product!.id, 
             duration,
             renewalLicenseId: renewalId,
-            referralCode: referralValid ? referralCode : null
+            referralCode: referralValid?.valid ? referralCode : null
         })});
         
-        if (data.mock) {
+        if (data.skipped_payment) {
+            setSuccess(true);
+            setBusy(false);
+            return;
+          }
+          if (data.mock) {
           // MOCK CHECKOUT FLOW (Keys are missing in .env)
           console.log('Running mock checkout simulation...');
           await api('/internal/mock-webhook', { method: 'POST', body: JSON.stringify({ order_id: data.order_id, payment_id: 'mock_payment_' + Date.now() }) });
@@ -281,16 +333,16 @@ export function Checkout({product}:{product:Product|undefined}){
         <div className="payment-options"><span>UPI</span><span>Credit / debit card</span><span>Netbanking</span></div>
         <p className="small-note">Payments processed securely by Razorpay.</p>
           <hr/>
-          <h3>Referral Code (Optional)</h3>
-          <div style={{display:'flex', alignItems:'center', gap:'12px', marginBottom:'16px'}}>
-            <input type="text" placeholder="Enter referral code" value={referralCode} onChange={e=>setReferralCode(e.target.value.toUpperCase())} style={{flex:1, textTransform:'uppercase'}} />
-            {checkingRef ? <span style={{color:'var(--text-light)'}}>Checking...</span> : (referralValid === true ? <span style={{color:'var(--green)'}}>&#10004; Applied (-10%)</span> : (referralValid === false ? <span style={{color:'var(--error)'}}>&#10008; Invalid code</span> : null))}
-          </div>
+          <h3>Coupon or Referral Code</h3>
+            <div style={{display:'flex', alignItems:'center', gap:'12px', marginBottom:'16px'}}>
+              <input type="text" placeholder="Enter code" value={referralCode} onChange={e=>setReferralCode(e.target.value.toUpperCase())} style={{flex:1, textTransform:'uppercase'}} />
+              {checkingRef ? <span style={{color:'var(--text-light)'}}>Checking...</span> : (referralValid?.valid === true ? <span style={{color:'var(--green)'}}>&#10004; Applied (-{referralValid.discount || 10}%)</span> : (referralValid?.valid === false ? <span style={{color:'var(--error)'}}>&#10008; Invalid code</span> : null))}
+            </div>
           <hr/>
           <h3>Terms & Conditions</h3>
         <label className="checkbox-row"><input type="checkbox" checked={accepted} onChange={e=>setAccepted(e.target.checked)}/>I agree to the terms of service and refund policy.</label>
         {error&&<Notice kind="error">{error}</Notice>}
-        <button className="button primary full" disabled={busy||!accepted} onClick={purchase}>{busy?'Processing...':(isPreview?'Simulate purchase — no charge':`Pay Securely`)}<ArrowRight size={17}/></button>
+        <button className="button primary full" disabled={busy||!accepted} onClick={purchase}>{busy?'Processing...':(currentFinalPrice === 0 ? 'Claim Free Access' : (isPreview?'Simulate purchase — no charge':`Pay Securely`))}<ArrowRight size={17}/></button>
       </div>
       <aside className="panel order-summary">
           <ProductIcon product={product!}/>
@@ -299,55 +351,82 @@ export function Checkout({product}:{product:Product|undefined}){
             <p>{product!.description}</p>
           </div>
           <div className="pricing-toggles" style={{display:'flex', flexDirection:'column', gap:12, margin:'20px 0'}}>
-            {Number(product?.price1m) > 0 && <label style={{display:'flex', alignItems:'center', gap:12, padding:'16px', border: duration==='1_month'?'2px solid var(--accent)':'1px solid var(--border)', borderRadius:8, cursor:'pointer', background: duration==='1_month'?'rgba(200,255,100,0.05)':'transparent'}} onClick={()=>setDuration('1_month')}>
-              <input type="radio" checked={duration==='1_month'} readOnly style={{ width:18, height:18, flexShrink:0, margin:0, accentColor:'var(--accent)' }} />
-              <div style={{display:'flex', justifyContent:'space-between', flexGrow:1, alignItems:'center'}}>
-                <b>1 Month</b>
+{Number(product?.price1m) > 0 && <label style={{display:'flex', alignItems:'center', gap:12, padding:'16px', border: duration==='1_month'?'2px solid var(--accent)':'1px solid var(--border)', borderRadius:8, cursor:'pointer', background: duration==='1_month'?'rgba(200,255,100,0.05)':'transparent'}} onClick={()=>setDuration('1_month')}>
+                <input type="radio" checked={duration==='1_month'} readOnly style={{ width:18, height:18, flexShrink:0, margin:0, accentColor:'var(--accent)' }} />
+                <div style={{display:'flex', justifyContent:'space-between', flexGrow:1, alignItems:'center'}}>
+                  <b>1 Month</b>
                   <div style={{color:'var(--text-light)', fontWeight:500, display: 'flex', flexDirection: 'column', alignItems: 'flex-end'}}>
-                    {referralValid ? (
-                      <>
-                        <span style={{textDecoration: 'line-through', fontSize: '12px', opacity: 0.7}}>₹{product?.price1m}</span>
-                        <span style={{color:'var(--green)', fontSize: '16px', fontWeight: 600}}>₹{(Number(product?.price1m)*0.9).toFixed(2)}</span>
-                      </>
-                    ) : (
-                      <span>₹{product?.price1m}</span>
-                    )}
+                    {(() => {
+                      const base = Number(product?.price1m) || 0;
+                      const hasSale = settings?.saleActive && settings?.salePercentage && product?.is_on_sale;
+                      const saleMultiplier = hasSale ? (1 - (settings?.salePercentage || 0) / 100) : 1;
+                      const refMultiplier = referralValid?.valid && referralValid?.discount ? (1 - referralValid.discount / 100) : (referralValid?.valid ? 0.9 : 1);
+                      const finalPrice = base * saleMultiplier * refMultiplier;
+                      
+                      if (hasSale || referralValid?.valid) {
+                        return (
+                          <>
+                            <span style={{textDecoration: 'line-through', fontSize: '12px', opacity: 0.7}}>₹{base}</span>
+                            <span style={{color:'var(--green)', fontSize: '16px', fontWeight: 600}}>₹{finalPrice.toFixed(0)}</span>
+                          </>
+                        );
+                      }
+                      return <span>₹{base}</span>;
+                    })()}
                   </div>
-              </div>
-            </label>}
-            {Number(product?.price3m) > 0 && <label style={{display:'flex', alignItems:'center', gap:12, padding:'16px', border: duration==='3_months'?'2px solid var(--accent)':'1px solid var(--border)', borderRadius:8, cursor:'pointer', background: duration==='3_months'?'rgba(200,255,100,0.05)':'transparent'}} onClick={()=>setDuration('3_months')}>
-              <input type="radio" checked={duration==='3_months'} readOnly style={{ width:18, height:18, flexShrink:0, margin:0, accentColor:'var(--accent)' }} />
-              <div style={{display:'flex', justifyContent:'space-between', flexGrow:1, alignItems:'center'}}>
-                <b>3 Months</b>
+                </div>
+              </label>}
+{Number(product?.price3m) > 0 && <label style={{display:'flex', alignItems:'center', gap:12, padding:'16px', border: duration==='3_months'?'2px solid var(--accent)':'1px solid var(--border)', borderRadius:8, cursor:'pointer', background: duration==='3_months'?'rgba(200,255,100,0.05)':'transparent'}} onClick={()=>setDuration('3_months')}>
+                <input type="radio" checked={duration==='3_months'} readOnly style={{ width:18, height:18, flexShrink:0, margin:0, accentColor:'var(--accent)' }} />
+                <div style={{display:'flex', justifyContent:'space-between', flexGrow:1, alignItems:'center'}}>
+                  <b>3 Months</b>
                   <div style={{color:'var(--text-light)', fontWeight:500, display: 'flex', flexDirection: 'column', alignItems: 'flex-end'}}>
-                    {referralValid ? (
-                      <>
-                        <span style={{textDecoration: 'line-through', fontSize: '12px', opacity: 0.7}}>₹{product?.price3m}</span>
-                        <span style={{color:'var(--green)', fontSize: '16px', fontWeight: 600}}>₹{(Number(product?.price3m)*0.9).toFixed(2)}</span>
-                      </>
-                    ) : (
-                      <span>₹{product?.price3m}</span>
-                    )}
+                    {(() => {
+                      const base = Number(product?.price3m) || 0;
+                      const hasSale = settings?.saleActive && settings?.salePercentage && product?.is_on_sale;
+                      const saleMultiplier = hasSale ? (1 - (settings?.salePercentage || 0) / 100) : 1;
+                      const refMultiplier = referralValid?.valid && referralValid?.discount ? (1 - referralValid.discount / 100) : (referralValid?.valid ? 0.9 : 1);
+                      const finalPrice = base * saleMultiplier * refMultiplier;
+                      
+                      if (hasSale || referralValid?.valid) {
+                        return (
+                          <>
+                            <span style={{textDecoration: 'line-through', fontSize: '12px', opacity: 0.7}}>₹{base}</span>
+                            <span style={{color:'var(--green)', fontSize: '16px', fontWeight: 600}}>₹{finalPrice.toFixed(0)}</span>
+                          </>
+                        );
+                      }
+                      return <span>₹{base}</span>;
+                    })()}
                   </div>
-              </div>
-            </label>}
-            <label style={{display:'flex', alignItems:'center', gap:12, padding:'16px', border: duration==='lifetime'?'2px solid var(--accent)':'1px solid var(--border)', borderRadius:8, cursor:'pointer', background: duration==='lifetime'?'rgba(200,255,100,0.05)':'transparent'}} onClick={()=>setDuration('lifetime')}>
-              <input type="radio" checked={duration==='lifetime'} readOnly style={{ width:18, height:18, flexShrink:0, margin:0, accentColor:'var(--accent)' }} />
-              <div style={{display:'flex', justifyContent:'space-between', flexGrow:1, alignItems:'center'}}>
-                <b>Lifetime Access</b>
+                </div>
+              </label>}
+{Number(product?.price_lifetime) > 0 && <label style={{display:'flex', alignItems:'center', gap:12, padding:'16px', border: duration==='lifetime'?'2px solid var(--accent)':'1px solid var(--border)', borderRadius:8, cursor:'pointer', background: duration==='lifetime'?'rgba(200,255,100,0.05)':'transparent'}} onClick={()=>setDuration('lifetime')}>
+                <input type="radio" checked={duration==='lifetime'} readOnly style={{ width:18, height:18, flexShrink:0, margin:0, accentColor:'var(--accent)' }} />
+                <div style={{display:'flex', justifyContent:'space-between', flexGrow:1, alignItems:'center'}}>
+                  <b>Lifetime Access</b>
                   <div style={{color:'var(--text-light)', fontWeight:500, display: 'flex', flexDirection: 'column', alignItems: 'flex-end'}}>
-                    {referralValid ? (
-                      <>
-                        <span style={{textDecoration: 'line-through', fontSize: '12px', opacity: 0.7}}>₹{product?.price_lifetime || '999'}</span>
-                        <span style={{color:'var(--green)', fontSize: '16px', fontWeight: 600}}>₹{(Number(product?.price_lifetime || '999')*0.9).toFixed(2)}</span>
-                      </>
-                    ) : (
-                      <span>₹{product?.price_lifetime || '999'}</span>
-                    )}
+                    {(() => {
+                      const base = Number(product?.price_lifetime) || 0;
+                      const hasSale = settings?.saleActive && settings?.salePercentage && product?.is_on_sale;
+                      const saleMultiplier = hasSale ? (1 - (settings?.salePercentage || 0) / 100) : 1;
+                      const refMultiplier = referralValid?.valid && referralValid?.discount ? (1 - referralValid.discount / 100) : (referralValid?.valid ? 0.9 : 1);
+                      const finalPrice = base * saleMultiplier * refMultiplier;
+                      
+                      if (hasSale || referralValid?.valid) {
+                        return (
+                          <>
+                            <span style={{textDecoration: 'line-through', fontSize: '12px', opacity: 0.7}}>₹{base}</span>
+                            <span style={{color:'var(--green)', fontSize: '16px', fontWeight: 600}}>₹{finalPrice.toFixed(0)}</span>
+                          </>
+                        );
+                      }
+                      return <span>₹{base}</span>;
+                    })()}
                   </div>
-              </div>
-            </label>
-          </div>
+                </div>
+              </label>}
+</div>
           <p className="small-note">Includes a product-specific activation key to unlock the agent on your desktop.</p>
         </aside>
     </div>
