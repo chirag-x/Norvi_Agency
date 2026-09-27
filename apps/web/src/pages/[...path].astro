@@ -23,7 +23,7 @@ const path = '/' + (Astro.params.path || '');
 const privatePage = /\/(account|admin|checkout|orders|login|register)/.test(path);
 const settings = catalog.settings;
 
-let title = settings.name + " - AI agents for your everyday work";
+let title = path === "/" ? "NORVI | Autonomous AI Agents & Tech Agency" : settings.name + " - AI agents for your everyday work";
 let description = settings.description;
 let ogImage = "https://nor-vi.in/logo.jpg";
 let isProduct = false;
@@ -61,8 +61,11 @@ const orgJsonLd = JSON.stringify({
   "@context": "https://schema.org",
   "@type": "Organization",
   "name": settings.name,
+  "alternateName": ["NORVI", "NORVI AI", "NORVI Agency", "NORVI AI Agency" , "NORVI Agents", "NORVI AI Agents", ],
   "url": "https://nor-vi.in",
-  "logo": "https://nor-vi.in/logo.jpg"
+  "logo": "https://nor-vi.in/logo.jpg",
+  "description": settings.description,
+  "sameAs": []
 });
 ---
 <!doctype html>
@@ -74,6 +77,9 @@ const orgJsonLd = JSON.stringify({
   
   <title>{title}</title>
   <meta name="description" content={description}/>
+  <meta name="keywords" content="NORVI, NORVI AI, NORVI Agency, NORVI AI Agency, NORVI Agents, NORVI AI Agents, Autonomous AI Agents, AI Automation, Rolvio, Voro, Omnix, AI Job Search, Tech Agency" />
+  <link rel="canonical" href={"https://nor-vi.in" + (path === '/' ? '' : path)} />
+  <meta name="theme-color" content="#c8ff64" />
   
   <meta property="og:title" content={title} />
   <meta property="og:description" content={description} />
