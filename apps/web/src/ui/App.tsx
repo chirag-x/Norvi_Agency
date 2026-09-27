@@ -1,9 +1,118 @@
 import { AccountAuth, AccountSecurity } from './Accounts';
 import { ArrowUpRight, ArrowRight, Workflow, MessageSquare, Sparkles, ShieldCheck, KeyRound, Download, Check, Menu, X, Plus, Command, ChevronDown } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Catalog, Detail, Pricing, About, Help, Contact, Legal, Checkout, NotFound } from './PublicPages';
 import { Workspace, OrderStatus } from './Workspace';
 import { products as initialProducts, settings as initialSettings, type Product, type Settings, type User } from '../../../../packages/shared/model';
+
+
+function ChatWidget() {
+  const [open, setOpen] = useState(false);
+  const [messages, setMessages] = useState([{role: 'ai', content: 'Hi there! How can I help you today?'}]);
+  const [input, setInput] = useState('');
+  const [loading, setLoading] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, open]);
+
+  const send = async (e: any) => {
+    e.preventDefault();
+    if(!input.trim() || loading) return;
+    const msg = input.trim();
+    setInput('');
+    setMessages(p => [...p, {role: 'user', content: msg}]);
+    setLoading(true);
+
+    try {
+      const res = await fetch('/api/chat', {
+         method: 'POST', 
+         headers: {'Content-Type': 'application/json'},
+         body: JSON.stringify({ message: msg, history: messages.filter(m => m.role !== 'error') })
+      });
+      
+      if (!res.ok) {
+        const err = await res.json().catch(()=>({error: 'Server error'}));
+        throw new Error(err.error || 'Failed to connect');
+      }
+
+      const reader = res.body?.getReader();
+      const decoder = new TextDecoder();
+      
+      setMessages(p => [...p, {role: 'ai', content: ''}]);
+      
+      if (reader) {
+        while(true) {
+          const {done, value} = await reader.read();
+          if (done) break;
+          const chunk = decoder.decode(value);
+          setMessages(p => {
+             const newArr = [...p];
+             newArr[newArr.length - 1].content += chunk;
+             return newArr;
+          });
+        }
+      }
+    } catch(err: any) {
+      setMessages(p => [...p, {role: 'error', content: err.message}]);
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div className="chat-widget" style={{position:'fixed', bottom:24, right:24, zIndex:9999}}>
+      {!open && (
+        <button onClick={() => setOpen(true)} style={{
+          width: 60, height: 60, borderRadius: 30, background: 'var(--accent)', color: 'black', 
+          border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.5)'
+        }}>
+          <MessageSquare size={28} />
+        </button>
+      )}
+      
+      {open && (
+        <div style={{
+          width: 350, height: 500, background: 'var(--background)', border: '1px solid var(--border)', 
+          borderRadius: 12, display: 'flex', flexDirection: 'column', overflow: 'hidden',
+          boxShadow: '0 8px 24px rgba(0,0,0,0.5)'
+        }}>
+          <div style={{background: 'var(--surface)', padding: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border)'}}>
+            <h3 style={{margin: 0, fontSize: 16}}>NORVI AI Support</h3>
+            <button onClick={() => setOpen(false)} style={{background: 'transparent', border: 'none', color: 'var(--text-light)', cursor: 'pointer'}}><X size={20}/></button>
+          </div>
+          
+          <div style={{flex: 1, overflowY: 'auto', padding: 16, display: 'flex', flexDirection: 'column', gap: 12}}>
+            {messages.map((m, i) => (
+              <div key={i} style={{
+                alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start',
+                background: m.role === 'user' ? 'var(--accent)' : 'var(--surface)',
+                color: m.role === 'user' ? 'black' : 'var(--text)',
+                padding: '10px 14px', borderRadius: 12, maxWidth: '85%', fontSize: 14,
+                border: m.role === 'error' ? '1px solid var(--red)' : 'none'
+              }}>
+                <p style={{margin: 0, whiteSpace: 'pre-wrap'}}>{m.content}</p>
+              </div>
+            ))}
+            {loading && messages[messages.length-1].role === 'user' && (
+              <div style={{alignSelf: 'flex-start', background: 'var(--surface)', padding: '10px 14px', borderRadius: 12}}><span className="dot-typing">...</span></div>
+            )}
+            <div ref={messagesEndRef} />
+          </div>
+
+          <form onSubmit={send} style={{display: 'flex', padding: 12, borderTop: '1px solid var(--border)', background: 'var(--surface)'}}>
+            <input type="text" value={input} onChange={e => setInput(e.target.value)} placeholder="Ask a question..." disabled={loading} 
+              style={{flex: 1, background: 'transparent', border: 'none', color: 'var(--text)', outline: 'none', fontSize: 14}} />
+            <button type="submit" disabled={loading || !input.trim()} style={{background: 'transparent', border: 'none', color: 'var(--accent)', cursor: 'pointer', opacity: loading || !input.trim() ? 0.5 : 1}}>
+              <ArrowRight size={20} />
+            </button>
+          </form>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function App({ initialPath }: { initialPath: string }) {
   const [path,setPath] = useState(initialPath); const [products,setProducts] = useState<Product[]>(initialProducts); const [settings,setSettings] = useState<Settings>(initialSettings); const [menu,setMenu]=useState(false); const [user,setUser]=useState<User|null>(null);
@@ -25,7 +134,7 @@ export default function App({ initialPath }: { initialPath: string }) {
   else if(path==='/account/security') content=<AccountSecurity/>;
   else if(workspace||path==='/onboarding') content=<Workspace path={path==='/onboarding'?'/account/settings':path} products={products} settings={settings} onCatalogChange={refresh}/>;
   else content=<NotFound/>;
-  return <><a className="skip-link" href="#main-content">Skip to content</a>{!workspace&&<header className="header"><a className="brand" href="/"><img src="/logo.jpg" alt="NORVI" style={{width: 34, height: 34, borderRadius: 4, objectFit: "contain", marginRight: 10}}/>{settings.name}</a><nav className={menu?'nav open':'nav'} aria-label="Main navigation"><a className={path.startsWith('/agents')?'active':''} href="/agents">Explore agents</a><a href="/pricing">Pricing</a><a href="/about">Our story</a><a href="/help">Resources <ChevronDown size={12}/></a></nav><div className="header-actions">{user?<a href={user.role==='customer'?'/account':'/admin'} className="user-avatar-link" title="My Account" style={{display:'flex',textDecoration:'none'}}><span className="avatar">{user.name.slice(0,1).toUpperCase()}</span></a>:<a href="/login" className="login-link">Log in</a>}<a className="button button-small primary" href="/agents">Find your agent <ArrowUpRight size={16}/></a><button className="icon-button mobile-menu" aria-label="Toggle navigation" aria-expanded={menu} onClick={()=>setMenu(!menu)}>{menu?<X/>:<Menu/>}</button></div></header>}<main id="main-content">{content}</main>{!workspace&&<Footer settings={settings}/>}</>;
+  return <><a className="skip-link" href="#main-content">Skip to content</a>{!workspace&&<header className="header"><a className="brand" href="/"><img src="/logo.jpg" alt="NORVI" style={{width: 34, height: 34, borderRadius: 4, objectFit: "contain", marginRight: 10}}/>{settings.name}</a><nav className={menu?'nav open':'nav'} aria-label="Main navigation"><a className={path.startsWith('/agents')?'active':''} href="/agents">Explore agents</a><a href="/pricing">Pricing</a><a href="/about">Our story</a><a href="/help">Resources <ChevronDown size={12}/></a></nav><div className="header-actions">{user?<a href={user.role==='customer'?'/account':'/admin'} className="user-avatar-link" title="My Account" style={{display:'flex',textDecoration:'none'}}><span className="avatar">{user.name.slice(0,1).toUpperCase()}</span></a>:<a href="/login" className="login-link">Log in</a>}<a className="button button-small primary" href="/agents">Find your agent <ArrowUpRight size={16}/></a><button className="icon-button mobile-menu" aria-label="Toggle navigation" aria-expanded={menu} onClick={()=>setMenu(!menu)}>{menu?<X/>:<Menu/>}</button></div></header>}<main id="main-content">{content}</main>{!workspace&&<Footer settings={settings}/>}<ChatWidget /></>;
 }
 export function ProductIcon({product,size=40}:{product:Product;size?:number}){
   if (product.logoUrl) {

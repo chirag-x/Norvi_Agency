@@ -818,25 +818,35 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     return c.json({ ok: true, licenseId });
   });
 
-  app.post('/api/checkout/create', async c => {
+  
+    app.post('/api/checkout/validate-code', async c => {
+      const { code } = z.object({ code: z.string() }).parse(await c.req.json());
+      const { data, error } = await c.get('db').rpc('validate_referral_code', { p_code: code });
+      if (error) return c.json({ valid: false });
+      return c.json({ valid: !!data });
+    });
+
+    app.post('/api/checkout/create', async c => {
     const db = c.get('db');
     const { data: settings } = await db.rpc('get_site_settings');
     if (settings?.maintenance_mode) return c.json({ error: 'Store is temporarily closed for maintenance. Please check back later.' }, 503);
     const input = z.object({ 
-        productId: z.string().uuid(),
-        duration: z.string().optional().default('lifetime'),
-        renewalLicenseId: z.string().uuid().optional().nullable()
-      }).parse(await c.req.json());
+          productId: z.string().uuid(),
+          duration: z.string().optional().default('lifetime'),
+          renewalLicenseId: z.string().uuid().optional().nullable(),
+          referralCode: z.string().optional().nullable()
+        }).parse(await c.req.json());
       
       if (!c.env.RAZORPAY_KEY_ID || !c.env.RAZORPAY_KEY_SECRET || c.env.RAZORPAY_KEY_ID.includes('YOUR_KEY_HERE')) {
         return c.json({ error: 'Payment gateway is not configured.' }, 503);
       }
       
       const { data: checkout, error: checkoutError } = await db.rpc('create_checkout_order', { 
-        p_product_id: input.productId,
-        p_duration: input.duration,
-        p_renewal_for_license_id: input.renewalLicenseId || null
-      });
+          p_product_id: input.productId,
+          p_duration: input.duration,
+          p_renewal_for_license_id: input.renewalLicenseId || null,
+          p_referral_code: input.referralCode || null
+        });
     if (checkoutError || !checkout?.order_id) return c.json({ error: checkoutError?.message || 'Could not create order.' }, 400);
     const amount = checkout.amount;
     const currency = checkout.currency;
@@ -1090,6 +1100,258 @@ License generated successfully.`);
     
     return c.json({ ok: true, processed });
   });
+
+  
+    app.get('/api/partner/stats', async c => {
+      const { data, error } = await c.get('db').rpc('get_partner_stats');
+      return error ? c.json({ error: error.message }, 503) : c.json(data);
+    });
+
+    app.post('/api/partner/join', async c => {
+      const { code } = z.object({ code: z.string() }).parse(await c.req.json());
+      const { data, error } = await c.get('db').rpc('join_partner_program', { p_code: code });
+      return error ? c.json({ error: error.message }, 400) : c.json(data);
+    });
+
+    app.post('/api/partner/payout', async c => {
+      const { upi } = z.object({ upi: z.string() }).parse(await c.req.json());
+      const { data, error } = await c.get('db').rpc('request_payout', { p_upi_id: upi });
+      return error ? c.json({ error: error.message }, 400) : c.json(data);
+    });
+
+    app.get('/api/admin/affiliates', async c => {
+      if (!['owner', 'administrator'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
+      const { data, error } = await c.get('db').rpc('admin_list_affiliates');
+      return error ? c.json({ error: error.message }, 503) : c.json(data);
+    });
+
+    app.post('/api/admin/affiliates/:id/status', async c => {
+      if (!['owner', 'administrator'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
+      const { status } = await c.req.json();
+      const { error } = await c.get('db').rpc('admin_update_affiliate_status', { p_affiliate_id: c.req.param('id'), p_status: status });
+      return error ? c.json({ error: error.message }, 400) : c.json({ ok: true });
+    });
+
+    app.post('/api/admin/affiliates/:id/delete', async c => {
+      if (!['owner', 'administrator'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
+      const { error } = await c.get('db').rpc('admin_delete_affiliate', { p_affiliate_id: c.req.param('id') });
+      return error ? c.json({ error: error.message }, 400) : c.json({ ok: true });
+    });
+
+    app.get('/api/admin/payouts', async c => {
+      if (!['owner', 'administrator'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
+      const { data, error } = await c.get('db').rpc('admin_list_payouts');
+      return error ? c.json({ error: error.message }, 503) : c.json(data);
+    });
+
+    app.post('/api/admin/payouts/:id/mark-paid', async c => {
+      if (!['owner', 'administrator'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
+      const { error } = await c.get('db').rpc('admin_mark_payout_paid', { p_payout_id: c.req.param('id') });
+      return error ? c.json({ error: error.message }, 400) : c.json({ ok: true });
+    });
+
+  
+    app.get('/api/admin/ai/settings', async c => {
+      if (!['owner', 'administrator'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
+      const { data, error } = await c.get('db').rpc('admin_get_ai_settings');
+      return error ? c.json({ error: error.message }, 503) : c.json(data);
+    });
+
+    app.post('/api/admin/ai/settings', async c => {
+      if (c.get('user').role !== 'owner') return c.json({ error: 'Only owners can update AI keys.' }, 403);
+      const { api_key, model, system_prompt } = await c.req.json();
+      const cleanKey = (api_key || '').trim();
+      let cleanModel = (model || '').trim();
+      
+      const { error } = await c.get('db').rpc('admin_update_ai_settings', { p_api_key: cleanKey, p_model: cleanModel, p_system_prompt: system_prompt });
+      return error ? c.json({ error: error.message }, 400) : c.json({ ok: true });
+    });
+
+    app.get('/api/admin/ai/kb', async c => {
+      if (!['owner', 'administrator', 'product_manager'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
+      const { data, error } = await c.get('db').rpc('admin_list_kb');
+      return error ? c.json({ error: error.message }, 503) : c.json(data);
+    });
+
+    app.post('/api/admin/ai/kb', async c => {
+      if (!['owner', 'administrator', 'product_manager'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
+      const { title, content } = await c.req.json();
+      const db = c.get('db');
+      const { data: kbId, error } = await db.rpc('admin_add_kb', { p_title: title, p_content: content });
+      if (error) return c.json({ error: error.message }, 400);
+
+      // Async Vectorization
+      (async () => {
+        try {
+          const adminDb = createClient(c.env.SUPABASE_URL!, c.env.SUPABASE_SERVICE_ROLE_KEY!);
+          const { data: settings } = await adminDb.from('ai_settings').select('*').eq('id', 1).single();
+          if (settings && settings.api_key) {
+             const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-2:embedContent?key=${settings.api_key.trim()}`, {
+               method: 'POST',
+               headers: { 'Content-Type': 'application/json' },
+               body: JSON.stringify({ model: 'models/gemini-embedding-2', content: { parts: [{ text: `Title: ${title}\nContent: ${content}` }] } })
+             });
+             const data = await res.json();
+             if (data.embedding?.values) {
+               await db.rpc('admin_update_kb_embedding', { p_id: kbId, p_embedding: `[${data.embedding.values.join(',')}]` });
+             }
+          }
+        } catch(e) { console.error('Vectorization failed:', e); }
+      })();
+
+      return c.json({ id: kbId });
+    });
+
+    app.delete('/api/admin/ai/kb/:id', async c => {
+      if (!['owner', 'administrator', 'product_manager'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
+      const { error } = await c.get('db').rpc('admin_delete_kb', { p_id: c.req.param('id') });
+      return error ? c.json({ error: error.message }, 400) : c.json({ ok: true });
+    });
+
+  
+    app.post('/api/chat', async c => {
+      const { message, history } = await c.req.json();
+      const adminDb = createClient(c.env.SUPABASE_URL!, c.env.SUPABASE_SERVICE_ROLE_KEY!);
+      
+      const { data: settings } = await adminDb.from('ai_settings').select('*').eq('id', 1).single();
+      if (!settings || !settings.api_key) return c.json({ error: 'AI Agent is currently offline.' }, 503);
+
+      try {
+        // 1. Embed user message
+        const embedRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-2:embedContent?key=${settings.api_key.trim()}`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model: 'models/gemini-embedding-2', content: { parts: [{ text: message }] } })
+        });
+        const embedData = await embedRes.json();
+        const queryVector = embedData.embedding?.values;
+        if (!queryVector) throw new Error('Failed to generate embedding: ' + (embedData.error?.message || JSON.stringify(embedData)));
+
+        // 2. Search KB
+        const { data: matches } = await adminDb.rpc('match_kb_articles', { query_embedding: `[${queryVector.join(',')}]`, match_threshold: 0.5, match_count: 4 });
+        
+        // 3. Construct Prompt
+        const contextStr = (matches || []).map((m: any) => `Document: ${m.title}\n${m.content}`).join('\n\n');
+        const systemInstruction = `${settings.system_prompt}\n\nHere is the exact company knowledge base. ONLY use this information to answer. If the answer is not here, politely say you don't know:\n\n${contextStr}`;
+
+        const formattedHistory = (history || []).map((h: any) => ({
+          role: h.role === 'user' ? 'user' : 'model',
+          parts: [{ text: h.content }]
+        }));
+        formattedHistory.push({ role: 'user', parts: [{ text: message }] });
+
+        // 4. Stream response from Gemini
+        const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${settings.model.trim()}:streamGenerateContent?key=${settings.api_key}&alt=sse`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ system_instruction: { parts: [{ text: systemInstruction }] }, contents: formattedHistory })
+        });
+
+        if (!geminiRes.ok) throw new Error((await geminiRes.json()).error?.message || 'Chat failed');
+
+        // Parse SSE stream and send raw text chunks to frontend
+        return new Response(new ReadableStream({
+          async start(controller) {
+            const reader = geminiRes.body?.getReader();
+            const decoder = new TextDecoder();
+            if (!reader) { controller.close(); return; }
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              const chunk = decoder.decode(value);
+              const lines = chunk.split('\n');
+              for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                   try {
+                     const data = JSON.parse(line.slice(6));
+                     const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+                     if (text) controller.enqueue(new TextEncoder().encode(text));
+                   } catch(e) {}
+                }
+              }
+            }
+            controller.close();
+          }
+        }), { headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
+      } catch (err: any) {
+        return c.json({ error: err.message }, 500);
+      }
+    });
+
+  
+    app.get('/api/admin/marketing/stats', async c => {
+      if (!['owner', 'administrator', 'product_manager'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
+      const { data, error } = await c.get('db').rpc('admin_get_audience_stats');
+      return error ? c.json({ error: error.message }, 503) : c.json(data);
+    });
+
+    app.get('/api/admin/marketing/history', async c => {
+      if (!['owner', 'administrator', 'product_manager'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
+      const { data, error } = await c.get('db').rpc('admin_list_broadcasts');
+      return error ? c.json({ error: error.message }, 503) : c.json(data);
+    });
+
+  
+    app.post('/api/admin/marketing/send', async c => {
+      const user = c.get('user');
+      if (!['owner', 'administrator', 'product_manager'].includes(user.role)) return c.json({ error: 'Permission denied.' }, 403);
+      
+      const { audience, subject, htmlBody } = await c.req.json();
+      const adminDb = createClient(c.env.SUPABASE_URL!, c.env.SUPABASE_SERVICE_ROLE_KEY!);
+      
+      const { data: emails, error: emailError } = await c.get('db').rpc('admin_get_audience_emails', { p_audience: audience });
+      if (emailError) return c.json({ error: emailError.message }, 400);
+      if (!emails || emails.length === 0) return c.json({ error: 'No users found in this audience segment.' }, 400);
+
+      if (!c.env.RESEND_API_KEY || !c.env.EMAIL_FROM) return c.json({ error: 'Resend API key or EMAIL_FROM not configured in .env' }, 503);
+
+      const addresses = emails.map((row: any) => row.email);
+      
+      // Async dispatch queue
+      const dispatchPromise = (async () => {
+        let sentCount = 0;
+        try {
+          const chunkSize = 100; // Resend batch limit
+          for (let i = 0; i < addresses.length; i += chunkSize) {
+            const chunk = addresses.slice(i, i + chunkSize);
+            const batchPayload = chunk.map((email: string) => ({
+              from: c.env.EMAIL_FROM,
+              to: [email],
+              subject: subject,
+              html: `
+                <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 30px 20px; color: #1a1a1a;">
+                  <div style="margin-bottom: 30px;">
+                    <h1 style="font-size: 26px; font-weight: 700; margin: 0 0 10px 0; letter-spacing: -0.5px;">${subject}</h1>
+                  </div>
+                  <div style="line-height: 1.6; font-size: 16px; color: #333;">
+                    ${htmlBody}
+                  </div>
+                  <div style="margin-top: 50px; padding-top: 30px; border-top: 1px solid #eaeaea; font-size: 13px; color: #888; text-align: center;">
+                    <p style="margin: 0 0 10px 0;"><strong>NORVI</strong> &mdash; All your AI agents in one place.</p>
+                    <p style="margin: 0;">You are receiving this email because you are a registered user.</p>
+                  </div>
+                </div>
+              `
+            }));
+            
+            await fetch('https://api.resend.com/emails/batch', {
+              method: 'POST',
+              headers: { 'Authorization': `Bearer ${c.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+              body: JSON.stringify(batchPayload)
+            });
+            sentCount += chunk.length;
+          }
+          
+          await adminDb.from('broadcasts').insert([{
+            subject, html_body: htmlBody, audience, sent_count: sentCount
+          }]);
+        } catch (e) {
+          console.error('Broadcast failed:', e);
+        }
+      })();
+      
+      try { if (c.executionCtx && typeof c.executionCtx.waitUntil === 'function') c.executionCtx.waitUntil(dispatchPromise); } catch(e) {}
+
+      return c.json({ ok: true, queued: addresses.length });
+    });
 
   app.all('/api/*', c => c.json({ error: 'This operation belongs to a later integration phase. Real purchases, activation, and commerce administration are not enabled.' }, 503));
   return app;

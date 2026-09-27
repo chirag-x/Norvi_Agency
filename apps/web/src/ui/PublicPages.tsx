@@ -172,6 +172,21 @@ export function Checkout({product}:{product:Product|undefined}){
   const {data:config}=useData('/auth/config');
   const [busy,setBusy]=useState(false),[error,setError]=useState(''),[accepted,setAccepted]=useState(false),[success,setSuccess]=useState(false);
   const [duration, setDuration] = useState('lifetime');
+    const [referralCode, setReferralCode] = useState('');
+    const [referralValid, setReferralValid] = useState<boolean|null>(null);
+    const [checkingRef, setCheckingRef] = useState(false);
+    useEffect(() => {
+      if (!referralCode || referralCode.trim() === '') { setReferralValid(null); return; }
+      const delay = setTimeout(async () => {
+        setCheckingRef(true);
+        try {
+          const res = await api('/checkout/validate-code', { method: 'POST', body: JSON.stringify({ code: referralCode }) });
+          setReferralValid(res.valid);
+        } catch { setReferralValid(false); }
+        setCheckingRef(false);
+      }, 500);
+      return () => clearTimeout(delay);
+    }, [referralCode]);
   const [renewalId, setRenewalId] = useState<string|null>(null);
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -203,8 +218,9 @@ export function Checkout({product}:{product:Product|undefined}){
       }else{
         const data=await api('/checkout/create',{method:'POST',body:JSON.stringify({
           productId:product!.id, 
-          duration,
-          renewalLicenseId: renewalId
+            duration,
+            renewalLicenseId: renewalId,
+            referralCode: referralValid ? referralCode : null
         })});
         
         if (data.mock) {
@@ -264,8 +280,14 @@ export function Checkout({product}:{product:Product|undefined}){
         {isPreview?<Notice>Local checkout demonstration. No payment is collected. Switch to live mode for real checkout.</Notice>:<Notice kind="success">Secure checkout via Razorpay. UPI, Cards, and Netbanking supported.</Notice>}
         <div className="payment-options"><span>UPI</span><span>Credit / debit card</span><span>Netbanking</span></div>
         <p className="small-note">Payments processed securely by Razorpay.</p>
-        <hr/>
-        <h3>Terms & Conditions</h3>
+          <hr/>
+          <h3>Referral Code (Optional)</h3>
+          <div style={{display:'flex', alignItems:'center', gap:'12px', marginBottom:'16px'}}>
+            <input type="text" placeholder="Enter referral code" value={referralCode} onChange={e=>setReferralCode(e.target.value.toUpperCase())} style={{flex:1, textTransform:'uppercase'}} />
+            {checkingRef ? <span style={{color:'var(--text-light)'}}>Checking...</span> : (referralValid === true ? <span style={{color:'var(--green)'}}>&#10004; Applied (-10%)</span> : (referralValid === false ? <span style={{color:'var(--error)'}}>&#10008; Invalid code</span> : null))}
+          </div>
+          <hr/>
+          <h3>Terms & Conditions</h3>
         <label className="checkbox-row"><input type="checkbox" checked={accepted} onChange={e=>setAccepted(e.target.checked)}/>I agree to the terms of service and refund policy.</label>
         {error&&<Notice kind="error">{error}</Notice>}
         <button className="button primary full" disabled={busy||!accepted} onClick={purchase}>{busy?'Processing...':(isPreview?'Simulate purchase — no charge':`Pay Securely`)}<ArrowRight size={17}/></button>
@@ -280,19 +302,49 @@ export function Checkout({product}:{product:Product|undefined}){
             {Number(product?.price1m) > 0 && <label style={{display:'flex', alignItems:'center', gap:12, padding:'16px', border: duration==='1_month'?'2px solid var(--accent)':'1px solid var(--border)', borderRadius:8, cursor:'pointer', background: duration==='1_month'?'rgba(200,255,100,0.05)':'transparent'}} onClick={()=>setDuration('1_month')}>
               <input type="radio" checked={duration==='1_month'} readOnly style={{ width:18, height:18, flexShrink:0, margin:0, accentColor:'var(--accent)' }} />
               <div style={{display:'flex', justifyContent:'space-between', flexGrow:1, alignItems:'center'}}>
-                <b>1 Month</b><div style={{color:'var(--text-light)', fontWeight:500}}>₹{product?.price1m}</div>
+                <b>1 Month</b>
+                  <div style={{color:'var(--text-light)', fontWeight:500, display: 'flex', flexDirection: 'column', alignItems: 'flex-end'}}>
+                    {referralValid ? (
+                      <>
+                        <span style={{textDecoration: 'line-through', fontSize: '12px', opacity: 0.7}}>₹{product?.price1m}</span>
+                        <span style={{color:'var(--green)', fontSize: '16px', fontWeight: 600}}>₹{(Number(product?.price1m)*0.9).toFixed(2)}</span>
+                      </>
+                    ) : (
+                      <span>₹{product?.price1m}</span>
+                    )}
+                  </div>
               </div>
             </label>}
             {Number(product?.price3m) > 0 && <label style={{display:'flex', alignItems:'center', gap:12, padding:'16px', border: duration==='3_months'?'2px solid var(--accent)':'1px solid var(--border)', borderRadius:8, cursor:'pointer', background: duration==='3_months'?'rgba(200,255,100,0.05)':'transparent'}} onClick={()=>setDuration('3_months')}>
               <input type="radio" checked={duration==='3_months'} readOnly style={{ width:18, height:18, flexShrink:0, margin:0, accentColor:'var(--accent)' }} />
               <div style={{display:'flex', justifyContent:'space-between', flexGrow:1, alignItems:'center'}}>
-                <b>3 Months</b><div style={{color:'var(--text-light)', fontWeight:500}}>₹{product?.price3m}</div>
+                <b>3 Months</b>
+                  <div style={{color:'var(--text-light)', fontWeight:500, display: 'flex', flexDirection: 'column', alignItems: 'flex-end'}}>
+                    {referralValid ? (
+                      <>
+                        <span style={{textDecoration: 'line-through', fontSize: '12px', opacity: 0.7}}>₹{product?.price3m}</span>
+                        <span style={{color:'var(--green)', fontSize: '16px', fontWeight: 600}}>₹{(Number(product?.price3m)*0.9).toFixed(2)}</span>
+                      </>
+                    ) : (
+                      <span>₹{product?.price3m}</span>
+                    )}
+                  </div>
               </div>
             </label>}
             <label style={{display:'flex', alignItems:'center', gap:12, padding:'16px', border: duration==='lifetime'?'2px solid var(--accent)':'1px solid var(--border)', borderRadius:8, cursor:'pointer', background: duration==='lifetime'?'rgba(200,255,100,0.05)':'transparent'}} onClick={()=>setDuration('lifetime')}>
               <input type="radio" checked={duration==='lifetime'} readOnly style={{ width:18, height:18, flexShrink:0, margin:0, accentColor:'var(--accent)' }} />
               <div style={{display:'flex', justifyContent:'space-between', flexGrow:1, alignItems:'center'}}>
-                <b>Lifetime Access</b><div style={{color:'var(--text-light)', fontWeight:500}}>₹{product?.price_lifetime || '999'}</div>
+                <b>Lifetime Access</b>
+                  <div style={{color:'var(--text-light)', fontWeight:500, display: 'flex', flexDirection: 'column', alignItems: 'flex-end'}}>
+                    {referralValid ? (
+                      <>
+                        <span style={{textDecoration: 'line-through', fontSize: '12px', opacity: 0.7}}>₹{product?.price_lifetime || '999'}</span>
+                        <span style={{color:'var(--green)', fontSize: '16px', fontWeight: 600}}>₹{(Number(product?.price_lifetime || '999')*0.9).toFixed(2)}</span>
+                      </>
+                    ) : (
+                      <span>₹{product?.price_lifetime || '999'}</span>
+                    )}
+                  </div>
               </div>
             </label>
           </div>

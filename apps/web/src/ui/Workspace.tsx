@@ -1,12 +1,12 @@
 import { LiveAdmin } from './Accounts';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Activity, ArrowRight, ArrowUpRight, BookOpen, Box, Check, Copy, CreditCard, Download, Eye, FileText, KeyRound, LayoutDashboard, LifeBuoy, LogOut, Plus, Search, Settings as SettingsIcon, ShieldCheck, Users, X, Monitor, SlidersHorizontal, Mail } from 'lucide-react';
+import { Activity, ArrowRight, Bot, ArrowUpRight, BookOpen, Box, Check, Copy, CreditCard, Download, Eye, FileText, KeyRound, LayoutDashboard, LifeBuoy, LogOut, Plus, Search, Settings as SettingsIcon, ShieldCheck, Users, X, Monitor, SlidersHorizontal, Mail, Megaphone } from 'lucide-react';
 import type { Category, Product, Settings, User } from '../../../../packages/shared/model';
 import { ProductCard, ProductIcon } from './App';
 import { api, Badge, date, Empty, Field, Loading, Notice, PageHeading, uploadFile, useData } from './common';
-const customerNav = [['', 'Overview', LayoutDashboard], ['/agents', 'My agents', Box], ['/licenses', 'Keys & devices', KeyRound], ['/billing', 'Billing & orders', CreditCard], ['/support', 'Support', LifeBuoy], ['/settings', 'Profile & security', SettingsIcon]] as const;
-const staffNav = [['', 'Overview', LayoutDashboard], ['/products', 'Products & releases', Box], ['/categories', 'Categories', Box], ['/customers', 'Customers', Users], ['/licenses', 'Licenses', KeyRound], ['/orders', 'Orders', CreditCard], ['/subscriptions', 'Subscriptions', Activity], ['/team', 'Team', Users], ['/announcements', 'Announcements', Mail], ['/content', 'Content', FileText], ['/activity', 'Audit & delivery', Activity], ['/settings', 'Settings', SettingsIcon]] as const;
-const allowed: Record<string, string[]> = { owner: ['*'], administrator: ['', '/products', '/categories', '/customers', '/licenses', '/orders', '/subscriptions', '/announcements', '/content', '/activity'], product_manager: ['', '/products', '/categories', '/announcements', '/content'], support: ['', '/customers', '/licenses', '/orders', '/announcements'] };
+const customerNav = [['', 'Overview', LayoutDashboard], ['/agents', 'My agents', Box], ['/licenses', 'Keys & devices', KeyRound], ['/billing', 'Billing & orders', CreditCard], ['/support', 'Support', LifeBuoy], ['/partner', 'Partner program', Users], ['/settings', 'Profile & security', SettingsIcon]] as const;
+const staffNav = [['', 'Overview', LayoutDashboard], ['/products', 'Products & releases', Box], ['/categories', 'Categories', Box], ['/customers', 'Customers', Users], ['/licenses', 'Licenses', KeyRound], ['/orders', 'Orders', CreditCard], ['/subscriptions', 'Subscriptions', Activity], ['/affiliates', 'Partners & Payouts', Users], ['/team', 'Team', Users], ['/announcements', 'Announcements', Mail], ['/content', 'Content', FileText], ['/activity', 'Audit & delivery', Activity], ['/ai-agent', 'AI Support Agent', Bot], ['/marketing', 'Broadcasts', Megaphone], ['/settings', 'Settings', SettingsIcon]] as const;
+const allowed: Record<string, string[]> = { owner: ['*'], administrator: ['', '/marketing', '/products', '/categories', '/customers', '/licenses', '/orders', '/subscriptions', '/announcements', '/content', '/activity', '/affiliates', '/ai-agent'], product_manager: ['', '/marketing', '/products', '/categories', '/announcements', '/content'], support: ['', '/customers', '/licenses', '/orders', '/announcements'] };
 function CommandPalette({ user }: { user: User }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -43,6 +43,7 @@ export function Workspace({ path, products, settings, onCatalogChange }: { path:
     if (!identity) return <Loading />; if(identity.mfaRequired) return <div className="container page"><Notice>Complete authenticator verification to access your account.</Notice><a className="button primary" href="/account/security">Open account security</a></div>; const user: User = identity.user; if (admin && user.role === 'customer') return <div className="container page"><Notice kind="error">This account has no staff permissions.</Notice><a href="/admin/login" className="button secondary">Open staff preview</a></div>;
     const pMap = settings?.permissions || allowed;
     const nav = admin ? staffNav.filter(([slug]) => user.role === 'owner' || pMap[user.role]?.includes('*') || pMap[user.role]?.includes(slug)) : customerNav;
+      console.log('ACTIVE NAV:', nav);
     const sectionAllowed = !admin || user.role === 'owner' || pMap[user.role]?.includes('*') || pMap[user.role]?.includes(section);
     return <div className="workspace"><CommandPalette user={user} /><aside className="sidebar"><div className="workspace-label">{admin ? 'AGENCY WORKSPACE' : 'PERSONAL WORKSPACE'}</div><nav aria-label="Workspace navigation">{nav.map(([slug, label, Icon]) => <a key={slug} href={base + slug} className={section === slug ? 'selected' : ''}><Icon size={18} />{label}{section === slug && <span className="nav-indicator" />}</a>)}</nav><div className="sidebar-bottom"><div className="preview-box"><ShieldCheck size={18} /><b>{identity.preview ? 'Local preview' : 'NORVI account'}</b><p>{identity.preview ? 'Sample data. No live payments or emails.' : 'Verified account. Sales are not open yet.'}</p></div><a href="/" className="text-button">Back to website <ArrowUpRight size={15} /></a><button className="logout" onClick={async () => { try { await api('/auth/logout', { method: 'POST' }); location.href = admin ? '/admin/login' : '/login'; } catch (e: any) { setLogoutError(e.message); } }}><LogOut size={16} />{identity.preview ? 'Sign out of preview' : 'Sign out'}</button>{logoutError && <Notice kind="error">{logoutError}</Notice>}</div></aside><div className="workspace-main">
         {(user as any).isImpersonated && <div style={{ background: '#f59e0b', color: 'black', padding: '12px 24px', fontWeight: 'bold', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>You are currently impersonating {user.name} ({user.role}).<button className="button primary" onClick={async () => { await api('/admin/impersonate', { method: 'DELETE' }); location.href = '/admin'; }}>Stop Impersonating</button></div>}
@@ -80,7 +81,8 @@ function Customer({ section, products, user }: { section: string; products: Prod
                     </div>
                   </div>{l.devices && l.devices.length > 0 ? l.devices.map((d: any) => <div key={d.id} style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem', background: 'var(--surface)', borderRadius: '4px'}}><span><Monitor size={15} /> {d.installation_id}</span><button className="text-button bare" onClick={() => action(`/licenses/${l.id}/device-reset?deviceId=${d.id}`)}>Release device <ArrowRight size={15} /></button></div>) : <span><Monitor size={15} /> No devices activated</span>}</div></div>)}</div>)}
         {section === '/billing' && <><Notice>All orders here are simulations. No money has been charged and no recurring billing agreement exists.</Notice><OrderTable items={orders.map(o => ({ ...o, product: product(o.productId)?.name }))} /><div className="panel"><h3>Subscriptions</h3><p>No live subscriptions. Real renewal and cancellation controls require the payment integration.</p></div></>}
-        {section === '/settings' && <div className="two-column"><ProfileForm user={user} /><div className="panel"><ShieldCheck className="accent" /><h3>Account security</h3><p>Manage your authenticator and account access.</p><a className="button secondary" href="/account/security">Account security</a></div><AccountDeletion /></div>}
+        {section === '/partner' && <PartnerProgram />}
+          {section === '/settings' && <div className="two-column"><ProfileForm user={user} /><div className="panel"><ShieldCheck className="accent" /><h3>Account security</h3><p>Manage your authenticator and account access.</p><a className="button secondary" href="/account/security">Account security</a></div><AccountDeletion /></div>}
         {section === '/support' && <div className="two-column"><SupportForm onSave={reload} /><div className="panel"><h3>Your requests</h3>{!data.tickets.length ? <p>No requests yet.</p> : data.tickets.map((t: any) => <div className="list-row" key={t.id}><div><b>{t.subject}</b><p>{date(t.createdAt)}</p></div><Badge>{t.status}</Badge></div>)}</div></div>}
         {keyModal && <Modal title={keyModal.name + ' activation key'} onClose={() => setKeyModal(null)}><Notice>This key is synthetic and works only against the local preview API. Keep real activation keys private when live services are connected.</Notice><code className="full-key">{keyModal.key}</code><CopyButton text={keyModal.key} /></Modal>}
         {announcement && <Modal title="Important Announcement" onClose={() => { localStorage.setItem('dismissed_announcement', announcement.id); setAnnouncement(null); }}><div style={{ padding: '20px 0', fontSize: '16px', lineHeight: 1.6 }}>{announcement.message}</div><button className="button primary" style={{ width: '100%', marginTop: '20px' }} onClick={() => { localStorage.setItem('dismissed_announcement', announcement.id); setAnnouncement(null); }}>I understand</button></Modal>}
@@ -92,6 +94,393 @@ function SupportForm({ onSave }: { onSave: () => void }) { const [message, setMe
 function OrderTable({ items }: { items: any[] }) { return !items.length ? <Empty title="No orders just yet." description="Your purchase history will appear here after checkout." /> : <div className="table-wrap"><table><thead><tr><th>Order</th><th>Product</th><th>Date</th><th>Amount</th><th>Status</th></tr></thead><tbody>{items.map(o => <tr key={o.id}><td><code>{o.id.slice(0, 8)}</code>{o.customer && <small className="block">{o.customer}</small>}</td><td>{o.product || o.productId}</td><td>{date(o.createdAt)}</td><td>{o.amount}</td><td><Badge>{o.status}</Badge></td></tr>)}</tbody></table></div>; }
 function Announcements({ user, items, action }: { user: User; items: any[]; action: (path: string, body?: object, method?: string) => Promise<void> }) { const isOwner = user.role === 'owner'; return <><div className="panel"><h3>Team Announcements</h3>{!items.length ? <p>No internal announcements yet.</p> : items.map(a => <div className="list-row" key={a.id}><Mail size={16} /><div className="grow" style={{ flex: 1, minWidth: 0 }}><p style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{a.message}</p></div><span className="small-note">{date(a.createdAt)}</span>{isOwner && <button className="text-button bare" onClick={() => action('/admin/announcements/' + a.id, {}, 'DELETE')}><X size={14}/></button>}</div>)}</div>{isOwner && <form className="panel" onSubmit={async e => { e.preventDefault(); const form = e.currentTarget; await action('/admin/announcements', { audience: 'team', message: new FormData(form).get('message') }); form.reset(); }}><h3>Post an announcement</h3><Field label="Message"><textarea name="message" required minLength={3} rows={3} placeholder="Tell your team what's new..." /></Field><button className="button primary">Broadcast to team</button></form>}</>; }
 function exportCsv(filename: string, headers: string[], rows: any[][]) { const csv = [headers.join(','), ...rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(','))].join('\n'); const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); a.download = filename; a.click(); }
+
+function PartnerProgram() {
+  const { data, error, reload } = useData('/partner/stats');
+  const [code, setCode] = useState('');
+  const [upi, setUpi] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState('');
+  const [feedback, setFeedback] = useState('');
+
+  if (error) return <Notice kind="error">{error}</Notice>;
+  if (!data) return <Loading />;
+
+  async function handleJoin(e: any) {
+    e.preventDefault();
+    setBusy(true); setFeedback('');
+    try {
+      await api('/partner/join', { method: 'POST', body: JSON.stringify({ code }) });
+      reload();
+    } catch (e: any) { setFeedback(e.message); }
+    setBusy(false);
+  }
+
+  async function handlePayout(e: any) {
+    e.preventDefault();
+    setBusy(true); setFeedback('');
+    try {
+      await api('/partner/payout', { method: 'POST', body: JSON.stringify({ upi }) });
+      setUpi('');
+      reload();
+      setFeedback('Payout request submitted successfully!');
+    } catch (e: any) { setFeedback(e.message); }
+    setBusy(false);
+  }
+
+  if (!data.active) {
+    return (
+      <div className="panel">
+        <h3>Join the Partner Program</h3>
+        <p>Earn a 15% commission on every sale made with your unique referral code. Your buyers will also get a 10% discount on their purchase!</p>
+        <form onSubmit={handleJoin} style={{marginTop:'1rem'}}>
+          <Field label="Choose your unique referral code"><input name="code" value={code} onChange={e=>setCode(e.target.value.toUpperCase())} required placeholder="e.g. CHIRAG10" style={{textTransform:'uppercase'}}/></Field>
+          <button className="button primary" disabled={busy||!code}>{busy ? 'Joining...' : 'Generate Code'}</button>
+          {feedback && <Notice kind="error">{feedback}</Notice>}
+        </form>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div className="stat-grid">
+        <Stat label="Total Sales" value={data.sales} icon={<Activity />} />
+        <Stat label="Pending Earnings" value={`₹${(data.pendingBalance/100).toFixed(2)}`} icon={<CreditCard />} />
+        <Stat label="Total Earned" value={`₹${(data.totalEarned/100).toFixed(2)}`} icon={<Activity />} />
+      </div>
+      <div className="two-column">
+        <div className="panel">
+          <KeyRound className="accent" />
+          <h3>Your Referral Code</h3>
+          <p>Share this code with your audience. They get 10% off, you get 15% commission.</p>
+          <code className="full-key" style={{textAlign:'center', fontSize:'24px', letterSpacing:'2px'}}>{data.code}</code>
+          {data.status === 'suspended' && <Notice kind="error">Your partner account has been suspended.</Notice>}
+        </div>
+        <div className="panel">
+          <CreditCard className="accent" />
+          <h3>Request Payout</h3>
+          <p>Once your pending balance reaches ₹2000, you can request a direct transfer.</p>
+          <form onSubmit={handlePayout}>
+            <Field label="UPI ID / Bank Details"><input value={upi} onChange={e=>setUpi(e.target.value)} required placeholder="e.g. name@okhdfcbank" disabled={data.pendingBalance < 200000 || data.status === 'suspended'}/></Field>
+            <button className="button primary" disabled={busy || !upi || data.pendingBalance < 200000 || data.status === 'suspended'}>Request Payout</button>
+            {feedback && <Notice kind={feedback.includes('success') ? 'success' : 'error'}>{feedback}</Notice>}
+          </form>
+        </div>
+      </div>
+    </>
+  );
+}
+
+
+
+function AIAgentManager() {
+  const { data, error, reload } = useData('/admin/ai/settings');
+  const { data: kbData, reload: reloadKb } = useData('/admin/ai/kb');
+  const [tab, setTab] = useState('settings');
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState('');
+
+  if (error) return <Notice kind="error">{error}</Notice>;
+  if (!data || !kbData) return <Loading />;
+
+  const handleSaveSettings = async (e: any) => {
+    e.preventDefault();
+    setBusy(true);
+    setMessage('');
+    const form = new FormData(e.currentTarget);
+    try {
+      await api('/admin/ai/settings', {
+        method: 'POST',
+        body: JSON.stringify({ api_key: form.get('api_key'), model: form.get('model'), system_prompt: form.get('system_prompt') })
+      });
+      setMessage('AI Settings saved successfully.');
+      reload();
+    } catch (err: any) {
+      setMessage(err.message);
+    }
+    setBusy(false);
+  };
+
+  const handleAddKb = async (e: any) => {
+    e.preventDefault();
+    setBusy(true);
+    setMessage('');
+    const formElement = e.currentTarget;
+    const form = new FormData(formElement);
+    try {
+      await api('/admin/ai/kb', {
+        method: 'POST',
+        body: JSON.stringify({ title: form.get('title'), content: form.get('content') })
+      });
+      formElement.reset();
+      setMessage('Article added successfully.');
+      reloadKb();
+    } catch (err: any) {
+      setMessage(err.message);
+    }
+    setBusy(false);
+  };
+
+  return (
+    <div className="ai-manager">
+      <PageHeading title="AI Support Agent" description="Manage your AI settings and knowledge base." />
+      <div className="tabs" style={{display:'flex', gap:15, marginBottom:20, paddingBottom:10}}>
+        <button onClick={() => { setTab('settings'); setMessage(''); }} className={tab==='settings' ? 'button primary' : 'button secondary'}>Configuration</button>
+        <button onClick={() => { setTab('kb'); setMessage(''); }} className={tab==='kb' ? 'button primary' : 'button secondary'}>Knowledge Base</button>
+      </div>
+
+      {tab === 'settings' && (
+        <form className="panel" onSubmit={handleSaveSettings}>
+          <h3>Google AI Studio Configuration</h3>
+          <p>Your API key is securely encrypted and never exposed to the public frontend.</p>
+          <Field label="AI Provider">
+            <input type="text" readOnly value="Google Gemini" disabled />
+          </Field>
+          <Field label="API Key">
+            <input type="password" name="api_key" defaultValue={data.api_key || ''} placeholder="AIzaSy..." />
+          </Field>
+          <Field label="Model Version">
+            <input type="text" name="model" defaultValue={data.model || 'gemini-3.5-flash'} required />
+          </Field>
+          <Field label="System Prompt (Agent Persona)">
+            <textarea name="system_prompt" rows={5} defaultValue={data.system_prompt} required />
+          </Field>
+          <button className="button primary" disabled={busy}>Save Settings</button>
+          {message && <Notice>{message}</Notice>}
+        </form>
+      )}
+
+      {tab === 'kb' && (
+        <div className="two-column">
+          <form className="panel" onSubmit={handleAddKb}>
+            <h3>Add Knowledge Base Article</h3>
+            <p>Paste product details, FAQs, or refund policies here to teach the AI.</p>
+            <Field label="Title / Topic">
+              <input type="text" name="title" required placeholder="e.g., Refund Policy" />
+            </Field>
+            <Field label="Content">
+              <textarea name="content" required rows={8} placeholder="Paste text here..." />
+            </Field>
+            <button className="button primary" disabled={busy}>Add Article</button>
+            {message && <Notice>{message}</Notice>}
+          </form>
+
+          <div className="panel">
+            <h3>Current Knowledge Base</h3>
+            {kbData.length === 0 ? <p>No articles yet.</p> : (
+              <div style={{display:'flex', flexDirection:'column', gap:10}}>
+                {kbData.map((k:any) => (
+                  <div key={k.id} style={{padding:12, border:'1px solid var(--border)', borderRadius:6}}>
+                    <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                      <b>{k.title}</b>
+                      <button className="text-button bare" style={{color:'var(--red)'}} onClick={async () => {
+                        if(confirm('Delete this article?')) {
+                          await api(`/admin/ai/kb/${k.id}`, { method: 'DELETE' });
+                          reloadKb();
+                        }
+                      }}><X size={14}/></button>
+                    </div>
+                    <p style={{fontSize:12, color:'var(--text-light)', margin:'4px 0 0 0'}}>{k.content.slice(0,100)}...</p>
+                    <div style={{marginTop:8}}>
+                      <Badge>{k.has_embedding ? 'Vectorized' : 'Pending Vectorization'}</Badge>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+function MarketingManager() {
+  const { data: stats, error: statsError } = useData('/admin/marketing/stats');
+  const { data: history, error: historyError, reload: reloadHistory } = useData('/admin/marketing/history');
+  const [tab, setTab] = useState('compose');
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState('');
+
+  if (statsError || historyError) return <Notice kind="error">{statsError || historyError}</Notice>;
+  if (!stats || !history) return <Loading />;
+
+  const handleSend = async (e: any) => {
+    e.preventDefault();
+    if(!window.confirm('Are you absolutely sure you want to blast this email to the selected audience?')) return;
+    setBusy(true);
+    setMessage('');
+    const formElement = e.currentTarget;
+    const form = new FormData(formElement);
+    try {
+      const res = await api('/admin/marketing/send', {
+        method: 'POST',
+        body: JSON.stringify({
+          audience: form.get('audience'),
+          subject: form.get('subject'),
+          htmlBody: form.get('htmlBody')
+        })
+      });
+      setMessage(`Success! Queued ${res.queued} emails for delivery. They will be dispatched in the background.`);
+      formElement.reset();
+      reloadHistory();
+    } catch (err: any) {
+      setMessage(err.message);
+    }
+    setBusy(false);
+  };
+
+  return (
+    <div className="marketing-manager">
+      <PageHeading title="Broadcasts & Marketing" description="Send targeted mass emails to your audiences." />
+      <div className="tabs" style={{display:'flex', gap:15, marginBottom:20, paddingBottom:10}}>
+        <button onClick={() => { setTab('compose'); setMessage(''); }} className={tab==='compose' ? 'button primary' : 'button secondary'}>Compose Broadcast</button>
+        <button onClick={() => { setTab('history'); setMessage(''); }} className={tab==='history' ? 'button primary' : 'button secondary'}>Broadcast History</button>
+      </div>
+
+      {tab === 'compose' && (
+        <div className="two-column">
+          <form className="panel" onSubmit={handleSend}>
+            <h3>Compose Email Blast</h3>
+            <Field label="Target Audience Segment">
+              <select name="audience" required>
+                <option value="all">All Users ({stats.all})</option>
+                <option value="customers">Paying Customers ({stats.customers})</option>
+                <option value="leads">Warm Leads ({stats.leads})</option>
+                <option value="affiliates">Active Affiliates ({stats.affiliates})</option>
+              </select>
+            </Field>
+            <Field label="Email Subject">
+              <input type="text" name="subject" required placeholder="Flash Sale: 50% Off Today Only!" />
+            </Field>
+            <Field label="HTML Body">
+              <textarea name="htmlBody" required rows={12} placeholder="<h1>Hello!</h1><p>We are running a sale...</p>" style={{fontFamily: 'monospace'}} />
+            </Field>
+            <button className="button primary" disabled={busy}>Blast Email <Megaphone size={16} style={{marginLeft: 8}} /></button>
+            {message && <Notice>{message}</Notice>}
+          </form>
+
+          <div className="panel">
+            <h3>Audience Live Stats</h3>
+            <p style={{marginBottom: 20}}>Real-time database queries of your segments.</p>
+            <div style={{display:'flex', flexDirection:'column', gap:12}}>
+              <div className="stat"><div><span>Total Audience</span><Users size={16}/></div><b>{stats.all}</b></div>
+              <div className="stat"><div><span>Paying Customers</span><Badge>High Value</Badge></div><b>{stats.customers}</b></div>
+              <div className="stat"><div><span>Warm Leads</span><Badge>Zero Purchases</Badge></div><b>{stats.leads}</b></div>
+              <div className="stat"><div><span>Active Affiliates</span><Badge>Partners</Badge></div><b>{stats.affiliates}</b></div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {tab === 'history' && (
+        <div className="panel">
+          <h3>Previous Broadcasts</h3>
+          {history.length === 0 ? <p>No broadcasts sent yet.</p> : (
+            <div className="table-wrap">
+              <table>
+                <thead><tr><th>Date</th><th>Subject</th><th>Audience</th><th>Delivered</th></tr></thead>
+                <tbody>
+                  {history.map((b: any) => (
+                    <tr key={b.id}>
+                      <td>{new Date(b.created_at).toLocaleDateString()}</td>
+                      <td><b>{b.subject}</b></td>
+                      <td><Badge>{b.audience}</Badge></td>
+                      <td>{b.sent_count}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AffiliateManager() {
+  const { data: affiliates, error: aError, reload: aReload } = useData('/admin/affiliates');
+  const { data: payouts, error: pError, reload: pReload } = useData('/admin/payouts');
+  const [busy, setBusy] = useState(false);
+
+  if (aError || pError) return <Notice kind="error">{aError || pError}</Notice>;
+  if (!affiliates || !payouts) return <Loading />;
+
+  async function handleAction(path: string) {
+    if (!confirm('Are you sure?')) return;
+    setBusy(true);
+    try { await api(path, { method: 'POST' }); aReload(); pReload(); } catch (e: any) { alert(e.message); }
+    setBusy(false);
+  }
+
+  async function handleStatus(id: string, status: string) {
+    setBusy(true);
+    try { await api(`/admin/affiliates/${id}/status`, { method: 'POST', body: JSON.stringify({ status }) }); aReload(); } catch (e: any) { alert(e.message); }
+    setBusy(false);
+  }
+
+  return (
+    <>
+      <div className="panel">
+        <h3>Payout Requests</h3>
+        {payouts.length === 0 ? <p>No payout requests.</p> : (
+          <div className="table-wrap">
+            <table>
+              <thead><tr><th>Date</th><th>Partner</th><th>Code</th><th>Amount</th><th>UPI ID</th><th>Status</th><th>Actions</th></tr></thead>
+              <tbody>
+                {payouts.map((p:any) => (
+                  <tr key={p.id}>
+                    <td>{date(p.createdAt)}</td>
+                    <td>{p.name}</td>
+                    <td><code>{p.code}</code></td>
+                    <td><b>₹{(p.amount/100).toFixed(2)}</b></td>
+                    <td>{p.upi}</td>
+                    <td><Badge>{p.status}</Badge></td>
+                    <td>
+                      {p.status === 'pending' && <button className="button primary small" disabled={busy} onClick={() => handleAction(`/admin/payouts/${p.id}/mark-paid`)}>Mark Paid</button>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      <div className="panel">
+        <h3>Active Partners</h3>
+        {affiliates.length === 0 ? <p>No partners yet.</p> : (
+          <div className="table-wrap">
+            <table>
+              <thead><tr><th>Partner</th><th>Code</th><th>Sales</th><th>Total Earned</th><th>Status</th><th>Actions</th></tr></thead>
+              <tbody>
+                {affiliates.map((a:any) => (
+                  <tr key={a.id}>
+                    <td><b>{a.name}</b><br/><small>{a.email}</small></td>
+                    <td><code>{a.code}</code></td>
+                    <td>{a.sales}</td>
+                    <td>₹{(a.totalEarned/100).toFixed(2)}</td>
+                    <td><Badge>{a.status}</Badge></td>
+                    <td>
+                      <div style={{display:'flex', gap:'8px'}}>
+                        <button className="button secondary small" disabled={busy} onClick={() => handleStatus(a.id, a.status === 'active' ? 'suspended' : 'active')}>{a.status === 'active' ? 'Suspend' : 'Activate'}</button>
+                        <button className="button secondary small" style={{borderColor:'var(--red)', color:'var(--red)'}} disabled={busy} onClick={() => handleAction(`/admin/affiliates/${a.id}/delete`)}>Delete</button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
 function Admin({ section, user, settings, onCatalogChange }: { section: string; user: User; settings: Settings; onCatalogChange: () => void }) {
     const map: Record<string, string> = { '': 'analytics', '/products': 'products', '/categories': 'categories', '/customers': 'customers', '/licenses': 'licenses', '/orders': 'orders', '/subscriptions': 'billing', '/team': 'team', '/announcements': 'announcements/team', '/content': 'content', '/activity': 'activity', '/settings': 'settings' }; const endpoint = section === '' && user.role === 'support' ? 'customers' : map[section] || 'products'; const { data, error, reload } = useData('/admin/' + endpoint); const [query, setQuery] = useState(''), [filter, setFilter] = useState('all'), [editing, setEditing] = useState<Product | null | undefined>(undefined), [feedback, setFeedback] = useState(''), [licenseAction, setLicenseAction] = useState<{ id: string; action: string } | null>(null), [giftModal, setGiftModal] = useState(false);
     const titles: Record<string, string> = { '': 'Your agency, at a glance.', '/products': 'Your agent collection.', '/customers': 'The people behind the accounts.', '/licenses': 'Access, under your control.', '/orders': 'Every order, in one place.', '/subscriptions': 'Keep track of recurring access.', '/team': 'Good work takes a team.', '/announcements': 'Internal directives.', '/content': 'Make it sound like you.', '/activity': 'A clear record of every change.', '/settings': 'The details that make it yours.' };
@@ -106,7 +495,10 @@ function Admin({ section, user, settings, onCatalogChange }: { section: string; 
         {section === '/licenses' && (!filtered.length ? <Empty title="No licenses issued yet." description="Open a customer preview and simulate a purchase. The resulting license will appear here." href="/login" label="Explore customer flow" /> : <div className="license-list">{filtered.map(l => <div className="panel" key={l.id}><div className="panel-heading"><div><h3>{l.product}</h3><p>{l.customer}</p></div><Badge>{l.status}</Badge></div><code>NORVI-XXXX-XXXX-XXXX-{l.suffix}</code><div className="row-actions">{user.role !== 'support' && <><button className="button secondary" onClick={() => setLicenseAction({ id: l.id, action: l.status === 'active' ? 'revoke' : 'restore' })}>{l.status === 'active' ? 'Revoke access' : 'Restore access'}</button><button className="button secondary" onClick={() => setLicenseAction({ id: l.id, action: 'rotate' })}>Rotate key</button></>}<button className="button secondary" style={{color: 'var(--red)', borderColor: 'var(--red)'}} onClick={() => setLicenseAction({ id: l.id, action: 'delete' })}>Delete</button><button className="button secondary" disabled={!l.device} onClick={() => action('/licenses/' + l.id + '/device-reset')}>Reset device</button>{user.role === 'owner' && <OwnerReveal id={l.id} />}</div></div>)}</div>)}
         {section === '/orders' && <><OrderTable items={items} /><Notice>Payment collection, refunds, and receipts remain disabled until the live payment provider is connected.</Notice></>}
         {section === '/subscriptions' && <Empty title="No recurring agreements yet." description="Real subscriptions will appear here after billing plans and the payment provider are configured. Simulated purchases do not create recurring charges." />}
-        {section === '/team' && <Team data={data} onAction={action} isOwner={user.role === 'owner'} settings={settings} />}
+        {section === '/marketing' && <MarketingManager />}
+          {section === '/ai-agent' && <AIAgentManager />}
+          {section === '/affiliates' && <AffiliateManager />}
+          {section === '/team' && <Team data={data} onAction={action} isOwner={user.role === 'owner'} settings={settings} />}
         {section === '/announcements' && <Announcements user={user} items={items} action={action} />}
         {section === '/content' && <SettingsForm initial={data.settings} contentOnly onSave={() => { reload(); onCatalogChange(); }} />}
         {section === '/settings' && <><SettingsForm initial={data.settings} onSave={() => { reload(); onCatalogChange(); }} /><div className="panel"><h3>Integration readiness</h3><div className="list-row"><span>Authentication · Supabase</span><Badge>Not connected</Badge></div><div className="list-row"><span>Payments · Razorpay</span><Badge>Not connected</Badge></div><div className="list-row"><span>Email · Resend</span><Badge>Not connected</Badge></div><p className="small-note">Provider secrets belong in protected server configuration, never in this form.</p></div></>}
