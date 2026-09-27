@@ -57,6 +57,14 @@ if (path.startsWith('/agents/')) {
   title = "Contact Us | " + settings.name;
 }
 
+const websiteJsonLd = JSON.stringify({
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "name": "NORVI Agency",
+  "alternateName": "NORVI",
+  "url": "https://nor-vi.in/"
+});
+
 const orgJsonLd = JSON.stringify({
   "@context": "https://schema.org",
   "@type": "Organization",
@@ -92,7 +100,8 @@ const orgJsonLd = JSON.stringify({
   
   <meta name="robots" content={privatePage ? 'noindex,nofollow' : 'index,follow'}/>
   <meta name="google-site-verification" content="CGX36wKy06XEm7c6O0Uq5TG7JzOFqSLGZKA4maz4xMI" />
-  {!privatePage && <script type="application/ld+json" set:html={orgJsonLd}></script>}
+  {!privatePage && <><script type="application/ld+json" set:html={websiteJsonLd}></script>
+  <script type="application/ld+json" set:html={orgJsonLd}></script></>}
   {isProduct && <script type="application/ld+json" set:html={productJsonLd}></script>}
 </head>
 <body>
