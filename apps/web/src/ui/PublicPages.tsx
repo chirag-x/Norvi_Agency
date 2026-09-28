@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowRight,ArrowUpRight,Search,Check,ShieldCheck,KeyRound,Download,Mail,LifeBuoy,Workflow , Activity} from 'lucide-react';
+import { ArrowRight,ArrowUpRight,Search,Check,ShieldCheck,KeyRound,Download,Mail,LifeBuoy,Workflow , Activity, Instagram, Youtube, Facebook, Twitter} from 'lucide-react';
 import type { Product,Settings } from '../../../../packages/shared/model';
 import { ProductCard,ProductIcon } from './App';
 import { PageHeading,Notice,Field,Empty,api,useData } from './common';
@@ -7,58 +7,14 @@ export function Catalog({products, settings}:{products:Product[]; settings?:Sett
   export function Detail({product, settings}:{product:Product|undefined; settings?:Settings}){
   const { data: account, reload } = useData('/account');
   const ownsProduct = account?.licenses?.some((l:any) => l.productId === product?.id && l.status === 'active');
-  const [trialModal, setTrialModal] = useState(false);
-  const [trialBusy, setTrialBusy] = useState(false);
-  const [trialError, setTrialError] = useState('');
-  const [trialSuccess, setTrialSuccess] = useState(false);
-
+  
   if(!product)return <NotFound/>;
 
-  async function startTrial() {
-    setTrialBusy(true); setTrialError('');
-    try {
-      if (!account) {
-        location.href = '/login?next=/agents/' + product!.slug;
-        return;
-      }
-      const data = await api('/store/trial/create', { method: 'POST', body: JSON.stringify({ productSlug: product!.slug }) });
-      setTrialSuccess(true);
-      reload(); // reload account data to update ownsProduct
-    } catch (e: any) {
-      setTrialError(e.message || 'Could not start trial.');
-    } finally {
-      setTrialBusy(false);
-    }
-  }
+  
 
   return (
     <div className="container page">
-      {trialModal && (
-        <div className="modal-overlay">
-          <div className="modal" style={{textAlign: 'center', maxWidth: 400}}>
-            {trialSuccess ? (
-              <>
-                <div style={{display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 64, height: 64, borderRadius: '50%', background: 'var(--green)', color: 'var(--black)', marginBottom: 24}}>
-                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                </div>
-                <h3>Trial Activated!</h3>
-                <p style={{marginBottom: 24}}>Your 1-day free trial for <b>{product.name}</b> is ready. The unique activation key has been added to your dashboard.</p>
-                <button className="button primary full" onClick={() => { setTrialModal(false); setTrialSuccess(false); }}>Close & View Agent</button>
-              </>
-            ) : (
-              <>
-                <h3>Start 1-Day Free Trial</h3>
-                <p style={{marginBottom: 24}}>Are you sure you want to activate your trial for <b>{product.name}</b>? You can only claim this once.</p>
-                {trialError && <div className="notice error" style={{marginBottom: 16}}>{trialError}</div>}
-                <div style={{display: 'flex', gap: 12}}>
-                  <button className="button secondary full" onClick={() => setTrialModal(false)} disabled={trialBusy}>Cancel</button>
-                  <button className="button primary full" onClick={startTrial} disabled={trialBusy}>{trialBusy ? 'Activating...' : 'Activate Trial'}</button>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
+      
 
       <a className="breadcrumb" href="/agents">&larr; All agents</a>
       <div className="detail-hero">
@@ -97,7 +53,7 @@ export function Catalog({products, settings}:{products:Product[]; settings?:Sett
               ) : (
                 <div style={{display: 'flex', flexDirection: 'column', gap: '8px'}}>
                   <a className="button primary full" href={'/checkout/'+product.slug}>{product.releaseStatus === 'live' ? 'Buy now' : 'View availability'} <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="7" y1="17" x2="17" y2="7"></line><polyline points="7 7 17 7 17 17"></polyline></svg></a>
-                  <button className="button secondary full" onClick={() => setTrialModal(true)}>Start free trial</button>
+                  
                 </div>
               )}
             </>
@@ -115,7 +71,7 @@ export function Catalog({products, settings}:{products:Product[]; settings?:Sett
           <div className="demo-placeholder" style={{ position: "relative", padding: 0, overflow: "hidden" }}>
             {product.workflowMediaUrl ? (
               product.workflowMediaUrl.match(/\.(mp4|webm)$/i) ? 
-              <video src={product.workflowMediaUrl} autoPlay muted loop playsInline style={{ width: "100%", height: "auto", display: "block" }} /> : 
+              <video src={product.workflowMediaUrl} controls playsInline preload="metadata" style={{ width: "100%", height: "auto", display: "block" }} /> : 
               <img src={product.workflowMediaUrl} alt="Walkthrough" style={{ width: "100%", height: "auto", display: "block" }} />
             ) : (
               <>
@@ -132,8 +88,8 @@ export function Catalog({products, settings}:{products:Product[]; settings?:Sett
           <dl>
             <dt>System requirements</dt><dd>{product.requirements}</dd>
             <dt>Current release</dt><dd>{product.version}</dd>
-            <dt>AI usage</dt><dd>Unlimited local usage. Bring your own API keys.</dd>
-            <dt>Device allowance</dt><dd>1 active device per license. Manage devices in your account.</dd>
+            <dt>AI usage</dt><dd>{product.aiUsage || 'Unlimited local usage. Bring your own API keys.'}</dd>
+            <dt>Device allowance</dt><dd>{product.deviceAllowance || '1 active device per license. Manage devices in your account.'}</dd>
           </dl>
           <a href="/help" className="text-button">Installation &amp; activation <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></a>
         </section>
@@ -142,7 +98,7 @@ export function Catalog({products, settings}:{products:Product[]; settings?:Sett
   );
 }
 
-const helpItems=[['Getting started','Create your account, verify your email, and explore the collection. Each product page will show its requirements before you buy.'],['Finding your key','Open My account -> Keys & devices. Choose Reveal key for the product you purchased. Never share the key publicly.'],['Installing an agent','Download the correct version from My agents. Open the agent and enter the key for that product. Download the installer for your OS once activated.'],['Device limits','Each license supports 1 active device. Release an old device from Keys & devices before moving to a new one.'],['Payments and renewals','Your billing page keeps purchase records. Purchases are one-time payments. You also get a 1-day free trial.'],['Trouble activating?','Check that you selected the correct product and have an internet connection. An expired, revoked, or wrong-product key cannot activate the agent.']];
+const helpItems=[['Getting started','Create your account, verify your email, and explore the collection. Each product page will show its requirements before you buy.'],['Finding your key','Open My account -> Keys & devices. Choose Reveal key for the product you purchased. Never share the key publicly.'],['Installing an agent','Download the correct version from My agents. Open the agent and enter the key for that product. Download the installer for your OS once activated.'],['Device management','Manage your active devices directly from your Keys & devices dashboard. Make sure to release an old device from the dashboard before moving your license to a new one.'],['Payments and pricing','Your billing page keeps all your purchase records. We offer flexible plans including 1-month, 3-month, and lifetime access. If you have a promotional code, you can apply it directly at checkout.'],['Trouble activating?','Check that you selected the correct product and have an internet connection. An expired, revoked, or wrong-product key cannot activate the agent.']];
 export function Help(){const [query,setQuery]=useState('');return <div className="container page"><PageHeading eyebrow="THE NORVI HELP CENTER" title="A little help goes a long way." description="Find your way from your first visit to your first activation."/><label className="search large-search"><Search size={20}/><input aria-label="Search help" placeholder="Search activation, downloads, payments..." value={query} onChange={e=>setQuery(e.target.value)}/></label><div className="help-grid">{helpItems.filter(([t,d])=>(t+d).toLowerCase().includes(query.toLowerCase())).map(([t,d],i)=><article className="panel" key={t}><span className="help-number">0{i+1}</span><h3>{t}</h3><p>{d}</p></article>)}</div><div className="inline-callout"><div><h3>Still need a hand?</h3><p>Your account keeps your support requests together.</p></div><a className="button secondary" href="/account/support">Contact support <ArrowRight size={16}/></a></div></div>;}
 
 export function PartnerProgram
@@ -201,9 +157,9 @@ export function Contact({settings}:{settings:Settings}){
     }
   };
 
-  return <div className="container page"><PageHeading eyebrow="LET'S TALK" title="Good work starts with a conversation." description="Questions about an agent or your account? Find the right place to start."/><div className="two-column"><div className="panel"><Mail className="accent"/><h3>Get in touch</h3><p><strong>Norvi AI Agency</strong><br/>Kunj Vihar, Gole ka mandir<br/>Gwalior, Madhya Pradesh<br/>India, 474005<br/>Phone: +91-8305525932</p><p>Email: {settings.email}</p><p>Support hours: Mon-Fri, 9am-6pm IST</p><form name="contact" data-netlify="true" onSubmit={handleSubmit}><input type="hidden" name="form-name" value="contact" /><Field label="Your name"><input type="text" name="name" required placeholder="Your name" disabled={busy}/></Field><Field label="Email address"><input type="email" name="email" required placeholder="you@example.com" disabled={busy}/></Field><Field label="Your message"><textarea name="message" required minLength={10} placeholder="What can we help you with?" rows={4} disabled={busy}/></Field><button className="button secondary" type="submit" disabled={busy}>{busy ? 'Sending...' : 'Send message'} <ArrowRight size={16}/></button>{error&&<Notice kind="error">{error}</Notice>}{sent&&<Notice kind="success">Your message has been sent to our support team. We'll be in touch shortly!</Notice>}</form></div><div><div className="panel"><LifeBuoy className="accent"/><h3>Already have an account?</h3><p>Keep your questions and purchase details in one place.</p><a href="/account/support" className="text-button">Open account support <ArrowUpRight size={17}/></a></div><div className="panel"><h3>Prefer a quick answer?</h3><p>Our help center covers accounts, keys, devices, and downloads.</p><a href="/help" className="text-button">Browse the help center <ArrowUpRight size={17}/></a></div></div></div></div>;
+  return <div className="container page"><PageHeading eyebrow="LET'S TALK" title="Good work starts with a conversation." description="Questions about an agent or your account? Find the right place to start."/><div className="two-column"><div className="panel"><Mail className="accent"/><h3>Get in touch</h3><p><strong>Norvi AI Agency</strong><br/>Kunj Vihar, Gole ka mandir<br/>Gwalior, Madhya Pradesh<br/>India, 474005<br/>Phone: +91-8305525932</p><p>Email: {settings.email}</p><p>Support hours: Mon-Fri, 9am-6pm IST</p><div className="contact-social-links" style={{display:'flex',gap:'1.2rem',marginTop:'1.5rem',marginBottom:'1.5rem'}}>{settings.socialInstagram && <a href={settings.socialInstagram} target="_blank" rel="noreferrer" style={{color:'var(--fg)'}}><Instagram size={22}/></a>}{settings.socialYoutube && <a href={settings.socialYoutube} target="_blank" rel="noreferrer" style={{color:'var(--fg)'}}><Youtube size={22}/></a>}{settings.socialFacebook && <a href={settings.socialFacebook} target="_blank" rel="noreferrer" style={{color:'var(--fg)'}}><Facebook size={22}/></a>}{settings.socialTwitter && <a href={settings.socialTwitter} target="_blank" rel="noreferrer" style={{color:'var(--fg)'}}><Twitter size={22}/></a>}</div><form name="contact" data-netlify="true" onSubmit={handleSubmit}><input type="hidden" name="form-name" value="contact" /><Field label="Your name"><input type="text" name="name" required placeholder="Your name" disabled={busy}/></Field><Field label="Email address"><input type="email" name="email" required placeholder="you@example.com" disabled={busy}/></Field><Field label="Your message"><textarea name="message" required minLength={10} placeholder="What can we help you with?" rows={4} disabled={busy}/></Field><button className="button secondary" type="submit" disabled={busy}>{busy ? 'Sending...' : 'Send message'} <ArrowRight size={16}/></button>{error&&<Notice kind="error">{error}</Notice>}{sent&&<Notice kind="success">Your message has been sent to our support team. We'll be in touch shortly!</Notice>}</form></div><div><div className="panel"><LifeBuoy className="accent"/><h3>Already have an account?</h3><p>Keep your questions and purchase details in one place.</p><a href="/account/support" className="text-button">Open account support <ArrowUpRight size={17}/></a></div><div className="panel"><h3>Prefer a quick answer?</h3><p>Our help center covers accounts, keys, devices, and downloads.</p><a href="/help" className="text-button">Browse the help center <ArrowUpRight size={17}/></a></div></div></div></div>;
 }
-const legal:Record<string,{title:string;sections:[string,string][]}>={privacy:{title:'Privacy policy',sections:[['Data we expect to collect','Account identity, profile details, purchase references, licenses, device activation records, and support requests.'],['How information will be used','To operate accounts, fulfill purchases, validate access, deliver support, and protect the service. Registration will not automatically opt you into marketing.'],['Service providers','We use secure providers like Supabase for accounts, Razorpay for payments, and Resend for email.'],['Retention and requests','You can delete your account at any time from your dashboard. For privacy inquiries, email chiragsharmawork95@gmail.com.'],['Grievance Officer','In accordance with the Information Technology Act 2000, the name and contact details of the Grievance Officer are provided below.\n\nName: Gopal Ji Yadav\nEmail: Gopal2nd5654@gmail.com\nPhone: +91-6397916325\nAddress: Norvi AI Agency, Kunj Vihar, Gole ka mandir, Gwalior, Madhya Pradesh, India, 474005.']]},terms:{title:'Terms of service',sections:[['Business and Jurisdiction','These Terms govern your use of products and services offered by Norvi AI Agency, a registered entity in India. These Terms are subject to the exclusive jurisdiction of the courts in Gwalior, Madhya Pradesh, India.'],['Service scope','Norvi sells access to AI agents. Each product includes a 1-day free trial.'],['Accounts and acceptable use','Customers will be responsible for keeping account credentials and activation keys private and using the products under their agreed license.'],['Payments and access','Payments are handled securely via Razorpay. All sales are final after the trial period.']]},refunds:{title:'Refund & Cancellation Policy',sections:[['Eligibility','Because we offer a 1-day free trial, all sales are final once the purchase is completed. We do not offer refunds.'],['Cancellation','As our products are digital AI agents, orders cannot be cancelled once the payment is processed and the unique license key is generated and dispatched to your dashboard.'],['Request process','For technical issues preventing you from accessing the software, contact chiragsharmawork95@gmail.com within 7 days.']]},delivery:{title:'Shipping & Delivery Policy',sections:[['Digital Delivery','We sell digital AI agent software and license keys. We do not ship physical products.'],['Instant Fulfillment','Upon successful payment, your unique activation key is delivered instantly to your registered email address.'],['Dashboard Access','Your purchased license key and the software download links will be immediately available in your account dashboard under "Keys & devices".']]},license:{title:'License agreement',sections:[['Product-specific access','Each license belongs to a customer and a particular product. — key for one agent cannot unlock another.'],['Devices and sharing','Each license is valid for 1 active device. You may rotate devices from your dashboard.'],['Connection requirements','The agent requires periodic online validation. An offline authorization lease lasts for 7 days.'],['Expiry and revocation','Licenses may be revoked for fraud or violation of terms.'],['Updates and support','Lifetime access to the purchased major version.']]}};
+const legal:Record<string,{title:string;sections:[string,string][]}>={privacy:{title:'Privacy policy',sections:[['Data we expect to collect','Account identity, profile details, purchase references, licenses, device activation records, and support requests.'],['How information will be used','To operate accounts, fulfill purchases, validate access, deliver support, and protect the service. Registration will not automatically opt you into marketing.'],['Service providers','We use secure providers like Supabase for accounts, Razorpay for payments, and Resend for email.'],['Retention and requests','You can delete your account at any time from your dashboard. For privacy inquiries, email chiragsharmawork95@gmail.com.'],['Grievance Officer','In accordance with the Information Technology Act 2000, the name and contact details of the Grievance Officer are provided below.\n\nName: Gopal Ji Yadav\nEmail: Gopal2nd5654@gmail.com\nPhone: +91-6397916325\nAddress: Norvi AI Agency, Kunj Vihar, Gole ka mandir, Gwalior, Madhya Pradesh, India, 474005.']]},terms:{title:'Terms of service',sections:[['Business and Jurisdiction','These Terms govern your use of products and services offered by Norvi AI Agency, a registered entity in India. These Terms are subject to the exclusive jurisdiction of the courts in Gwalior, Madhya Pradesh, India.'],['Service scope','Norvi sells access to AI agents under flexible terms, including 1-Month, 3-Month, and Lifetime licenses. Product features, requirements, and duration are explicitly defined at checkout and on your dashboard.'],['Accounts and acceptable use','Customers will be responsible for keeping account credentials and activation keys private and using the products under their agreed license.'],['Payments and access','Payments are handled securely via Razorpay. All sales are final once the transaction is completed and the digital key is generated.']]},refunds:{title:'Refund & Cancellation Policy',sections:[['Eligibility','All sales are final once the purchase is completed and your unique license key is securely generated. Please review product details and any available promotions before purchasing. Digital delivery means we do not offer refunds once access is granted.'],['Cancellation','As our products are digital AI agents, orders cannot be cancelled once the payment is processed and the unique license key is generated and dispatched to your dashboard.'],['Request process','For technical issues preventing you from accessing the software, contact chiragsharmawork95@gmail.com within 7 days.']]},delivery:{title:'Shipping & Delivery Policy',sections:[['Digital Delivery','We sell digital AI agent software and license keys. We do not ship physical products.'],['Instant Fulfillment','Upon successful payment, your unique activation key is delivered instantly to your registered email address.'],['Dashboard Access','Your purchased license key and the software download links will be immediately available in your account dashboard under "Keys & devices".']]},license:{title:'License agreement',sections:[['Product-specific access','Each license belongs to a customer and a particular product. A key for one agent cannot unlock another.'],['Devices and sharing','Your license is valid for your authorized devices based on the product. You may rotate or release active devices directly from your dashboard to manage your software connections securely.'],['Connection requirements','The agent requires periodic online validation. An offline authorization lease lasts for 7 days.'],['Expiry and revocation','Licenses may be revoked for fraud or violation of terms. Subscriptions will expire at the end of their billing cycle unless renewed.'],['Updates and support','Access to updates and support corresponds to your active subscription tier or lifetime access rights.']]}};
 export function Legal({kind}:{kind:string}){const doc=legal[kind];return <div className="container page legal"><PageHeading eyebrow="THE DETAILS" title={doc.title}/>{doc.sections.map(([title,body],i)=><section key={title}><h2>{i+1}. {title}</h2><p style={{whiteSpace:"pre-wrap"}}>{body}</p></section>)}<a href="/contact" className="text-button">Questions? Contact us <ArrowRight size={16}/></a></div>;}
 export function Checkout({product, settings}:{product:Product|undefined; settings?:Settings}){
   const {data:config}=useData('/auth/config');

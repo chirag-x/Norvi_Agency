@@ -59,10 +59,10 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     const supabase = factory(c);
     const [productsResult, settingsResult, categoriesResult] = await Promise.all([
       supabase.from('products')
-        .select('id, slug, name, categoryId:category_id, tagline, description, price:price_label, price1m:price_1m, price3m:price_3m, price_lifetime:price_lifetime, status, logoUrl:logo_url, features, version, requirements, releaseStatus:release_status, workflowHeading:workflow_heading, workflowDescription:workflow_description, workflowMediaUrl:workflow_media_url, workflowNote:workflow_note, is_on_sale')
+        .select('id, slug, name, categoryId:category_id, tagline, description, price:price_label, price1m:price_1m, price3m:price_3m, price_lifetime:price_lifetime, status, logoUrl:logo_url, features, version, requirements, releaseStatus:release_status, workflowHeading:workflow_heading, workflowDescription:workflow_description, workflowMediaUrl:workflow_media_url, workflowNote:workflow_note, aiUsage:ai_usage, deviceAllowance:device_allowance, is_on_sale')
         .eq('status', 'published')
         .order('created_at', { ascending: true }),
-      supabase.from('site_settings').select('name, headline, description, email, company, domain, maintenance_mode, permissions, banner_text, sale_active, sale_percentage').single(),
+      supabase.from('site_settings').select('name, headline, description, email, company, domain, maintenance_mode, permissions, banner_text, sale_active, sale_percentage, socialInstagram:social_instagram, socialYoutube:social_youtube, socialFacebook:social_facebook, socialTwitter:social_twitter').single(),
       supabase.from('categories').select('id, slug, name, createdAt:created_at')
     ]);
     const products = (productsResult.data || catalog.products).map(p => ({...p, category: (categoriesResult.data || catalog.categories).find(c => c.id === p.categoryId) || null}));
@@ -667,7 +667,9 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
       p_workflow_media_url: input.workflowMediaUrl || null, p_workflow_note: input.workflowNote || '',
         p_price_1m: parseFloat(input.price_1m) || 0,
         p_price_3m: parseFloat(input.price_3m) || 0,
-        p_price_lifetime: parseFloat(input.price_lifetime) || 999
+        p_price_lifetime: parseFloat(input.price_lifetime) || 999,
+        p_ai_usage: input.aiUsage || null,
+        p_device_allowance: input.deviceAllowance || null
       });
     return error ? c.json({ error: 'Product could not be saved. ' + error.message }, 400) : c.json({ ok: true });
   });
@@ -718,7 +720,8 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     const input = await c.req.json();
     const { error } = await c.get('db').rpc('admin_update_settings', {
       p_name: input.name, p_headline: input.headline, p_description: input.description,
-      p_email: input.email, p_company: input.company, p_domain: input.domain
+      p_email: input.email, p_company: input.company, p_domain: input.domain,
+        p_social_instagram: input.socialInstagram, p_social_youtube: input.socialYoutube, p_social_facebook: input.socialFacebook, p_social_twitter: input.socialTwitter
     });
     if (error) return c.json({ error: 'Settings could not be saved: ' + error.message }, 400);
     if (c.get('user').role === 'owner' && typeof input.maintenanceMode === 'boolean') {
