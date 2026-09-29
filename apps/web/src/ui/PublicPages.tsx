@@ -7,6 +7,29 @@ export function Catalog({products, settings}:{products:Product[]; settings?:Sett
   export function Detail({product, settings}:{product:Product|undefined; settings?:Settings}){
   const { data: account, reload } = useData('/account');
   const ownsProduct = account?.licenses?.some((l:any) => l.productId === product?.id && l.status === 'active');
+  const [trialModal, setTrialModal] = useState(false);
+  const [trialSuccess, setTrialSuccess] = useState(false);
+  const [trialBusy, setTrialBusy] = useState(false);
+  const [trialError, setTrialError] = useState('');
+
+  async function startTrial() {
+    setTrialBusy(true);
+    setTrialError('');
+    try {
+      if (!account) {
+        location.href = '/login?next=/agents/' + product!.slug;
+        return;
+      }
+      await api('/store/trial/create', { method: 'POST', body: JSON.stringify({ productSlug: product!.slug }) });
+      setTrialSuccess(true);
+      reload();
+    } catch (e: any) {
+      setTrialError(e.message || 'Could not start trial.');
+    } finally {
+      setTrialBusy(false);
+    }
+  }
+
   
   if(!product)return <NotFound/>;
 
@@ -14,6 +37,33 @@ export function Catalog({products, settings}:{products:Product[]; settings?:Sett
 
   return (
     <div className="container page">
+
+      {trialModal && (
+        <div className="modal-overlay" style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(0,0,0,0.85)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center', padding:'20px'}}>
+          <div className="panel" style={{maxWidth: 420, width: '100%', textAlign:'center', padding:'40px 30px', position:'relative'}}>
+            {trialSuccess ? (
+              <>
+                <div style={{display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 64, height: 64, borderRadius: '50%', background: 'var(--green)', color: 'var(--black)', marginBottom: 24}}>
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                </div>
+                <h3>Trial Activated!</h3>
+                <p style={{marginBottom: 24}}>Your free trial for <b>{product.name}</b> is ready. The unique activation key has been added to your dashboard.</p>
+                <button className="button primary full" onClick={() => { setTrialModal(false); setTrialSuccess(false); }}>Close & View Agent</button>
+              </>
+            ) : (
+              <>
+                <h3>Start Free Trial</h3>
+                <p style={{marginBottom: 24}}>Are you sure you want to activate your 1-day trial for <b>{product.name}</b>? You can only claim this once.</p>
+                {trialError && <div className="notice error" style={{marginBottom: 16}}>{trialError}</div>}
+                <div style={{display: 'flex', gap: 12}}>
+                  <button className="button secondary full" onClick={() => setTrialModal(false)} disabled={trialBusy}>Cancel</button>
+                  <button className="button primary full" onClick={startTrial} disabled={trialBusy}>{trialBusy ? 'Activating...' : 'Activate Trial'}</button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
       
 
       <a className="breadcrumb" href="/agents">&larr; All agents</a>
