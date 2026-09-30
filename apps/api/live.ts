@@ -468,7 +468,7 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     if (!deviceId) return c.json({ error: 'Device ID required.' }, 400);
     const { data: license, error } = await c.get('db').from('licenses').select('id').eq('id', id).eq('user_id', uid).single();
     if (error || !license) return c.json({ error: 'License not found.' }, 404);
-    const res = await c.get('db').from('devices').update({ active: false }).eq('id', deviceId).eq('license_id', id);
+    const res = await c.get('db').rpc('release_device', { p_device_id: deviceId, p_license_id: id });
     if (res.error) return c.json({ error: 'Could not release device.' }, 500);
     return c.json({ ok: true });
   });
