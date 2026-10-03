@@ -764,22 +764,26 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     }
     
     try {
-      // 1. Get the latest release from the private repo
-      const releaseRes = await fetch(`https://api.github.com/repos/${c.env.GITHUB_REPO_OWNER}/${c.env.GITHUB_REPO_NAME}/releases/latest`, {
+      // 1. Get the recent releases from the private repo
+      const releasesRes = await fetch(`https://api.github.com/repos/${c.env.GITHUB_REPO_OWNER}/${c.env.GITHUB_REPO_NAME}/releases`, {
         headers: {
           'Authorization': `Bearer ${c.env.GITHUB_PAT}`,
           'Accept': 'application/vnd.github.v3+json',
           'User-Agent': 'Norvi-App'
         }
       });
-      if (!releaseRes.ok) throw new Error('Release not found.');
-      const release = await releaseRes.json() as any;
+      if (!releasesRes.ok) throw new Error('Releases not found.');
+      const releases = await releasesRes.json() as any[];
 
-      // 2. Find the asset matching the slug (e.g., voro.zip or voro_setup.exe)
-      const asset = release.assets.find((a: any) => 
-        a.name.toLowerCase().includes(slug.toLowerCase()) && 
-        (a.name.toLowerCase().endsWith('.zip') || a.name.toLowerCase().endsWith('.exe'))
-      );
+      // 2. Find the first asset matching the slug across recent releases
+      let asset = null;
+      for (const release of releases) {
+        asset = (release.assets || []).find((a: any) => 
+          a.name.toLowerCase().includes(slug.toLowerCase()) && 
+          (a.name.toLowerCase().endsWith('.zip') || a.name.toLowerCase().endsWith('.exe'))
+        );
+        if (asset) break;
+      }
       
       if (!asset) {
         throw new Error(`Asset not found. Make sure you uploaded a .zip or .exe file containing '${slug}' in the name.`);
