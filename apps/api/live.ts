@@ -59,7 +59,7 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     const supabase = factory(c);
     const [productsResult, settingsResult, categoriesResult] = await Promise.all([
       supabase.from('products')
-        .select('id, slug, name, categoryId:category_id, tagline, description, price:price_label, price1m:price_1m, price3m:price_3m, price_lifetime:price_lifetime, status, logoUrl:logo_url, features, version, requirements, releaseStatus:release_status, workflowHeading:workflow_heading, workflowDescription:workflow_description, workflowMediaUrl:workflow_media_url, workflowNote:workflow_note, aiUsage:ai_usage, deviceAllowance:device_allowance, is_on_sale')
+        .select('id, slug, name, categoryId:category_id, tagline, description, price:price_label, price1m:price_1m, price3m:price_3m, price_lifetime:price_lifetime, status, logoUrl:logo_url, features, version, requirements, releaseStatus:release_status, workflowHeading:workflow_heading, workflowDescription:workflow_description, workflowMediaUrl:workflow_media_url, workflowNote:workflow_note, aiUsage:ai_usage, deviceAllowance:device_allowance, is_on_sale, trialActive:trial_active')
         .eq('status', 'published')
         .order('created_at', { ascending: true }),
       supabase.from('site_settings').select('name, headline, description, email, company, domain, maintenance_mode, permissions, banner_text, sale_active, sale_percentage, socialInstagram:social_instagram, socialYoutube:social_youtube, socialFacebook:social_facebook, socialTwitter:social_twitter').single(),
@@ -655,6 +655,13 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     }
   });
 
+  app.post('/api/admin/products/:id/trial', async c => {
+    if (!['owner', 'administrator', 'product_manager'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
+    const input = await c.req.json();
+    const { error } = await c.get('db').rpc('admin_toggle_trial', { p_product_id: c.req.param('id'), p_trial_active: input.trialActive });
+    return error ? c.json({ error: error.message }, 400) : c.json({ ok: true });
+  });
+
   app.post('/api/admin/products', async c => {
     if (!['owner', 'administrator', 'product_manager'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
     const input = await c.req.json();
@@ -819,7 +826,15 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     const db = c.get('db');
     const secret = licenseSecret(c.env);
     if (!secret) return c.json({ error: 'License encryption is not configured.' }, 503);
+    
+    const { data: settings } = await db.rpc('get_site_settings');
+    if (settings?.maintenance_mode) return c.json({ error: 'Store is temporarily closed for maintenance.' }, 503);
+
     const input = z.object({ productSlug: z.string() }).parse(await c.req.json());
+    
+    const { data: product } = await db.from('products').select('trial_active').eq('slug', input.productSlug).single();
+    if (!product || product.trial_active === false) return c.json({ error: 'Free trials are not available for this agent.' }, 403);
+
     const { data: licenseId, error } = await db.rpc('claim_free_trial', { p_product_slug: input.productSlug, p_encryption_secret: secret });
     if (error) return c.json({ error: error.message }, 400);
     return c.json({ ok: true, licenseId });

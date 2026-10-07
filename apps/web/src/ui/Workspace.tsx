@@ -502,6 +502,51 @@ function CouponsManager() {
 }
 
 
+
+function TrialManager() {
+  const { data, reload } = useData('/admin/products');
+  const [busy, setBusy] = useState('');
+  
+  if (!data) return null;
+  const items = data.items || [];
+  
+  const toggle = async (id: string, current: boolean) => {
+    setBusy(id);
+    try {
+      await api(`/admin/products/${id}/trial`, { method: 'POST', body: JSON.stringify({ trialActive: !current }) });
+      reload();
+    } catch (e: any) {
+      alert(e.message);
+    } finally {
+      setBusy('');
+    }
+  };
+
+  return (
+    <div className="panel">
+      <h3>Free Trials</h3>
+      <p>Enable or disable the 1-day free trial button for individual agents.</p>
+      <div className="list-grid">
+        {items.map((p: any) => (
+          <div className="list-row" key={p.id}>
+            <div className="grow" style={{ flex: 1, minWidth: 0 }}>
+              <b>{p.name}</b>
+              <p>{p.trialActive !== false ? 'Trial Enabled' : 'Trial Disabled'}</p>
+            </div>
+            <button 
+              className={`button ${p.trialActive !== false ? 'secondary' : 'primary'}`}
+              disabled={busy === p.id}
+              onClick={() => toggle(p.id, p.trialActive !== false)}
+            >
+              {busy === p.id ? 'Saving...' : p.trialActive !== false ? 'Disable Trial' : 'Enable Trial'}
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function PromotionsManager() {
   const { data, error, reload } = useData('/admin/settings');
   const { data: productsData } = useData('/admin/products');
@@ -689,7 +734,7 @@ function Admin({ section, user, settings, onCatalogChange }: { section: string; 
         {section === '/customers' && <><div className="table-wrap"><table><thead><tr><th>Customer</th><th>Registered</th><th>Purchases</th><th>Licenses</th><th>Status</th><th>Actions</th></tr></thead><tbody>{filtered.map(u => <tr key={u.id}><td><b>{u.name || 'Unnamed'}</b><small className="block">{u.email}</small></td><td>{date(u.createdAt)}</td><td>{u.orderCount || u.purchases || 0}</td><td>{u.activeLicenses || u.licenseCount || 0}</td><td><Badge>{u.suspended ? 'suspended' : u.status || 'active'}</Badge></td><td><div className="row-actions"><button className="button secondary" onClick={() => action('/admin/customers/' + u.id + '/suspend', { suspended: !(u.suspended || u.status === 'suspended') })}>{(u.suspended || u.status === 'suspended') ? 'Restore account' : 'Suspend account'}</button>{user.role === 'owner' && <button className="button secondary" onClick={async () => { await action('/admin/impersonate', { id: u.id }); window.location.href = u.role === 'customer' ? '/account' : '/admin'; }}>Login As</button>}</div></td></tr>)}</tbody></table></div>{!filtered.length && <Empty title="No matching customers." description="Try a different search or filter." />}</>}
         {section === '/licenses' && (!filtered.length ? <Empty title="No licenses issued yet." description="Open a customer preview and simulate a purchase. The resulting license will appear here." href="/login" label="Explore customer flow" /> : <div className="license-list">{filtered.map(l => <div className="panel" key={l.id}><div className="panel-heading"><div><h3>{l.product}</h3><p>{l.customer}</p></div><Badge>{l.status}</Badge></div><code>NORVI-XXXX-XXXX-XXXX-{l.suffix}</code><div className="row-actions">{user.role !== 'support' && <><button className="button secondary" onClick={() => setLicenseAction({ id: l.id, action: l.status === 'active' ? 'revoke' : 'restore' })}>{l.status === 'active' ? 'Revoke access' : 'Restore access'}</button><button className="button secondary" onClick={() => setLicenseAction({ id: l.id, action: 'rotate' })}>Rotate key</button></>}<button className="button secondary" style={{color: 'var(--red)', borderColor: 'var(--red)'}} onClick={() => setLicenseAction({ id: l.id, action: 'delete' })}>Delete</button><button className="button secondary" disabled={!l.device} onClick={() => action('/licenses/' + l.id + '/device-reset')}>Reset device</button>{user.role === 'owner' && <OwnerReveal id={l.id} />}</div></div>)}</div>)}
         {section === '/orders' && <><OrderTable items={items} /></>}
-        {section === '/promotions' && <><PromotionsManager /><CouponsManager /></>}
+        {section === '/promotions' && <><PromotionsManager /><TrialManager /><CouponsManager /></>}
         {section === '/marketing' && <MarketingManager />}
           {section === '/ai-agent' && <AIAgentManager />}
           {section === '/affiliates' && <AffiliateManager />}
