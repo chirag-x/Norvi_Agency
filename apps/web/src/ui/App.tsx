@@ -120,7 +120,8 @@ export default function App({ initialPath }: { initialPath: string }) {
     const [isDataLoaded, setIsDataLoaded] = useState(false);
   useEffect(()=>{ 
       setPath(location.pathname.replace(/\/$/,'') || '/'); 
-      if (location.pathname !== '/update-password' && ((location.hash.includes('type=signup') && location.hash.includes('access_token=')) || location.search.includes('code='))) {
+      const currentPath = location.pathname.replace(/\/$/, '') || '/';
+      if (currentPath !== '/update-password' && ((location.hash.includes('type=signup') && location.hash.includes('access_token=')) || location.search.includes('code='))) {
           setVerified(true);
           history.replaceState(null, '', location.pathname);
       }
