@@ -648,7 +648,53 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     return error ? c.json({ error: 'Products could not be loaded: ' + error.message }, 503) : c.json(data);
   });
 
-  app.post('/api/admin/upload', async c => {
+  
+    app.get('/api/admin/promotional-content', async c => {
+      if (!['owner', 'administrator', 'product_manager'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
+      const { data, error } = await c.get('db').from('partner_promotional_content').select('*').order('created_at', { ascending: false });
+      return error ? c.json({ error: error.message }, 503) : c.json(data);
+    });
+
+    app.post('/api/admin/promotional-content', async c => {
+      if (!['owner', 'administrator', 'product_manager'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
+      try {
+        const body = await c.req.parseBody();
+        const file = body['file'];
+        const title = body['title'] as string;
+        const description = body['description'] as string;
+        
+        if (!title) return c.json({ error: 'Title is required.' }, 400);
+        if (!file || typeof file === 'string') return c.json({ error: 'No file uploaded.' }, 400);
+        
+        const allowedTypes: Record<string, string> = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp', 'image/gif': 'gif', 'video/mp4': 'mp4', 'video/webm': 'webm' };
+        const ext = allowedTypes[file.type];
+        if (!ext) return c.json({ error: 'Upload a PNG, JPG, WebP, GIF, MP4, or WebM file.' }, 400);
+        if (file.size > 50 * 1024 * 1024) return c.json({ error: 'Upload must be smaller than 50 MB.' }, 413);
+        
+        const fileName = `${crypto.randomUUID()}.${ext}`;
+        const { error: uploadError } = await c.get('db').storage.from('promotions').upload(fileName, file as any, { contentType: file.type, upsert: false });
+        if (uploadError) return c.json({ error: uploadError.message }, 500);
+        
+        const { data: urlData } = c.get('db').storage.from('promotions').getPublicUrl(fileName);
+        const media_type = file.type.startsWith('video/') ? 'video' : 'image';
+        
+        const { error: insertError } = await c.get('db').from('partner_promotional_content').insert({
+          title, description, media_url: urlData.publicUrl, media_type
+        });
+        
+        return insertError ? c.json({ error: insertError.message }, 500) : c.json({ ok: true });
+      } catch (e: any) {
+        return c.json({ error: 'Upload failed: ' + e.message }, 500);
+      }
+    });
+
+    app.delete('/api/admin/promotional-content/:id', async c => {
+      if (!['owner', 'administrator', 'product_manager'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
+      const { error } = await c.get('db').from('partner_promotional_content').delete().eq('id', c.req.param('id'));
+      return error ? c.json({ error: error.message }, 503) : c.json({ ok: true });
+    });
+
+    app.post('/api/admin/upload', async c => {
     if (!['owner', 'administrator', 'product_manager'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
     try {
       const body = await c.req.parseBody();
@@ -1169,6 +1215,12 @@ License generated successfully.`);
   });
 
   
+    
+    app.get('/api/partner/promotional-content', async c => {
+      const { data, error } = await c.get('db').from('partner_promotional_content').select('*').order('created_at', { ascending: false });
+      return error ? c.json({ error: error.message }, 503) : c.json(data);
+    });
+
     app.get('/api/partner/stats', async c => {
       const { data, error } = await c.get('db').rpc('get_partner_stats');
       return error ? c.json({ error: error.message }, 503) : c.json(data);
