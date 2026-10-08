@@ -57,8 +57,8 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     await next();
   });
   const regularBodyLimit = bodyLimit({ maxSize: 16384, onError: c => c.json({ error: 'Request is too large.' }, 413) });
-  const uploadBodyLimit = bodyLimit({ maxSize: 10 * 1024 * 1024, onError: c => c.json({ error: 'Upload must be smaller than 10 MB.' }, 413) });
-  app.use('/api/*', (c, next) => c.req.path === '/api/admin/upload' ? uploadBodyLimit(c, next) : regularBodyLimit(c, next));
+  const uploadBodyLimit = bodyLimit({ maxSize: 50 * 1024 * 1024, onError: c => c.json({ error: 'Upload must be smaller than 50 MB.' }, 413) });
+  app.use('/api/*', (c, next) => (c.req.path === '/api/admin/upload' || c.req.path === '/api/admin/promotional-content') ? uploadBodyLimit(c, next) : regularBodyLimit(c, next));
   app.onError((e, c) => c.json({ error: e instanceof z.ZodError ? e.errors.map(x => x.message).join(' ') : 'The account service could not complete this request.' }, e instanceof z.ZodError ? 400 : 500));
   app.get('/api/health', c => c.json({ mode: isConfigured(c.env) ? 'supabase' : 'unconfigured', livePayments: false }));
   app.get('/api/auth/config', c => c.json({ mode: isConfigured(c.env) ? 'supabase' : 'unconfigured', preview: false, registration: isConfigured(c.env) }));
