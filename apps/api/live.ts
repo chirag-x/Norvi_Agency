@@ -283,7 +283,6 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
       const input = email.parse(await c.req.json()); await c.get('db').auth.resetPasswordForEmail(input.email, { redirectTo: `${c.env.APP_ORIGIN || 'https://nor-vi.in'}/update-password` });
       return c.json({ message: 'If this account exists, a password reset email will arrive shortly.' });
     });
-  });
   app.post('/api/auth/resend', async c => {
     const input = email.parse(await c.req.json()); await c.get('db').auth.resend({ type: 'signup', email: input.email });
     return c.json({ message: 'If verification is needed, check your inbox for a new link.' });
