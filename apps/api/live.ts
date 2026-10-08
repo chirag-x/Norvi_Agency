@@ -31,13 +31,21 @@ export function isConfigured(env: LiveEnv) {
     return !!env.SUPABASE_ANON_KEY && provider.protocol === 'https:' && origin.origin === env.APP_ORIGIN && (origin.protocol === 'https:' || ['localhost', '127.0.0.1'].includes(origin.hostname));
   } catch { return false; }
 }
-const factory: Factory = c => createServerClient(c.env.SUPABASE_URL!, c.env.SUPABASE_ANON_KEY!, {
-  cookieOptions: { name: 'norvi_auth', path: '/', httpOnly: true, sameSite: 'lax', secure: c.env.APP_ORIGIN!.startsWith('https://') },
-  cookies: {
-    getAll: () => Object.entries(getCookie(c)).map(([name, value]) => ({ name, value })),
-    setAll: cookies => { for (const { name, value, options } of cookies) setCookie(c, name, value, { ...options, httpOnly: true, secure: c.env.APP_ORIGIN!.startsWith('https://'), sameSite: 'Lax', path: '/' }); },
-  },
-});
+const factory: Factory = c => {
+  let cookieCache = { ...getCookie(c) };
+  return createServerClient(c.env.SUPABASE_URL!, c.env.SUPABASE_ANON_KEY!, {
+    cookieOptions: { name: 'norvi_auth', path: '/', httpOnly: true, sameSite: 'lax', secure: c.env.APP_ORIGIN!.startsWith('https://') },
+    cookies: {
+      getAll: () => Object.entries(cookieCache).map(([name, value]) => ({ name, value })),
+      setAll: cookies => {
+        for (const { name, value, options } of cookies) {
+          cookieCache[name] = value;
+          setCookie(c, name, value, { ...options, httpOnly: true, secure: c.env.APP_ORIGIN!.startsWith('https://'), sameSite: 'Lax', path: '/' });
+        }
+      },
+    },
+  });
+};
 // Per-request clients; all database access uses the user's JWT, never a service-role key.
 export function createLiveApp(makeClient: Factory = factory, options: { upstreamRateLimit?: 'netlify' } = {}) {
   const app = new Hono<AppEnv>();
