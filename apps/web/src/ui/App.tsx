@@ -74,11 +74,11 @@ function ChatWidget() {
       
       {open && (
         <div style={{
-          width: 350, height: 500, background: 'var(--background)', border: '1px solid var(--border)', 
+          width: 350, height: 500, background: 'rgba(13, 17, 12, 0.75)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', border: '1px solid var(--border)', 
           borderRadius: 12, display: 'flex', flexDirection: 'column', overflow: 'hidden',
           boxShadow: '0 8px 24px rgba(0,0,0,0.5)'
         }}>
-          <div style={{background: 'var(--surface)', padding: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border)'}}>
+          <div style={{background: 'rgba(255, 255, 255, 0.03)', padding: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border)'}}>
             <h3 style={{margin: 0, fontSize: 16}}>NORVI AI Support</h3>
             <button onClick={() => setOpen(false)} style={{background: 'transparent', border: 'none', color: 'var(--text-light)', cursor: 'pointer'}}><X size={20}/></button>
           </div>
@@ -87,7 +87,7 @@ function ChatWidget() {
             {messages.map((m, i) => (
               <div key={i} style={{
                 alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start',
-                background: m.role === 'user' ? 'var(--accent)' : 'var(--surface)',
+                background: m.role === 'user' ? 'var(--accent)' : 'var(--panel)',
                 color: m.role === 'user' ? 'black' : 'var(--text)',
                 padding: '10px 14px', borderRadius: 12, maxWidth: '85%', fontSize: 14,
                 border: m.role === 'error' ? '1px solid var(--red)' : 'none'
@@ -96,12 +96,12 @@ function ChatWidget() {
               </div>
             ))}
             {loading && messages[messages.length-1].role === 'user' && (
-              <div style={{alignSelf: 'flex-start', background: 'var(--surface)', padding: '10px 14px', borderRadius: 12}}><span className="dot-typing">...</span></div>
+              <div style={{alignSelf: 'flex-start', background: 'var(--panel)', padding: '10px 14px', borderRadius: 12}}><span className="dot-typing">...</span></div>
             )}
             <div ref={messagesEndRef} />
           </div>
 
-          <form onSubmit={send} style={{display: 'flex', padding: 12, borderTop: '1px solid var(--border)', background: 'var(--surface)'}}>
+          <form onSubmit={send} style={{display: 'flex', padding: 12, borderTop: '1px solid var(--border)', background: 'rgba(0, 0, 0, 0.2)'}}>
             <input type="text" value={input} onChange={e => setInput(e.target.value)} placeholder="Ask a question..." disabled={loading} 
               style={{flex: 1, background: 'transparent', border: 'none', color: 'var(--text)', outline: 'none', fontSize: 14}} />
             <button type="submit" disabled={loading || !input.trim()} style={{background: 'transparent', border: 'none', color: 'var(--accent)', cursor: 'pointer', opacity: loading || !input.trim() ? 0.5 : 1}}>
