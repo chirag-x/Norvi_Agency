@@ -18,8 +18,9 @@ export function AccountAuth({ path }: { path: string }) {
   const staff = path === '/admin/login', register = path === '/register', reset = path === '/reset-password', verify = path === '/verify-email', confirm = path === '/auth/confirm' || path === '/update-password';
   useEffect(() => {
     if (confirm || path === '/update-password') {
-      const params = new URLSearchParams(location.hash.slice(1));
-      setToken(params.get('token_hash') || ''); setRecovery(path === '/update-password' || params.get('type') === 'recovery');
+      const hashParams = new URLSearchParams(location.hash.slice(1));
+      const queryParams = new URLSearchParams(location.search);
+      setToken(queryParams.get('code') || hashParams.get('token_hash') || ''); setRecovery(path === '/update-password' || hashParams.get('type') === 'recovery');
       history.replaceState(null, '', location.pathname); // Clear sensitive link material without a network request.
     }
   }, [path]);
@@ -28,7 +29,7 @@ export function AccountAuth({ path }: { path: string }) {
     try {
       if (confirm || path === '/update-password') {
         if (!token) throw Error('Open the complete link from your email. If it expired, request a new one.');
-        await api(recovery ? '/auth/recover' : '/auth/confirm', { method: 'POST', body: JSON.stringify(recovery ? { token_hash: token, password } : { token_hash: token, type: 'email' }) });
+        await api(recovery ? '/auth/recover' : '/auth/confirm', { method: 'POST', body: JSON.stringify(recovery ? { code: token, token_hash: token, password } : { token_hash: token, type: 'email' }) });
         setToken(''); location.href = recovery ? '/login' : '/account'; return;
       }
       const action = register ? 'register' : reset ? 'reset' : verify ? 'resend' : 'login';

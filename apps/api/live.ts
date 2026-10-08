@@ -280,8 +280,9 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     return c.json({ ok: true });
   });
   app.post('/api/auth/reset', async c => {
-    const input = email.parse(await c.req.json()); await c.get('db').auth.resetPasswordForEmail(input.email);
-    return c.json({ message: 'If this account exists, a password reset email will arrive shortly.' });
+      const input = email.parse(await c.req.json()); await c.get('db').auth.resetPasswordForEmail(input.email, { redirectTo: `${c.env.APP_ORIGIN || 'https://nor-vi.in'}/update-password` });
+      return c.json({ message: 'If this account exists, a password reset email will arrive shortly.' });
+    });
   });
   app.post('/api/auth/resend', async c => {
     const input = email.parse(await c.req.json()); await c.get('db').auth.resend({ type: 'signup', email: input.email });
@@ -294,8 +295,19 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     return error ? c.json({ error: 'This confirmation link is invalid or expired.' }, 400) : c.json({ ok: true });
   });
   app.post('/api/auth/recover', async c => {
-    const input = z.object({ token_hash: z.string().min(10).max(256), password }).parse(await c.req.json()); const db = c.get('db');
-    const { error } = await db.auth.verifyOtp({ token_hash: input.token_hash, type: 'recovery' });
+      const input = z.object({ token_hash: z.string().optional(), code: z.string().optional(), password }).parse(await c.req.json()); const db = c.get('db');
+      if (input.code) {
+        const { error } = await db.auth.exchangeCodeForSession(input.code);
+        if (error) return c.json({ error: 'This recovery link is invalid or expired. Request another reset email.' }, 400);
+      } else if (input.token_hash) {
+        const { error } = await db.auth.verifyOtp({ token_hash: input.token_hash, type: 'recovery' });
+        if (error) return c.json({ error: 'This recovery link is invalid or expired. Request another reset email.' }, 400);
+      } else {
+        return c.json({ error: 'Missing recovery token.' }, 400);
+      }
+      const result = await db.auth.updateUser({ password: input.password }); await db.auth.signOut({ scope: 'global' });
+      return result.error ? c.json({ error: 'Password could not be changed. Request a new reset link or contact support if MFA recovery is required.' }, 400) : c.json({ ok: true });
+    });
     if (error) return c.json({ error: 'This recovery link is invalid or expired. Request another reset email.' }, 400);
     const result = await db.auth.updateUser({ password: input.password }); await db.auth.signOut({ scope: 'global' });
     return result.error ? c.json({ error: 'Password could not be changed. Request a new reset link or contact support if MFA recovery is required.' }, 400) : c.json({ ok: true });
