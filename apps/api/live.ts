@@ -307,10 +307,6 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
       const result = await db.auth.updateUser({ password: input.password }); await db.auth.signOut({ scope: 'global' });
       return result.error ? c.json({ error: 'Password could not be changed. Request a new reset link or contact support if MFA recovery is required.' }, 400) : c.json({ ok: true });
     });
-    if (error) return c.json({ error: 'This recovery link is invalid or expired. Request another reset email.' }, 400);
-    const result = await db.auth.updateUser({ password: input.password }); await db.auth.signOut({ scope: 'global' });
-    return result.error ? c.json({ error: 'Password could not be changed. Request a new reset link or contact support if MFA recovery is required.' }, 400) : c.json({ ok: true });
-  });
   app.post('/api/auth/logout', async c => {
     const { error } = await c.get('db').auth.signOut({ scope: 'local' });
     return error ? c.json({ error: 'Sign-out could not be completed. Please retry.' }, 503) : c.json({ ok: true });
