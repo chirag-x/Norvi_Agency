@@ -1,6 +1,6 @@
 import { LiveAdmin } from './Accounts';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Activity, ArrowRight, Bot, ArrowUpRight, BookOpen, Box, Check, Copy, CreditCard, Download, Eye, FileText, KeyRound, LayoutDashboard, LifeBuoy, LogOut, Plus, Search, Settings as SettingsIcon, ShieldCheck, Users, X, Monitor, SlidersHorizontal, Mail, Megaphone } from 'lucide-react';
+import { Activity, ArrowRight, ChevronDown, ChevronUp, Bot, ArrowUpRight, BookOpen, Box, Check, Copy, CreditCard, Download, Eye, FileText, KeyRound, LayoutDashboard, LifeBuoy, LogOut, Plus, Search, Settings as SettingsIcon, ShieldCheck, Users, X, Monitor, SlidersHorizontal, Mail, Megaphone } from 'lucide-react';
 import type { Category, Product, Settings, User } from '../../../../packages/shared/model';
 import { ProductCard, ProductIcon } from './App';
 import { api, Badge, date, Empty, Field, Loading, Notice, PageHeading, uploadFile, useData } from './common';
@@ -97,6 +97,7 @@ function exportCsv(filename: string, headers: string[], rows: any[][]) { const c
 
 function PartnerProgram() {
   const { data, error, reload } = useData('/partner/stats');
+  const { data: promotions } = useData('/partner/promotional-content');
   const [code, setCode] = useState('');
   const [upi, setUpi] = useState('');
   const [busy, setBusy] = useState(false);
@@ -168,6 +169,7 @@ function PartnerProgram() {
           </form>
         </div>
       </div>
+      <CustomerPromotions promotions={promotions} />
     </>
   );
 }
@@ -640,13 +642,114 @@ function PromotionsManager() {
   );
 }
 
+
+function AdminPromotions({ promotions, reload }: { promotions: any[]; reload: () => void }) {
+  const [busy, setBusy] = useState(false);
+  async function handleSubmit(e: any) {
+    e.preventDefault();
+    setBusy(true);
+    const form = e.currentTarget;
+    try {
+      const res = await fetch('/api/admin/promotional-content', { method: 'POST', body: new FormData(form) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      form.reset();
+      reload();
+    } catch (err: any) {
+      alert(err.message);
+    }
+    setBusy(false);
+  }
+  async function handleDelete(id: string) {
+    if (!confirm('Are you sure you want to delete this?')) return;
+    setBusy(true);
+    try {
+      await api('/admin/promotional-content/' + id, { method: 'DELETE' });
+      reload();
+    } catch (err: any) {
+      alert(err.message);
+    }
+    setBusy(false);
+  }
+  return (
+    <div className="panel">
+      <h3>Promotional Content</h3>
+      <p>Upload videos and images for your partners to use in their marketing campaigns.</p>
+      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 15, marginBottom: 30, background: 'var(--background)', padding: 15, borderRadius: 8 }}>
+        <Field label="Title"><input name="title" required placeholder="e.g. 10% Discount Campaign Video" /></Field>
+        <Field label="Description / Caption"><textarea name="description" rows={3} placeholder="Write a ready-to-use caption with hashtags..." /></Field>
+        <Field label="Media File (Image or Video, max 50MB)"><input type="file" name="file" required accept="image/*,video/*" /></Field>
+        <button type="submit" className="button primary" disabled={busy} style={{ alignSelf: 'flex-start' }}>Upload Content</button>
+      </form>
+      {promotions.length === 0 ? <p>No promotional content uploaded yet.</p> : (
+        <div className="table-wrap">
+          <table>
+            <thead><tr><th>Media</th><th>Title & Caption</th><th>Type</th><th>Actions</th></tr></thead>
+            <tbody>
+              {promotions.map(p => (
+                <tr key={p.id}>
+                  <td>
+                    {p.media_type === 'video' ? 
+                      <video src={p.media_url} width={100} style={{ borderRadius: 4 }} controls /> :
+                      <img src={p.media_url} width={100} style={{ borderRadius: 4 }} />
+                    }
+                  </td>
+                  <td><b>{p.title}</b><p style={{ margin: 0, fontSize: 13, color: 'var(--text-light)', whiteSpace: 'pre-wrap', maxHeight: 80, overflow: 'hidden' }}>{p.description}</p></td>
+                  <td><Badge>{p.media_type}</Badge></td>
+                  <td><button className="button secondary small" style={{ borderColor: 'var(--red)', color: 'var(--red)' }} disabled={busy} onClick={() => handleDelete(p.id)}>Delete</button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CustomerPromotions({ promotions }: { promotions: any[] }) {
+  if (!promotions || promotions.length === 0) return null;
+  return (
+    <div className="panel" style={{ marginTop: 20 }}>
+      <h3>Promotional Resources</h3>
+      <p>Use these ready-made marketing assets to promote your referral code.</p>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 20, marginTop: 20 }}>
+        {promotions.map(p => (
+          <div key={p.id} style={{ border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden', background: 'var(--background)', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ background: '#000', display: 'flex', justifyContent: 'center', alignItems: 'center', height: 200 }}>
+              {p.media_type === 'video' ? 
+                <video src={p.media_url} style={{ maxWidth: '100%', maxHeight: '100%' }} controls /> :
+                <img src={p.media_url} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+              }
+            </div>
+            <div style={{ padding: 15, display: 'flex', flexDirection: 'column', flex: 1 }}>
+              <h4 style={{ margin: '0 0 10px 0' }}>{p.title}</h4>
+              <p style={{ margin: '0 0 15px 0', fontSize: 13, color: 'var(--text-light)', whiteSpace: 'pre-wrap', flex: 1 }}>{p.description}</p>
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                <a href={p.media_url} download target="_blank" className="button primary small" style={{ flex: 1, textAlign: 'center', justifyContent: 'center' }} rel="noreferrer">
+                  <Download size={14} style={{ marginRight: 5 }} /> Download
+                </a>
+                <button className="button secondary small" style={{ flex: 1 }} onClick={() => navigator.clipboard.writeText(p.title + '\n\n' + (p.description||''))}>
+                  <Copy size={14} style={{ marginRight: 5 }} /> Copy Text
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function AffiliateManager() {
   const { data: affiliates, error: aError, reload: aReload } = useData('/admin/affiliates');
   const { data: payouts, error: pError, reload: pReload } = useData('/admin/payouts');
+  const { data: promotions, error: prError, reload: prReload } = useData('/admin/promotional-content');
   const [busy, setBusy] = useState(false);
+  const [showPartners, setShowPartners] = useState(false);
 
-  if (aError || pError) return <Notice kind="error">{aError || pError}</Notice>;
-  if (!affiliates || !payouts) return <Loading />;
+  if (aError || pError || prError) return <Notice kind="error">{aError || pError || prError}</Notice>;
+  if (!affiliates || !payouts || !promotions) return <Loading />;
 
   async function handleAction(path: string) {
     if (!confirm('Are you sure?')) return;
@@ -663,6 +766,7 @@ function AffiliateManager() {
 
   return (
     <>
+      <AdminPromotions promotions={promotions} reload={prReload} />
       <div className="panel">
         <h3>Payout Requests</h3>
         {payouts.length === 0 ? <p>No payout requests.</p> : (
@@ -690,8 +794,11 @@ function AffiliateManager() {
       </div>
 
       <div className="panel">
-        <h3>Active Partners</h3>
-        {affiliates.length === 0 ? <p>No partners yet.</p> : (
+        <div onClick={() => setShowPartners(!showPartners)} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', userSelect: 'none' }}>
+          <h3 style={{ margin: 0 }}>Active Partners</h3>
+          {showPartners ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+        </div>
+        {showPartners && (affiliates.length === 0 ? <p style={{marginTop:15}}>No partners yet.</p> : (
           <div className="table-wrap">
             <table>
               <thead><tr><th>Partner</th><th>Code</th><th>Sales</th><th>Total Earned</th><th>Status</th><th>Actions</th></tr></thead>
@@ -714,7 +821,7 @@ function AffiliateManager() {
               </tbody>
             </table>
           </div>
-        )}
+        ))}
       </div>
     </>
   );
