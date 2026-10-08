@@ -313,7 +313,7 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
         return c.json({ error: 'Missing recovery token.' }, 400);
       }
       const result = await db.auth.updateUser({ password: input.password }); await db.auth.signOut({ scope: 'global' });
-      return result.error ? c.json({ error: 'Password could not be changed. Request a new reset link or contact support if MFA recovery is required.' }, 400) : c.json({ ok: true });
+      return result.error ? c.json({ error: 'TRUE_ERROR: ' + result.error.message + '' }, 400) : c.json({ ok: true });
     });
   app.post('/api/auth/logout', async c => {
     const { error } = await c.get('db').auth.signOut({ scope: 'local' });
