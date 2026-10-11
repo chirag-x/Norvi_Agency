@@ -3,6 +3,7 @@ import { ArrowRight,ArrowUpRight,Search,Check,ShieldCheck,KeyRound,Download,Mail
 import type { Product,Settings } from '../../../../packages/shared/model';
 import { ProductCard,ProductIcon } from './App';
 import { PageHeading,Notice,Field,Empty,api,useData } from './common';
+import { trackMetaPurchase } from './analytics';
 export function Catalog({products, settings}:{products:Product[]; settings?:Settings}){const [query,setQuery]=useState('');const filtered=products.filter(p=>(p.name+' '+p.category+' '+p.description).toLowerCase().includes(query.toLowerCase()));return <div className="container page"><PageHeading eyebrow="YOUR NEXT WORKFLOW STARTS HERE" title="Meet your next agent." description="— collection of tools for a little less routine and a lot more possibility."/><div className="catalog-toolbar"><span className="tab active">All agents <b>{products.length}</b></span><label className="search"><Search size={17}/><input aria-label="Search agents" placeholder="Find an agent…" value={query} onChange={e=>setQuery(e.target.value)}/></label></div><div className="product-grid">{filtered.map(p=><ProductCard key={p.id} product={p}/>)}</div>{!filtered.length&&<Empty title="No matches just yet." description="Try another name or clear your search."/>}<div className="inline-callout"><div><h3>Not sure where to start?</h3><p>Learn how purchase, download, and activation will work.</p></div><a className="text-button" href="/help">Get a little guidance <ArrowUpRight size={18}/></a></div></div>;}
   export function Detail({product, settings}:{product:Product|undefined; settings?:Settings}){
   const { data: account, reload } = useData('/account');
@@ -304,12 +305,31 @@ export function Checkout({product, settings}:{product:Product|undefined; setting
           handler: async function(res:any){
               try {
                 setBusy(true);
-                await api('/checkout/verify', { method: 'POST', body: JSON.stringify({ 
+                const verifyRes = await api('/checkout/verify', { method: 'POST', body: JSON.stringify({ 
                   orderId: data.order_id, 
                   razorpay_payment_id: res.razorpay_payment_id, 
                   razorpay_order_id: res.razorpay_order_id, 
                   razorpay_signature: res.razorpay_signature 
                 })});
+
+                // Fire Meta Purchase ONLY if backend confirmed verified capture and complete product metadata
+                if (verifyRes && verifyRes.captured) {
+                  const verifiedSlug = verifyRes.productSlug || product?.slug;
+                  const verifiedName = verifyRes.productName || product?.name;
+                  if (verifiedSlug && verifiedName) {
+                    trackMetaPurchase({
+                      orderId: verifyRes.orderId || data.order_id,
+                      amount: typeof verifyRes.amount === 'number' ? verifyRes.amount : data.amount / 100,
+                      currency: verifyRes.currency || data.currency || 'INR',
+                      productName: verifiedName,
+                      productSlug: verifiedSlug,
+                      productId: verifyRes.productId || product?.id
+                    });
+                  } else {
+                    console.warn('[NORVI Analytics] Missing verified product metadata on order. Purchase event suppressed.');
+                  }
+                }
+
                 setSuccess(true);
                 setBusy(false);
               } catch (e: any) {

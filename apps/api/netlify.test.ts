@@ -21,7 +21,7 @@ describe('Netlify production entry point', () => {
     expect(await (await handler(request('/auth/config'))).json()).toEqual({ mode: 'supabase', preview: false, registration: true });
     expect((await handler(request('/preview/session', { role: 'owner' }))).status).toBe(404);
     expect(config.path).toBe('/api/*');
-    expect(config.rateLimit).toEqual({ windowLimit: 20, windowSize: 60, aggregateBy: ['ip', 'domain'] });
+    expect(config.rateLimit).toEqual({ windowLimit: 600, windowSize: 60, aggregateBy: ['ip', 'domain'] });
   });
   it('fails closed for missing configuration and cross-origin writes', async () => {
     const provider = vi.fn(); vi.stubGlobal('fetch', provider);

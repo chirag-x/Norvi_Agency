@@ -25,6 +25,15 @@ const fireLog = (c: any, webhookUrl: string | undefined, content: string) => {
   const p = sendDiscordLog(webhookUrl, content);
   try { if (c.executionCtx && typeof c.executionCtx.waitUntil === 'function') c.executionCtx.waitUntil(p); } catch(e) {}
 };
+
+function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) {
+    diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return diff === 0;
+}
 const email = z.object({ email: z.string().trim().email().max(254) });
 export function isConfigured(env: LiveEnv) {
   try { const origin = new URL(env.APP_ORIGIN || ''); const provider = new URL(env.SUPABASE_URL || '');
@@ -995,22 +1004,111 @@ License generated successfully.`);
       const input = await c.req.json();
       const { orderId, razorpay_payment_id, razorpay_order_id, razorpay_signature } = input;
       
-      const secret = c.env.RAZORPAY_WEBHOOK_SECRET;
+      if (!orderId || !razorpay_payment_id || !razorpay_order_id || !razorpay_signature) {
+        return c.json({ error: 'Missing required payment verification parameters.' }, 400);
+      }
+
       const keySecret = c.env.RAZORPAY_KEY_SECRET;
-      
       if (!keySecret) return c.json({ error: 'Razorpay secret not configured' }, 503);
       
-      // Verify Razorpay Signature (razorpay_order_id + "|" + razorpay_payment_id)
+      // 1. Verify Razorpay Signature (razorpay_order_id + "|" + razorpay_payment_id) using timing-safe comparison
       const enc = new TextEncoder();
       const key = await crypto.subtle.importKey('raw', enc.encode(keySecret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
       const sigBytes = await crypto.subtle.sign('HMAC', key, enc.encode(`${razorpay_order_id}|${razorpay_payment_id}`));
       const expectedSig = Array.from(new Uint8Array(sigBytes)).map(b => b.toString(16).padStart(2, '0')).join('');
       
-      if (expectedSig !== razorpay_signature) {
+      if (!timingSafeEqual(expectedSig, razorpay_signature)) {
         return c.json({ error: 'Invalid payment signature.' }, 403);
       }
       
+      // 2. Fetch trusted internal order directly from database before executing fulfillment
       const adminDb = createClient(c.env.SUPABASE_URL!, c.env.SUPABASE_SERVICE_ROLE_KEY!);
+      const { data: orderRecord, error: orderErr } = await adminDb
+        .from('orders')
+        .select('id, user_id, amount_minor, currency, product_id, status, provider_order_id, products(id, slug, name)')
+        .eq('id', orderId)
+        .maybeSingle();
+
+      if (orderErr || !orderRecord) {
+        return c.json({ error: 'Order not found.' }, 404);
+      }
+
+      // 3. Verify caller authorization: the authenticated user must own the order (or be staff admin/owner)
+      const user = c.get('user');
+      if (user && orderRecord.user_id !== user.id && user.role !== 'owner' && user.role !== 'administrator') {
+        return c.json({ error: 'Unauthorized to verify this order.' }, 403);
+      }
+
+      // 4. Strict Order ID binding check: ensure razorpay_order_id matches the order's provider_order_id (Prevents order substitution attack)
+      if (!orderRecord.provider_order_id || orderRecord.provider_order_id !== razorpay_order_id) {
+        return c.json({ error: 'Payment order mismatch.' }, 403);
+      }
+
+      // 5. Check order status eligibility: order must be pending or already paid
+      if (orderRecord.status !== 'pending' && orderRecord.status !== 'paid') {
+        return c.json({ error: `Order is not eligible for payment (current status: ${orderRecord.status}).` }, 400);
+      }
+
+      // 6. Verify payment entity directly with Razorpay API (amount, currency, order_id, capture status)
+      if (!c.env.RAZORPAY_KEY_ID) {
+        return c.json({ error: 'Payment gateway credentials incomplete.' }, 503);
+      }
+
+      let isCaptured = false;
+      const product = orderRecord.products as any;
+      const verifiedAmount = Number(orderRecord.amount_minor) / 100;
+      const verifiedCurrency = orderRecord.currency || 'INR';
+
+      try {
+        const auth = btoa(`${c.env.RAZORPAY_KEY_ID}:${keySecret}`);
+        const rzpPaymentRes = await fetch(`https://api.razorpay.com/v1/payments/${razorpay_payment_id}`, {
+          headers: { 'Authorization': `Basic ${auth}` }
+        });
+        if (!rzpPaymentRes.ok) {
+          return c.json({ error: 'Failed to verify payment with gateway.' }, 502);
+        }
+        const rzpPayment = await rzpPaymentRes.json() as any;
+
+        // 6a. Ensure payment belongs to the expected Razorpay order
+        if (rzpPayment.order_id !== razorpay_order_id) {
+          return c.json({ error: 'Payment does not belong to the verified order.' }, 403);
+        }
+
+        // 6b. Verify payment amount matches internal order amount
+        if (Number(rzpPayment.amount) !== Number(orderRecord.amount_minor)) {
+          return c.json({ error: 'Payment amount mismatch.' }, 403);
+        }
+
+        // 6c. Verify currency matches
+        if (String(rzpPayment.currency).toUpperCase() !== String(orderRecord.currency).toUpperCase()) {
+          return c.json({ error: 'Payment currency mismatch.' }, 403);
+        }
+
+        // 6d. Check capture status
+        isCaptured = rzpPayment.status === 'captured';
+
+        if (!isCaptured) {
+          // Payment is authorized but not captured yet. DO NOT fulfill license prematurely.
+          return c.json({
+            ok: true,
+            verified: true,
+            captured: false,
+            status: rzpPayment.status,
+            message: 'Payment verified but pending capture. License will be issued upon capture confirmation.',
+            orderId: orderRecord.id,
+            amount: verifiedAmount,
+            currency: verifiedCurrency,
+            productId: product?.id || orderRecord.product_id,
+            productSlug: product?.slug || null,
+            productName: product?.name || null
+          });
+        }
+      } catch (e: any) {
+        console.error('Razorpay payment capture check failed:', e);
+        return c.json({ error: 'Payment gateway verification error: ' + (e?.message || 'Network error') }, 502);
+      }
+
+      // 7. Fulfill order ONLY when verified captured
       const encSecret = licenseSecret(c.env);
       if (!encSecret) return c.json({ error: 'License encryption is not configured.' }, 503);
       
@@ -1023,13 +1121,23 @@ License generated successfully.`);
       if (error) return c.json({ error: error.message }, 400);
       
       if (res && res.ok && res.license_id) {
-         fireLog(c, c.env.norvi_sales_and_orders, `?? **[New Sale (Verified)]**
+         fireLog(c, c.env.norvi_sales_and_orders, `🎉 **[New Sale (Verified)]**
 **Order ID:** ${orderId}
 **Payment ID:** ${razorpay_payment_id}
 License generated successfully.`);
       }
-      
-      return c.json({ ok: true });
+
+      return c.json({ 
+        ok: true,
+        verified: true,
+        captured: true,
+        orderId: orderRecord.id,
+        amount: verifiedAmount,
+        currency: verifiedCurrency,
+        productId: product?.id || orderRecord.product_id,
+        productSlug: product?.slug || null,
+        productName: product?.name || null
+      });
     });
 
     app.post('/api/webhooks/razorpay', async c => {
@@ -1052,23 +1160,33 @@ License generated successfully.`);
       const event = JSON.parse(bodyText);
       const adminDb = createClient(c.env.SUPABASE_URL!, c.env.SUPABASE_SERVICE_ROLE_KEY!);
       
-      // Store the event
+      // Store the event for audit and idempotency
       const stored = await adminDb.rpc('record_webhook_event', { p_provider_event_id: event.id || `evt_${Date.now()}`, p_payload: event });
       if (stored.error) return c.json({ error: 'Webhook could not be recorded.' }, 503);
       if (!stored.data) return c.json({ ok: true, duplicate: true });
 
-      // Process payment.authorized or payment.captured
-      if (event.event === 'payment.captured' || event.event === 'payment.authorized') {
-        const payment = event.payload.payment.entity;
-        const receiptOrderId = payment.notes?.order_id || payment.description; // Usually we encode our order ID in notes or we fetch the Razorpay order to get the receipt
-        
-        // Wait, Razorpay includes the order_id in the payment entity, and we can fetch the order to get the receipt.
-        // But for simplicity, we assume `payment.order_id` is the razorpay_order_id.
+      // Process payment.captured ONLY. Do not fulfill on payment.authorized!
+      if (event.event === 'payment.captured') {
+        const payment = event.payload?.payment?.entity;
+        if (!payment) return c.json({ error: 'Missing payment entity' }, 400);
         const rzpOrderId = payment.order_id;
+        if (!rzpOrderId) return c.json({ ok: true, ignored: 'Missing order_id' });
         
-        // Find our internal order ID
-        const { data: internalOrder } = await adminDb.from('orders').select('id').eq('provider_order_id', rzpOrderId).single();
+        // Find our internal order ID by provider_order_id
+        const { data: internalOrder } = await adminDb
+          .from('orders')
+          .select('id, amount_minor, currency, status')
+          .eq('provider_order_id', rzpOrderId)
+          .maybeSingle();
+
         if (internalOrder) {
+          // Verify amount and currency
+          if (Number(payment.amount) !== Number(internalOrder.amount_minor) || 
+              String(payment.currency).toUpperCase() !== String(internalOrder.currency).toUpperCase()) {
+            console.error(`[Webhook Alert] Amount or currency mismatch on order ${internalOrder.id}`);
+            return c.json({ error: 'Amount or currency mismatch' }, 400);
+          }
+
           const secret = licenseSecret(c.env);
           if (!secret) return c.json({ error: 'License encryption is not configured.' }, 503);
           const { data: res, error } = await adminDb.rpc('process_payment_webhook', {
@@ -1076,10 +1194,13 @@ License generated successfully.`);
             p_payment_id: payment.id,
             p_encryption_secret: secret
           });
-          if (!error && res && res.ok) {
-            fireLog(c, c.env.norvi_sales_and_orders, `🎉 **[New Sale (Razorpay)]**\n**Order ID:** ${internalOrder.id}\n**Payment ID:** ${payment.id}\nLicense generated successfully.`);
+          if (!error && res && res.ok && res.license_id) {
+            fireLog(c, c.env.norvi_sales_and_orders, `🎉 **[New Sale (Razorpay Captured)]**\n**Order ID:** ${internalOrder.id}\n**Payment ID:** ${payment.id}\nLicense generated successfully.`);
           }
         }
+      } else if (event.event === 'payment.authorized') {
+        // Acknowledge payment.authorized safely without fulfilling license prematurely
+        return c.json({ ok: true, status: 'authorized_pending_capture' });
       }
       return c.json({ ok: true });
     } catch (e: any) {

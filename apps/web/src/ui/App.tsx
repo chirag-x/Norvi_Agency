@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from 'react';
 import { Catalog, Detail, PartnerProgram, About, Help, Contact, Legal, Checkout, NotFound } from './PublicPages';
 import { Workspace, OrderStatus } from './Workspace';
 import { products as initialProducts, settings as initialSettings, type Product, type Settings, type User } from '../../../../packages/shared/model';
+import { hasAdvertisingConsent, setAdvertisingConsent, getAdvertisingConsentPreference, trackMetaPageView } from './analytics';
 
 
 function ChatWidget() {
@@ -114,10 +115,84 @@ function ChatWidget() {
   );
 }
 
+function CookieConsentBanner({ showModal, onClose }: { showModal: boolean; onClose: () => void }) {
+  const [pref, setPref] = useState<'granted' | 'denied' | 'unset'>('unset');
+
+  useEffect(() => {
+    setPref(getAdvertisingConsentPreference());
+    const handler = () => setPref(getAdvertisingConsentPreference());
+    window.addEventListener('norvi:consent-changed', handler);
+    return () => window.removeEventListener('norvi:consent-changed', handler);
+  }, []);
+
+  if (pref !== 'unset' && !showModal) return null;
+
+  return (
+    <aside
+      aria-label="Advertising and Cookie Preferences"
+      style={{
+        position: 'fixed',
+        bottom: 24,
+        left: 24,
+        maxWidth: 440,
+        zIndex: 9998,
+        background: 'rgba(15, 20, 14, 0.95)',
+        backdropFilter: 'blur(16px)',
+        WebkitBackdropFilter: 'blur(16px)',
+        border: '1px solid var(--border)',
+        borderRadius: 12,
+        padding: '16px 20px',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 12
+      }}
+    >
+      <div>
+        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span>🍪</span> Advertising & Privacy Preferences
+        </div>
+        <p style={{ margin: 0, fontSize: 12, color: 'var(--text-light)', lineHeight: 1.5 }}>
+          We use optional Meta Pixel tracking to measure advertising performance. We never share customer audio, interview transcripts, or AI tokens.
+        </p>
+      </div>
+      <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+        <button
+          className="button button-small"
+          style={{ background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-light)', fontSize: 12, padding: '6px 12px' }}
+          onClick={() => {
+            setAdvertisingConsent(false);
+            onClose();
+          }}
+        >
+          Decline
+        </button>
+        <button
+          className="button button-small primary"
+          style={{ fontSize: 12, padding: '6px 16px' }}
+          onClick={() => {
+            setAdvertisingConsent(true);
+            onClose();
+          }}
+        >
+          Accept
+        </button>
+      </div>
+    </aside>
+  );
+}
+
 export default function App({ initialPath }: { initialPath: string }) {
   const [path,setPath] = useState(initialPath); const [products,setProducts] = useState<Product[]>(initialProducts); const [settings,setSettings] = useState<Settings>(initialSettings); const [menu,setMenu]=useState(false); const [user,setUser]=useState<User|null>(null);
-    const [verified, setVerified] = useState(false);
-    const [isDataLoaded, setIsDataLoaded] = useState(false);
+  const [verified, setVerified] = useState(false);
+  const [isDataLoaded, setIsDataLoaded] = useState(false);
+  const [showConsentModal, setShowConsentModal] = useState(false);
+
+  useEffect(() => {
+    if (hasAdvertisingConsent()) {
+      trackMetaPageView();
+    }
+  }, [path]);
   useEffect(()=>{ 
       setPath(location.pathname.replace(/\/$/,'') || '/'); 
       const currentPath = location.pathname.replace(/\/$/, '') || '/';
@@ -167,7 +242,7 @@ export default function App({ initialPath }: { initialPath: string }) {
         <span>{settings.bannerText}</span>
       </div>
     )}
-    {!workspace && <header className="header"><a className="brand" href="/"><img src="/logo.jpg?v=2" alt="NORVI" style={{width: 34, height: 34, borderRadius: 4, objectFit: "contain", marginRight: 10}}/>{settings.name}</a><nav className={menu?'nav open':'nav'} aria-label="Main navigation"><a className={path.startsWith('/agents')?'active':''} href="/agents">Explore agents</a><a href="/partners">Partner Program</a><a href="/about">Our story</a><a href="/help">Resources <ChevronDown size={12}/></a></nav><div className="header-actions">{user?<a href={user.role==='customer'?'/account':'/admin'} className="user-avatar-link" title="My Account" style={{display:'flex',textDecoration:'none'}}><span className="avatar">{user.name.slice(0,1).toUpperCase()}</span></a>:<a href="/login" className="login-link">Log in</a>}<a className="button button-small primary" href="/agents">Find your agent <ArrowUpRight size={16}/></a><button className="icon-button mobile-menu" aria-label="Toggle navigation" aria-expanded={menu} onClick={()=>setMenu(!menu)}>{menu?<X/>:<Menu/>}</button></div></header>}<main id="main-content">{content}</main>{!workspace&&<Footer settings={settings}/>}<ChatWidget />
+    {!workspace && <header className="header"><a className="brand" href="/"><img src="/logo.jpg?v=2" alt="NORVI" style={{width: 34, height: 34, borderRadius: 4, objectFit: "contain", marginRight: 10}}/>{settings.name}</a><nav className={menu?'nav open':'nav'} aria-label="Main navigation"><a className={path.startsWith('/agents')?'active':''} href="/agents">Explore agents</a><a href="/partners">Partner Program</a><a href="/about">Our story</a><a href="/help">Resources <ChevronDown size={12}/></a></nav><div className="header-actions">{user?<a href={user.role==='customer'?'/account':'/admin'} className="user-avatar-link" title="My Account" style={{display:'flex',textDecoration:'none'}}><span className="avatar">{user.name.slice(0,1).toUpperCase()}</span></a>:<a href="/login" className="login-link">Log in</a>}<a className="button button-small primary" href="/agents">Find your agent <ArrowUpRight size={16}/></a><button className="icon-button mobile-menu" aria-label="Toggle navigation" aria-expanded={menu} onClick={()=>setMenu(!menu)}>{menu?<X/>:<Menu/>}</button></div></header>}<main id="main-content">{content}</main>{!workspace&&<Footer settings={settings} onOpenConsent={()=>setShowConsentModal(true)}/>}<ChatWidget /><CookieConsentBanner showModal={showConsentModal} onClose={()=>setShowConsentModal(false)} />
       {verified && (
         <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(0,0,0,0.85)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center', padding:'20px'}}>
           <div className="panel" style={{maxWidth: 420, width: '100%', textAlign:'center', padding:'40px 30px'}}>
@@ -187,5 +262,5 @@ export function ProductIcon({product,size=40}:{product:Product;size?:number}){
   return <span className={'product-icon lime'}><Workflow size={size}/></span>;
 }
 export function ProductCard({product}:{product:Product}){ return <a className="product-card" href={'/agents/'+product.slug}><div className="product-card-top"><ProductIcon product={product}/><ArrowUpRight size={19}/></div><span className="category">{product.category?.name || 'Agent'}</span><h3>{product.name}</h3><p>{product.tagline}</p><span className="badge">{product.releaseStatus === 'development' ? 'In development' : product.releaseStatus === 'prelaunch' ? 'Preparing for launch' : 'Live'}</span><div className="product-card-bottom"><span>Explore agent</span><ArrowRight size={17}/></div></a>; }
-function Home({products,settings}:{products:Product[];settings:Settings}){return <><section className="hero container"><div className="hero-copy"><div className="eyebrow"><span className="tiny-spark">✦</span> A NEW WAY TO GET THINGS DONE</div><h1>{settings.headline==="Less busywork.\\nMore possibility." || settings.headline==="Less busywork.\nMore possibility."?<>Less busywork.<br/>More <span className="serif">possibility.</span></>:<span className="custom-headline" dangerouslySetInnerHTML={{__html: settings.headline.replace(/\\n|\n/g, '<br/>')}} />}</h1><p>{settings.description}</p><div className="hero-buttons"><a className="button primary" href="/agents">Explore the agents <ArrowUpRight size={19}/></a><a className="text-button" href="#how-it-works">See how it works <ArrowRight size={17}/></a></div><div className="hero-note"><ShieldCheck size={16}/><span>Your account. Your agents. Your access.</span></div><div className="hero-social-links" style={{display:'flex',gap:'1.5rem',marginTop:'1.5rem'}}>{settings.socialInstagram && <a href={settings.socialInstagram} target="_blank" rel="noreferrer" style={{color:'#E1306C'}}><Instagram size={22}/></a>}{settings.socialYoutube && <a href={settings.socialYoutube} target="_blank" rel="noreferrer" style={{color:'#FF0000'}}><Youtube size={22}/></a>}{settings.socialFacebook && <a href={settings.socialFacebook} target="_blank" rel="noreferrer" style={{color:'#1877F2'}}><Facebook size={22}/></a>}{settings.socialTwitter && <a href={settings.socialTwitter} target="_blank" rel="noreferrer" style={{color:'#1DA1F2'}}><Twitter size={22}/></a>}</div></div><div className="hero-console"><div className="console-top"><span><span className="console-dot"/> YOUR NEXT WORKFLOW</span><span>01 / 03</span></div><div className="workflow-title"><span className="mini-label">FROM TO-DO TO DONE</span><h2>Give the routine<br/>a new routine.</h2><p>A simpler way to put your agents to work.</p></div><div className="flow-line"><div className="flow-node"><span className="node-symbol"><Plus size={19}/></span><span><b>Choose your task</b><small>Start with what slows you down</small></span><span className="step-index">01</span></div><div className="connector"/><div className="flow-node selected"><span className="node-symbol"><Sparkles size={19}/></span><span><b>Meet your agent</b><small>The right tool for the right work</small></span><span className="step-index">02</span></div><div className="connector"/><div className="flow-node"><span className="node-symbol"><Check size={19}/></span><span><b>Make space for more</b><small>Bring your focus back to you</small></span><span className="step-index">03</span></div></div><div className="console-bottom"><span>Designed around your workflow</span><Workflow size={17}/></div></div></section><div className="value-ribbon"><div className="container"><span><Workflow size={18}/> Purpose-built agents</span><span><KeyRound size={18}/> Personal activation keys</span><span><Download size={18}/> All your tools, one account</span><span><ShieldCheck size={18}/> Access you can manage</span></div></div><section className="section container" id="agents"><div className="section-heading"><div><span className="eyebrow">THE AGENT COLLECTION</span><h2>Small tools.<br/><span className="muted">Bigger possibilities.</span></h2></div><div className="section-aside"><p>Explore your next addition to the workday.<br/>One agent. One less thing on your list.</p><a className="text-button" href="/agents">View all agents <ArrowUpRight size={17}/></a></div></div><div className="product-grid">{products.slice(0,3).map(p=><ProductCard key={p.id} product={p}/>)}</div><p className="fineprint">Omnix is in development. Voro and Rolvio are preparing for launch. Pricing and release requirements are being finalized.</p></section><section className="how-section" id="how-it-works"><div className="container"><div className="section-heading"><div><span className="eyebrow">LESS SETUP. MORE MOMENTUM.</span><h2>A clear path to<br/>your next agent.</h2></div><p className="section-aside">From discovery to your desktop,<br/>everything has its place.</p></div><div className="steps">{[['01','Find your fit','Explore the features, requirements, and workflow of each agent.'],['02','Make it yours','Create an account and choose the agent that fits your work.'],['03','Activate & go','Find your personal key in your account, download, and activate.']].map(([n,t,d])=><div className="step" key={n}><span>{n}</span><h3>{t}</h3><p>{d}</p></div>)}</div></div></section><section className="section container"><div className="faq-layout"><div><span className="eyebrow">GOOD QUESTIONS</span><h2>A little clarity<br/>goes a long way.</h2><a className="text-button" href="/help">Visit the help center <ArrowUpRight size={16}/></a></div><div className="faqs">{[['What is an AI agent?','An AI agent is software designed to help with a particular task or workflow. Each product page will explain its specific capabilities and requirements.'],['Where do I find my activation key?','Your key appears in your account after a verified purchase. You also receive it in your first purchase email.'],['Can I use one key for every agent?','Each license belongs to one customer and one product. Different agents require different keys.'],['Are AI usage costs included?','The final usage policy will be shown on each product page before launch. Prices and included usage are currently placeholders.']].map(([q,a])=><details key={q}><summary>{q}<Plus size={18}/></summary><p>{a}</p></details>)}</div></div></section><section className="cta container"><div><span className="eyebrow">MAKE ROOM FOR YOUR NEXT BIG THING</span><h2>Your workday.<br/>With a little more <span className="serif">possibility.</span></h2></div><a className="button dark" href="/agents">Find your agent <ArrowUpRight size={19}/></a></section></>;}
-function Footer({settings}:{settings:Settings}){return <footer className="footer container"><div className="footer-main"><div><a href="/" className="brand"><img src="/logo.jpg?v=2" alt="NORVI" style={{width: 34, height: 34, borderRadius: 4, objectFit: "contain", marginRight: 10}}/>{settings.name}</a><p>A little less routine.<br/>A little more room for you.</p></div><div><b>Explore</b><a href="/agents">All agents</a><a href="/partners">Partner Program</a><a href="/about">Our story</a></div><div><b>Here to help</b><a href="/help">Help center</a><a href="/contact">Contact us</a><a href="/account">My account</a></div><div><b>The details</b><a href="/privacy">Privacy policy</a><a href="/terms">Terms of service</a><a href="/refunds">Refund policy</a></div></div><div className="footer-bottom"><span>© {new Date().getFullYear()} {settings.name}. All rights reserved.</span><a href="/license">License agreement <ArrowUpRight size={13}/></a><span>Built for a better workday.</span></div></footer>;}
+function Home({products,settings}:{products:Product[];settings:Settings}){return <><section className="hero container"><div className="hero-copy"><div className="eyebrow"><span className="tiny-spark">✦</span> A NEW WAY TO GET THINGS DONE</div><h1>{settings.headline==="Less busywork.\\nMore possibility." || settings.headline==="Less busywork.\nMore possibility."?<>Less busywork.<br/>More <span className="serif">possibility.</span></>:<span className="customheadline" dangerouslySetInnerHTML={{__html: settings.headline.replace(/\\n|\n/g, '<br/>')}} />}</h1><p>{settings.description}</p><div className="hero-buttons"><a className="button primary" href="/agents">Explore the agents <ArrowUpRight size={19}/></a><a className="text-button" href="#how-it-works">See how it works <ArrowRight size={17}/></a></div><div className="hero-note"><ShieldCheck size={16}/><span>Your account. Your agents. Your access.</span></div><div className="hero-social-links" style={{display:'flex',gap:'1.5rem',marginTop:'1.5rem'}}>{settings.socialInstagram && <a href={settings.socialInstagram} target="_blank" rel="noreferrer" style={{color:'#E1306C'}}><Instagram size={22}/></a>}{settings.socialYoutube && <a href={settings.socialYoutube} target="_blank" rel="noreferrer" style={{color:'#FF0000'}}><Youtube size={22}/></a>}{settings.socialFacebook && <a href={settings.socialFacebook} target="_blank" rel="noreferrer" style={{color:'#1877F2'}}><Facebook size={22}/></a>}{settings.socialTwitter && <a href={settings.socialTwitter} target="_blank" rel="noreferrer" style={{color:'#1DA1F2'}}><Twitter size={22}/></a>}</div></div><div className="hero-console"><div className="console-top"><span><span className="console-dot"/> YOUR NEXT WORKFLOW</span><span>01 / 03</span></div><div className="workflow-title"><span className="mini-label">FROM TO-DO TO DONE</span><h2>Give the routine<br/>a new routine.</h2><p>A simpler way to put your agents to work.</p></div><div className="flow-line"><div className="flow-node"><span className="node-symbol"><Plus size={19}/></span><span><b>Choose your task</b><small>Start with what slows you down</small></span><span className="step-index">01</span></div><div className="connector"/><div className="flow-node selected"><span className="node-symbol"><Sparkles size={19}/></span><span><b>Meet your agent</b><small>The right tool for the right work</small></span><span className="step-index">02</span></div><div className="connector"/><div className="flow-node"><span className="node-symbol"><Check size={19}/></span><span><b>Make space for more</b><small>Bring your focus back to you</small></span><span className="step-index">03</span></div></div><div className="console-bottom"><span>Designed around your workflow</span><Workflow size={17}/></div></div></section><div className="value-ribbon"><div className="container"><span><Workflow size={18}/> Purpose-built agents</span><span><KeyRound size={18}/> Personal activation keys</span><span><Download size={18}/> All your tools, one account</span><span><ShieldCheck size={18}/> Access you can manage</span></div></div><section className="section container" id="agents"><div className="section-heading"><div><span className="eyebrow">THE AGENT COLLECTION</span><h2>Small tools.<br/><span className="muted">Bigger possibilities.</span></h2></div><div className="section-aside"><p>Explore your next addition to the workday.<br/>One agent. One less thing on your list.</p><a className="text-button" href="/agents">View all agents <ArrowUpRight size={17}/></a></div></div><div className="product-grid">{products.slice(0,3).map(p=><ProductCard key={p.id} product={p}/>)}</div><p className="fineprint">Omnix is in development. Voro and Rolvio are preparing for launch. Pricing and release requirements are being finalized.</p></section><section className="how-section" id="how-it-works"><div className="container"><div className="section-heading"><div><span className="eyebrow">LESS SETUP. MORE MOMENTUM.</span><h2>A clear path to<br/>your next agent.</h2></div><p className="section-aside">From discovery to your desktop,<br/>everything has its place.</p></div><div className="steps">{[['01','Find your fit','Explore the features, requirements, and workflow of each agent.'],['02','Make it yours','Create an account and choose the agent that fits your work.'],['03','Activate & go','Find your personal key in your account, download, and activate.']].map(([n,t,d])=><div className="step" key={n}><span>{n}</span><h3>{t}</h3><p>{d}</p></div>)}</div></div></section><section className="section container"><div className="faq-layout"><div><span className="eyebrow">GOOD QUESTIONS</span><h2>A little clarity<br/>goes a long way.</h2><a className="text-button" href="/help">Visit the help center <ArrowUpRight size={16}/></a></div><div className="faqs">{[['What is an AI agent?','An AI agent is software designed to help with a particular task or workflow. Each product page will explain its specific capabilities and requirements.'],['Where do I find my activation key?','Your key appears in your account after a verified purchase. You also receive it in your first purchase email.'],['Can I use one key for every agent?','Each license belongs to one customer and one product. Different agents require different keys.'],['Are AI usage costs included?','The final usage policy will be shown on each product page before launch. Prices and included usage are currently placeholders.']].map(([q,a])=><details key={q}><summary>{q}<Plus size={18}/></summary><p>{a}</p></details>)}</div></div></section><section className="cta container"><div><span className="eyebrow">MAKE ROOM FOR YOUR NEXT BIG THING</span><h2>Your workday.<br/>With a little more <span className="serif">possibility.</span></h2></div><a className="button dark" href="/agents">Find your agent <ArrowUpRight size={19}/></a></section></>;}
+function Footer({settings, onOpenConsent}:{settings:Settings; onOpenConsent?: () => void}){return <footer className="footer container"><div className="footer-main"><div><a href="/" className="brand"><img src="/logo.jpg?v=2" alt="NORVI" style={{width: 34, height: 34, borderRadius: 4, objectFit: "contain", marginRight: 10}}/>{settings.name}</a><p>A little less routine.<br/>A little more room for you.</p></div><div><b>Explore</b><a href="/agents">All agents</a><a href="/partners">Partner Program</a><a href="/about">Our story</a></div><div><b>Here to help</b><a href="/help">Help center</a><a href="/contact">Contact us</a><a href="/account">My account</a></div><div><b>The details</b><a href="/privacy">Privacy policy</a><a href="/terms">Terms of service</a><a href="/refunds">Refund policy</a>{onOpenConsent && <button onClick={onOpenConsent} style={{background:'none',border:'none',padding:0,color:'inherit',font:'inherit',textAlign:'left',cursor:'pointer'}}>Cookie preferences</button>}</div></div><div className="footer-bottom"><span>© {new Date().getFullYear()} {settings.name}. All rights reserved.</span><a href="/license">License agreement <ArrowUpRight size={13}/></a><span>Built for a better workday.</span></div></footer>;}
