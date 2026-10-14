@@ -99,7 +99,9 @@ export function Catalog({products, settings}:{products:Product[]; settings?:Sett
   ) : product.price}
 </h2>
               <p>Flexible access &middot; Try before you buy</p>
-              {product.releaseStatus === 'development' ? (
+              {product.status === 'archived' ? (
+                <button className="button secondary full" disabled>Archived &mdash; sales paused</button>
+              ) : product.releaseStatus === 'development' ? (
                 <button className="button secondary full" disabled>In development &mdash; sales unavailable</button>
               ) : (
                 <div style={{display: 'flex', flexDirection: 'column', gap: '8px'}}>
@@ -119,7 +121,7 @@ export function Catalog({products, settings}:{products:Product[]; settings?:Sett
       <div className="two-column">
         <section className="panel">
           <h2>{product.workflowHeading || 'Built for your workflow.'}</h2>
-          <p>{product.workflowDescription || product.description}</p>
+          <p style={{ whiteSpace: 'pre-line' }}>{product.workflowDescription || product.description}</p>
           <div className="demo-placeholder" style={{ position: "relative", padding: 0, overflow: "hidden" }}>
             {product.workflowMediaUrl ? (
               product.workflowMediaUrl.match(/\.(mp4|webm)$/i) ? 
@@ -133,7 +135,7 @@ export function Catalog({products, settings}:{products:Product[]; settings?:Sett
               </>
             )}
           </div>
-          {product.workflowNote && <p className="small-note" style={{ marginTop: "1rem" }}>{product.workflowNote}</p>}
+          {product.workflowNote && <p className="small-note" style={{ marginTop: "1rem", whiteSpace: "pre-line" }}>{product.workflowNote}</p>}
         </section>
         <section className="panel">
           <h3>Before you get started</h3>
@@ -262,6 +264,7 @@ export function Checkout({product, settings}:{product:Product|undefined; setting
     }
     if(!product)return <NotFound/>;
 
+  if(product.status==='archived')return <div className="container page"><PageHeading title={product.name} description={'Sales are currently paused for this agent.'}/><a className="button secondary" href={'/agents/'+product.slug}>Back to agent</a></div>;
   if(product.releaseStatus==='development')return <div className="container page"><PageHeading title={product.name} description={'In development. Purchasing is unavailable.'}/><a className="button secondary" href={'/agents/'+product.slug}>Back to agent</a></div>;
 
   async function purchase(){

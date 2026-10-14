@@ -22,3 +22,20 @@
 
 .hero-social-links a { transition: transform 0.2s ease, opacity 0.2s ease; opacity: 0.9; }
 .hero-social-links a:hover { transform: scale(1.15); opacity: 1; }
+
+.cookie-banner-aside {
+  position: fixed;
+  bottom: 24px;
+  left: 24px;
+  max-width: 440px;
+  z-index: 10001;
+}
+
+@media (max-width: 600px) {
+  .cookie-banner-aside {
+    left: 12px !important;
+    right: 12px !important;
+    bottom: 12px !important;
+    max-width: calc(100vw - 24px) !important;
+  }
+}

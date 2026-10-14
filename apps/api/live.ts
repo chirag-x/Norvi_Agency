@@ -77,7 +77,7 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     const [productsResult, settingsResult, categoriesResult] = await Promise.all([
       supabase.from('products')
         .select('id, slug, name, categoryId:category_id, tagline, description, price:price_label, price1m:price_1m, price3m:price_3m, price_lifetime:price_lifetime, status, logoUrl:logo_url, features, version, requirements, releaseStatus:release_status, workflowHeading:workflow_heading, workflowDescription:workflow_description, workflowMediaUrl:workflow_media_url, workflowNote:workflow_note, aiUsage:ai_usage, deviceAllowance:device_allowance, is_on_sale, trialActive:trial_active')
-        .eq('status', 'published')
+        .in('status', ['published', 'archived'])
         .order('created_at', { ascending: true }),
       supabase.from('site_settings').select('name, headline, description, email, company, domain, maintenance_mode, permissions, banner_text, sale_active, sale_percentage, socialInstagram:social_instagram, socialYoutube:social_youtube, socialFacebook:social_facebook, socialTwitter:social_twitter').single(),
       supabase.from('categories').select('id, slug, name, createdAt:created_at')
@@ -954,8 +954,8 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
 
     const input = z.object({ productSlug: z.string() }).parse(await c.req.json());
     
-    const { data: product } = await db.from('products').select('trial_active').eq('slug', input.productSlug).single();
-    if (!product || product.trial_active === false) return c.json({ error: 'Free trials are not available for this agent.' }, 403);
+    const { data: product } = await db.from('products').select('trial_active, status').eq('slug', input.productSlug).single();
+    if (!product || product.trial_active === false || product.status === 'archived') return c.json({ error: 'Free trials are not available for this agent.' }, 403);
 
     const { data: licenseId, error } = await db.rpc('claim_free_trial', { p_product_slug: input.productSlug, p_encryption_secret: secret });
     if (error) return c.json({ error: error.message }, 400);
