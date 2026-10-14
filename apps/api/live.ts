@@ -73,7 +73,9 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
   app.get('/api/auth/config', c => c.json({ mode: isConfigured(c.env) ? 'supabase' : 'unconfigured', preview: false, registration: isConfigured(c.env) }));
   app.get('/api/catalog', async c => {
     if (!isConfigured(c.env)) return c.json({ ...catalog, preview: false });
-    const supabase = factory(c);
+    const supabase = (c.env.SUPABASE_SERVICE_ROLE_KEY && !c.env.SUPABASE_SERVICE_ROLE_KEY.includes('YOUR_'))
+      ? createClient(c.env.SUPABASE_URL!, c.env.SUPABASE_SERVICE_ROLE_KEY!)
+      : factory(c);
     const [productsResult, settingsResult, categoriesResult] = await Promise.all([
       supabase.from('products')
         .select('id, slug, name, categoryId:category_id, tagline, description, price:price_label, price1m:price_1m, price3m:price_3m, price_lifetime:price_lifetime, status, logoUrl:logo_url, features, version, requirements, releaseStatus:release_status, workflowHeading:workflow_heading, workflowDescription:workflow_description, workflowMediaUrl:workflow_media_url, workflowNote:workflow_note, aiUsage:ai_usage, deviceAllowance:device_allowance, is_on_sale, trialActive:trial_active')

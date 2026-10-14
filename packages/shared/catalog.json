@@ -99,6 +99,24 @@
       "updatedAt": "2026-09-23",
       "icon": "sparkles",
       "color": "purple"
+    },
+    {
+      "id": "61ed8d2f-ba3b-40d0-95dc-94f81ff22c95",
+      "name": "Preview verification agent",
+      "slug": "preview-verification",
+      "category": "Preview",
+      "tagline": "Temporary agent for checking the product editor.",
+      "description": "Synthetic verification product.",
+      "price": "price_Preview",
+      "status": "archived",
+      "features": [
+        "Preview feature"
+      ],
+      "icon": "workflow",
+      "color": "lime",
+      "requirements": "requirements_Agent_4",
+      "version": "version_Agent_4",
+      "updatedAt": "2026-09-22T15:05:58.910Z"
     }
   ],
   "settings": {
