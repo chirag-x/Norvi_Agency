@@ -650,9 +650,19 @@ function AdminPromotions({ promotions, reload }: { promotions: any[]; reload: ()
     setBusy(true);
     const form = e.currentTarget;
     try {
-      const res = await fetch('/api/admin/promotional-content', { method: 'POST', body: new FormData(form) });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      const fileInput = form.querySelector('input[name="file"]') as HTMLInputElement;
+      const file = fileInput?.files?.[0];
+      const title = (form.querySelector('input[name="title"]') as HTMLInputElement)?.value;
+      const description = (form.querySelector('textarea[name="description"]') as HTMLTextAreaElement)?.value || '';
+
+      if (!file) throw new Error('Please select a file.');
+      const media_url = await uploadFile(file, 'promotions');
+      const media_type = file.type.startsWith('video/') ? 'video' : 'image';
+
+      await api('/admin/promotional-content', {
+        method: 'POST',
+        body: JSON.stringify({ title, description, media_url, media_type })
+      });
       form.reset();
       reload();
     } catch (err: any) {
@@ -903,6 +913,8 @@ export function ProductForm({ product, onSave, categories }: { product: Product 
       if (d.workflowMediaFile && (d.workflowMediaFile as File).size > 0) {
         workflowMediaUrl = await uploadFile(d.workflowMediaFile as File);
       }
+      delete d.logoFile;
+      delete d.workflowMediaFile;
       await api('/admin/products', { 
         method: 'POST', 
         body: JSON.stringify({ 

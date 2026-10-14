@@ -1,13 +1,35 @@
 import { useEffect,useState,type ReactNode } from 'react';
 import { AlertCircle,ArrowUpRight,CheckCircle2,LoaderCircle } from 'lucide-react';
 export async function api<T=any>(path:string,options:RequestInit={}):Promise<T>{const response=await fetch('/api'+path,{...options,headers:{'Content-Type':'application/json',...options.headers}});let data;try{data=await response.json();}catch{throw Error('The website service is unavailable. Start the local preview server and try again.');}if(!response.ok)throw Error(data.error||'Please try again.');return data;}
-export async function uploadFile(file: File): Promise<string> {
-  const formData = new FormData();
-  formData.append('file', file);
-  const response = await fetch('/api/admin/upload', { method: 'POST', body: formData });
-  const data = await response.json();
-  if (!response.ok) throw Error(data.error || 'Upload failed.');
-  return data.url;
+export async function uploadFile(file: File, bucket = 'product-assets'): Promise<string> {
+  const ticketRes = await fetch('/api/admin/upload-ticket', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fileType: file.type, fileName: file.name, bucket })
+  });
+
+  if (!ticketRes.ok) {
+    const err = await ticketRes.json().catch(() => ({ error: 'Could not obtain upload ticket.' }));
+    throw Error(err.error || 'Failed to initialize upload ticket.');
+  }
+
+  const { signedUrl, publicUrl } = await ticketRes.json();
+
+  const uploadRes = await fetch(signedUrl, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': file.type || 'application/octet-stream',
+      'x-upsert': 'true'
+    },
+    body: file
+  });
+
+  if (!uploadRes.ok) {
+    const errorText = await uploadRes.text().catch(() => '');
+    throw Error('Direct upload to storage failed: ' + (errorText || uploadRes.statusText));
+  }
+
+  return publicUrl;
 }
 export function useData(path:string){const [data,setData]=useState<any>(null),[error,setError]=useState(''),[tick,setTick]=useState(0);useEffect(()=>{let active=true;setError('');api(path).then(d=>{if(active)setData(d);}).catch(e=>{if(active)setError(e.message);});return()=>{active=false;};},[path,tick]);return{data,error,reload:()=>setTick(v=>v+1)};}
 export function Notice({children,kind='info'}:{children:ReactNode;kind?:'info'|'error'|'success'}){return <div className={'notice '+kind} role={kind==='error'?'alert':'status'}>{kind==='success'?<CheckCircle2 size={18}/>:<AlertCircle size={18}/>}<div>{children}</div></div>;}

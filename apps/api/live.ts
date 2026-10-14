@@ -667,6 +667,20 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     app.post('/api/admin/promotional-content', async c => {
       if (!['owner', 'administrator', 'product_manager'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
       try {
+        const cType = c.req.header('content-type') || '';
+        if (cType.includes('application/json')) {
+          const jsonBody = await c.req.json();
+          if (!jsonBody.title) return c.json({ error: 'Title is required.' }, 400);
+          if (!jsonBody.media_url) return c.json({ error: 'Media URL is required.' }, 400);
+          const { error: insertError } = await c.get('db').from('partner_promotional_content').insert({
+            title: jsonBody.title,
+            description: jsonBody.description || '',
+            media_url: jsonBody.media_url,
+            media_type: jsonBody.media_type || 'image'
+          });
+          return insertError ? c.json({ error: insertError.message }, 500) : c.json({ ok: true });
+        }
+
         const body = await c.req.parseBody();
         const file = body['file'];
         const title = body['title'] as string;
@@ -703,6 +717,44 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
       return error ? c.json({ error: error.message }, 503) : c.json({ ok: true });
     });
 
+    app.post('/api/admin/upload-ticket', async c => {
+      if (!['owner', 'administrator', 'product_manager'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
+      try {
+        const { fileType, fileName: clientFileName, bucket: requestedBucket } = await c.req.json();
+        const allowedTypes: Record<string, string> = {
+          'image/png': 'png',
+          'image/jpeg': 'jpg',
+          'image/webp': 'webp',
+          'image/gif': 'gif',
+          'video/mp4': 'mp4',
+          'video/webm': 'webm'
+        };
+        let ext = allowedTypes[(fileType || '').toLowerCase()];
+        if (!ext && clientFileName) {
+          const match = clientFileName.toLowerCase().match(/\.(mp4|webm|png|jpg|jpeg|webp|gif)$/);
+          if (match) ext = match[1] === 'jpeg' ? 'jpg' : match[1];
+        }
+        if (!ext) return c.json({ error: 'Upload a PNG, JPG, WebP, GIF, MP4, or WebM file.' }, 400);
+
+        const bucket = requestedBucket === 'promotions' ? 'promotions' : 'product-assets';
+        const storageFileName = `${crypto.randomUUID()}.${ext}`;
+
+        const adminDb = createClient(c.env.SUPABASE_URL!, c.env.SUPABASE_SERVICE_ROLE_KEY!);
+        const { data, error } = await adminDb.storage.from(bucket).createSignedUploadUrl(storageFileName, { upsert: true });
+        if (error || !data) return c.json({ error: error?.message || 'Failed to generate upload ticket.' }, 500);
+
+        const { data: publicUrlData } = adminDb.storage.from(bucket).getPublicUrl(storageFileName);
+        return c.json({
+          signedUrl: data.signedUrl,
+          token: data.token,
+          path: data.path,
+          publicUrl: publicUrlData.publicUrl
+        });
+      } catch (e: any) {
+        return c.json({ error: 'Failed to create upload ticket: ' + e.message }, 500);
+      }
+    });
+
     app.post('/api/admin/upload', async c => {
     if (!['owner', 'administrator', 'product_manager'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
     try {
@@ -713,7 +765,7 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
       const allowedTypes: Record<string, string> = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp', 'image/gif': 'gif', 'video/mp4': 'mp4', 'video/webm': 'webm' };
       const ext = allowedTypes[file.type];
       if (!ext) return c.json({ error: 'Upload a PNG, JPG, WebP, GIF, MP4, or WebM file.' }, 400);
-      if (file.size > 10 * 1024 * 1024) return c.json({ error: 'Upload must be smaller than 10 MB.' }, 413);
+      if (file.size > 50 * 1024 * 1024) return c.json({ error: 'Upload must be smaller than 50 MB.' }, 413);
       const fileName = `${crypto.randomUUID()}.${ext}`;
       const { error } = await c.get('db').storage.from('product-assets').upload(fileName, file as any, { contentType: file.type, upsert: false });
       if (error) return c.json({ error: error.message }, 500);
