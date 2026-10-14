@@ -968,11 +968,28 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     app.post('/api/checkout/validate-code', async c => {
       const { code, productId, duration } = await c.req.json();
       if (!code || !productId) return c.json({ valid: false });
-      const { data } = await c.get('db').rpc('validate_promo_code', { p_code: code, p_product_id: productId, p_duration: duration || 'lifetime' });
+      const db = c.env.SUPABASE_SERVICE_ROLE_KEY ? createClient(c.env.SUPABASE_URL!, c.env.SUPABASE_SERVICE_ROLE_KEY!) : c.get('db');
+      const { data, error } = await db.rpc('validate_promo_code', { p_code: code, p_product_id: productId, p_duration: duration || 'lifetime' });
+      if (error) {
+        console.error('validate_promo_code error:', error);
+        return c.json({ valid: false, error: error.message });
+      }
+      if (data && data.valid) {
+        return c.json({ valid: true, type: data.type, discount: data.discount, allowedDurations: data.allowed_durations });
+      }
+      if (data && data.reason === 'duration_mismatch') {
+        return c.json({
+          valid: false,
+          reason: 'duration_mismatch',
+          type: data.type,
+          discount: data.discount,
+          allowedDurations: data.allowed_durations
+        });
+      }
       if (data && data.type) {
         return c.json({ valid: true, type: data.type, discount: data.discount });
       }
-      return c.json({ valid: false });
+      return c.json({ valid: false, reason: 'not_found' });
     });
 
     app.post('/api/checkout/create', async c => {

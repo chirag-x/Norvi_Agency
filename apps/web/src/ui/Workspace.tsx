@@ -435,9 +435,9 @@ function CouponsManager() {
               <tr key={c.id}>
                 <td><b>{c.code}</b></td>
                 <td><Badge>{c.discount_percentage}% OFF</Badge></td>
-                <td>
+                 <td>
                    <small className="block">Agent: {c.product_id ? productsData.items.find((p:any)=>p.id === c.product_id)?.name || c.product_id : 'All Agents'}</small>
-                   <small className="block">Duration: {c.duration_type === 'all' || !c.duration_type ? 'All Durations' : c.duration_type.replace('_', ' ')}</small>
+                   <small className="block">Duration: {c.duration_type === 'all' || !c.duration_type ? 'All Durations' : c.duration_type.split(',').map((d: string) => d.replace('_', ' ')).join(', ')}</small>
                 </td>
                 <td>{c.expires_at ? new Date(c.expires_at).toLocaleString() : 'Never'}</td>
                 <td>
@@ -459,6 +459,14 @@ function CouponsManager() {
         e.preventDefault();
         setBusy(true); setErrorMsg('');
         const form = new FormData(e.currentTarget);
+        const selectedDurations: string[] = [];
+        if (form.get('dur_1_month') === 'on') selectedDurations.push('1_month');
+        if (form.get('dur_3_months') === 'on') selectedDurations.push('3_months');
+        if (form.get('dur_lifetime') === 'on') selectedDurations.push('lifetime');
+        const duration = (selectedDurations.length === 0 || selectedDurations.length === 3) 
+          ? null 
+          : selectedDurations.join(',');
+
         try {
           await api('/admin/coupons', {
             method: 'POST',
@@ -466,7 +474,7 @@ function CouponsManager() {
               code: form.get('code'),
               discount: parseInt(form.get('discount') as string),
               productId: form.get('productId') || null,
-              duration: form.get('duration') || null,
+              duration,
               expiresAt: form.get('expiresAt') ? new Date(form.get('expiresAt') as string).toISOString() : null
             })
           });
@@ -485,13 +493,18 @@ function CouponsManager() {
             {productsData.items.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
         </Field>
-        <Field label="Specific Duration">
-          <select name="duration">
-            <option value="">All Durations</option>
-            <option value="1_month">1 Month</option>
-            <option value="3_months">3 Months</option>
-            <option value="lifetime">Lifetime</option>
-          </select>
+        <Field label="Applies to Durations (Select any, or leave unselected for All)">
+          <div style={{display: 'flex', gap: '14px', flexWrap: 'wrap', alignItems: 'center', minHeight: '38px'}}>
+            <label style={{display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '14px'}}>
+              <input type="checkbox" name="dur_1_month" /> 1 Month
+            </label>
+            <label style={{display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '14px'}}>
+              <input type="checkbox" name="dur_3_months" /> 3 Months
+            </label>
+            <label style={{display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '14px'}}>
+              <input type="checkbox" name="dur_lifetime" /> Lifetime Access
+            </label>
+          </div>
         </Field>
         <Field label="Expiry (Optional)"><input type="datetime-local" name="expiresAt" /></Field>
         <div style={{gridColumn: '1 / -1'}}>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { ArrowRight,ArrowUpRight,Search,Check,ShieldCheck,KeyRound,Download,Mail,LifeBuoy,Workflow , Activity, Instagram, Youtube, Facebook, Twitter} from 'lucide-react';
 import type { Product,Settings } from '../../../../packages/shared/model';
 import { ProductCard,ProductIcon } from './App';
@@ -220,30 +220,55 @@ export function Checkout({product, settings}:{product:Product|undefined; setting
   const [busy,setBusy]=useState(false),[error,setError]=useState(''),[accepted,setAccepted]=useState(false),[success,setSuccess]=useState(false);
   const [duration, setDuration] = useState('lifetime');
     const [referralCode, setReferralCode] = useState('');
-    const [referralValid, setReferralValid] = useState<{valid: boolean; type?: string; discount?: number}|null>(null);
+    const [referralValid, setReferralValid] = useState<{valid: boolean; type?: string; discount?: number; reason?: string; allowedDurations?: string[]}|null>(null);
     const [checkingRef, setCheckingRef] = useState(false);
-    useEffect(() => {
-      if (!referralCode || referralCode.trim() === '') { setReferralValid(null); return; }
-      const delay = setTimeout(async () => {
-          setCheckingRef(true);
-          try {
-            const res = await api('/checkout/validate-code', { method: 'POST', body: JSON.stringify({ code: referralCode, productId: product?.id, duration }) });
-            setReferralValid(res.valid ? res : {valid: false});
-          } catch { setReferralValid({valid: false}); }
-          setCheckingRef(false);
-        }, 500);
-        return () => clearTimeout(delay);
-      }, [referralCode, duration, product?.id]);
+    const lastCodeRef = useRef<string>('');
 
-      const getPrice = (d: string) => {
-        const base = d === '1_month' ? Number(product?.price1m) : d === '3_months' ? Number(product?.price3m) : Number(product?.price_lifetime);
-        if (!base) return 0;
-        const hasSale = settings?.saleActive && settings?.salePercentage && product?.is_on_sale;
-        const saleMultiplier = hasSale ? (1 - (settings?.salePercentage || 0) / 100) : 1;
-        const refMultiplier = referralValid?.valid && referralValid?.discount ? (1 - referralValid.discount / 100) : (referralValid?.valid ? 0.9 : 1);
-        return Math.max(0, base * saleMultiplier * refMultiplier);
-      };
-      const currentFinalPrice = getPrice(duration);
+    useEffect(() => {
+      if (!referralCode || referralCode.trim() === '') {
+        setReferralValid(null);
+        lastCodeRef.current = '';
+        return;
+      }
+      const delay = setTimeout(async () => {
+        setCheckingRef(true);
+        try {
+          const res = await api('/checkout/validate-code', { method: 'POST', body: JSON.stringify({ code: referralCode, productId: product?.id, duration }) });
+          if (res.valid) {
+            setReferralValid(res);
+            lastCodeRef.current = referralCode;
+          } else if (res.reason === 'duration_mismatch' && res.allowedDurations && res.allowedDurations.length > 0) {
+            if (lastCodeRef.current !== referralCode && !res.allowedDurations.includes(duration)) {
+              lastCodeRef.current = referralCode;
+              setDuration(res.allowedDurations[0]);
+              setReferralValid({ valid: true, type: res.type, discount: res.discount, allowedDurations: res.allowedDurations });
+            } else {
+              setReferralValid(res);
+            }
+          } else {
+            setReferralValid({ valid: false, reason: 'not_found' });
+            lastCodeRef.current = referralCode;
+          }
+        } catch {
+          setReferralValid({ valid: false });
+        }
+        setCheckingRef(false);
+      }, 400);
+      return () => clearTimeout(delay);
+    }, [referralCode, duration, product?.id]);
+
+    const getPrice = (d: string) => {
+      const base = d === '1_month' ? Number(product?.price1m) : d === '3_months' ? Number(product?.price3m) : Number(product?.price_lifetime);
+      if (!base) return 0;
+      const hasSale = settings?.saleActive && settings?.salePercentage && product?.is_on_sale;
+      const saleMultiplier = hasSale ? (1 - (settings?.salePercentage || 0) / 100) : 1;
+      const isAllowed = !referralValid?.allowedDurations || referralValid.allowedDurations.includes(d);
+      const refMultiplier = (referralValid?.valid && isAllowed && referralValid?.discount) 
+        ? (1 - referralValid.discount / 100) 
+        : (referralValid?.valid && isAllowed ? 0.9 : 1);
+      return Math.max(0, base * saleMultiplier * refMultiplier);
+    };
+    const currentFinalPrice = getPrice(duration);
   const [renewalId, setRenewalId] = useState<string|null>(null);
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -366,7 +391,24 @@ export function Checkout({product, settings}:{product:Product|undefined; setting
           <h3>Coupon or Referral Code</h3>
             <div style={{display:'flex', alignItems:'center', gap:'12px', marginBottom:'16px'}}>
               <input type="text" placeholder="Enter code" value={referralCode} onChange={e=>setReferralCode(e.target.value.toUpperCase())} style={{flex:1, textTransform:'uppercase'}} />
-              {checkingRef ? <span style={{color:'var(--text-light)'}}>Checking...</span> : (referralValid?.valid === true ? <span style={{color:'var(--green)'}}>&#10004; Applied (-{referralValid.discount || 10}%)</span> : (referralValid?.valid === false ? <span style={{color:'var(--error)'}}>&#10008; Invalid code</span> : null))}
+              {checkingRef ? (
+                <span style={{color:'var(--text-light)'}}>Checking...</span>
+              ) : referralValid?.valid === true ? (
+                <span style={{color:'var(--green)'}}>
+                  &#10004; Applied (-{referralValid.discount || 10}%)
+                  {referralValid.allowedDurations && referralValid.allowedDurations.length < 3 && (
+                    <small style={{display: 'block', fontSize: '11px', opacity: 0.85}}>
+                      Valid for: {referralValid.allowedDurations.map((d: string) => d.replace('_', ' ')).join(', ')}
+                    </small>
+                  )}
+                </span>
+              ) : referralValid?.reason === 'duration_mismatch' && referralValid?.allowedDurations ? (
+                <span style={{color:'var(--error)', fontSize: '13px'}}>
+                  &#10008; Only valid for {referralValid.allowedDurations.map((d: string) => d.replace('_', ' ')).join(', ')}
+                </span>
+              ) : referralValid?.valid === false ? (
+                <span style={{color:'var(--error)'}}>&#10008; Invalid code</span>
+              ) : null}
             </div>
           <hr/>
           <h3>Terms & Conditions</h3>
@@ -390,10 +432,13 @@ export function Checkout({product, settings}:{product:Product|undefined; setting
                       const base = Number(product?.price1m) || 0;
                       const hasSale = settings?.saleActive && settings?.salePercentage && product?.is_on_sale;
                       const saleMultiplier = hasSale ? (1 - (settings?.salePercentage || 0) / 100) : 1;
-                      const refMultiplier = referralValid?.valid && referralValid?.discount ? (1 - referralValid.discount / 100) : (referralValid?.valid ? 0.9 : 1);
+                      const isAllowed = !referralValid?.allowedDurations || referralValid.allowedDurations.includes('1_month');
+                      const refMultiplier = (referralValid?.valid && isAllowed && referralValid?.discount) 
+                        ? (1 - referralValid.discount / 100) 
+                        : (referralValid?.valid && isAllowed ? 0.9 : 1);
                       const finalPrice = base * saleMultiplier * refMultiplier;
                       
-                      if (hasSale || referralValid?.valid) {
+                      if (hasSale || (referralValid?.valid && isAllowed)) {
                         return (
                           <>
                             <span style={{textDecoration: 'line-through', fontSize: '12px', opacity: 0.7}}>₹{base}</span>
@@ -415,10 +460,13 @@ export function Checkout({product, settings}:{product:Product|undefined; setting
                       const base = Number(product?.price3m) || 0;
                       const hasSale = settings?.saleActive && settings?.salePercentage && product?.is_on_sale;
                       const saleMultiplier = hasSale ? (1 - (settings?.salePercentage || 0) / 100) : 1;
-                      const refMultiplier = referralValid?.valid && referralValid?.discount ? (1 - referralValid.discount / 100) : (referralValid?.valid ? 0.9 : 1);
+                      const isAllowed = !referralValid?.allowedDurations || referralValid.allowedDurations.includes('3_months');
+                      const refMultiplier = (referralValid?.valid && isAllowed && referralValid?.discount) 
+                        ? (1 - referralValid.discount / 100) 
+                        : (referralValid?.valid && isAllowed ? 0.9 : 1);
                       const finalPrice = base * saleMultiplier * refMultiplier;
                       
-                      if (hasSale || referralValid?.valid) {
+                      if (hasSale || (referralValid?.valid && isAllowed)) {
                         return (
                           <>
                             <span style={{textDecoration: 'line-through', fontSize: '12px', opacity: 0.7}}>₹{base}</span>
@@ -440,10 +488,13 @@ export function Checkout({product, settings}:{product:Product|undefined; setting
                       const base = Number(product?.price_lifetime) || 0;
                       const hasSale = settings?.saleActive && settings?.salePercentage && product?.is_on_sale;
                       const saleMultiplier = hasSale ? (1 - (settings?.salePercentage || 0) / 100) : 1;
-                      const refMultiplier = referralValid?.valid && referralValid?.discount ? (1 - referralValid.discount / 100) : (referralValid?.valid ? 0.9 : 1);
+                      const isAllowed = !referralValid?.allowedDurations || referralValid.allowedDurations.includes('lifetime');
+                      const refMultiplier = (referralValid?.valid && isAllowed && referralValid?.discount) 
+                        ? (1 - referralValid.discount / 100) 
+                        : (referralValid?.valid && isAllowed ? 0.9 : 1);
                       const finalPrice = base * saleMultiplier * refMultiplier;
                       
-                      if (hasSale || referralValid?.valid) {
+                      if (hasSale || (referralValid?.valid && isAllowed)) {
                         return (
                           <>
                             <span style={{textDecoration: 'line-through', fontSize: '12px', opacity: 0.7}}>₹{base}</span>
