@@ -363,20 +363,34 @@ export function Detail({product, settings}:{product:Product|undefined; settings?
 
       <div className="agent-cta-banner">
         <div>
-          <span className="eyebrow" style={{ color: 'var(--lime)', marginBottom: 8 }}>GET STARTED TODAY</span>
+          <span className="eyebrow" style={{ color: 'var(--lime)', marginBottom: 8 }}>
+            {ownsProduct ? 'READY IN YOUR ACCOUNT' : 'GET STARTED TODAY'}
+          </span>
           <h2>Ready to deploy {product.name}?</h2>
-          <p>Join professionals using NORVI autonomous agents to streamline their daily routine.</p>
+          <p>
+            {ownsProduct
+              ? `You already own an active license for ${product.name}. Access your installer and personal activation key in your dashboard.`
+              : 'Join professionals using NORVI autonomous agents to streamline their daily routine.'}
+          </p>
         </div>
         <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
-          {product.status !== 'archived' && product.releaseStatus !== 'development' && (
-            <a className="button primary" href={'/checkout/' + product.slug}>
-              Get {product.name} <ArrowUpRight size={18} />
+          {ownsProduct ? (
+            <a className="button primary" href="/account/agents">
+              Download agent &amp; view key <ArrowUpRight size={18} />
             </a>
-          )}
-          {product.trialActive !== false && product.releaseStatus !== 'development' && (
-            <button className="button secondary" onClick={() => setTrialModal(true)}>
-              Start free trial
-            </button>
+          ) : (
+            <>
+              {product.status !== 'archived' && product.releaseStatus !== 'development' && (
+                <a className="button primary" href={'/checkout/' + product.slug}>
+                  Get {product.name} <ArrowUpRight size={18} />
+                </a>
+              )}
+              {product.trialActive !== false && product.releaseStatus !== 'development' && (
+                <button className="button secondary" onClick={() => setTrialModal(true)}>
+                  Start free trial
+                </button>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -449,6 +463,8 @@ const legal:Record<string,{title:string;sections:[string,string][]}>={privacy:{t
 export function Legal({kind}:{kind:string}){const doc=legal[kind];return <div className="container page legal"><PageHeading eyebrow="THE DETAILS" title={doc.title}/>{doc.sections.map(([title,body],i)=><section key={title}><h2>{i+1}. {title}</h2><p style={{whiteSpace:"pre-wrap"}}>{body}</p></section>)}<a href="/contact" className="text-button">Questions? Contact us <ArrowRight size={16}/></a></div>;}
 export function Checkout({product, settings}:{product:Product|undefined; settings?:Settings}){
   const {data:config}=useData('/auth/config');
+  const {data:account}=useData('/account');
+  const ownsLifetime = account?.licenses?.some((l:any) => l.productId === product?.id && l.status === 'active' && !l.expiresAt);
   const [busy,setBusy]=useState(false),[error,setError]=useState(''),[accepted,setAccepted]=useState(false),[success,setSuccess]=useState(false);
   const [duration, setDuration] = useState('lifetime');
     const [referralCode, setReferralCode] = useState('');
@@ -616,6 +632,17 @@ export function Checkout({product, settings}:{product:Product|undefined; setting
     <div className="checkout-grid">
       <div className="panel">
         <h3>Payment details</h3>
+        {ownsLifetime && (
+          <div className="notice" style={{ marginBottom: 16, borderLeft: '3px solid var(--lime)' }}>
+            <strong>You already own an active lifetime license for {product?.name}.</strong>
+            <p style={{ margin: '4px 0 10px 0', fontSize: 13, color: 'var(--text-light)' }}>
+              Your activation key and downloads are ready in your account. You do not need to purchase it again.
+            </p>
+            <a className="button primary button-small" href="/account/agents" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              Go to my agents <ArrowRight size={14} />
+            </a>
+          </div>
+        )}
         {isPreview?<Notice>Local checkout demonstration. No payment is collected. Switch to live mode for real checkout.</Notice>:<Notice kind="success">Secure checkout via Razorpay. UPI, Cards, and Netbanking supported.</Notice>}
         <div className="payment-options"><span>UPI</span><span>Credit / debit card</span><span>Netbanking</span></div>
         <p className="small-note">Payments processed securely by Razorpay.</p>
