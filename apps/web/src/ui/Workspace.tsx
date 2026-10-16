@@ -1,12 +1,12 @@
 import { LiveAdmin } from './Accounts';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Activity, ArrowRight, ChevronDown, ChevronUp, Bot, ArrowUpRight, BookOpen, Box, Check, Copy, CreditCard, Download, Eye, FileText, KeyRound, LayoutDashboard, LifeBuoy, LogOut, Plus, Search, Settings as SettingsIcon, ShieldCheck, Users, X, Monitor, SlidersHorizontal, Mail, Megaphone } from 'lucide-react';
-import type { Category, Product, Settings, User } from '../../../../packages/shared/model';
+import { Activity, ArrowRight, ChevronDown, ChevronUp, Bot, ArrowUpRight, BookOpen, Box, Check, Copy, CreditCard, Download, Eye, FileText, KeyRound, LayoutDashboard, LifeBuoy, LogOut, Plus, Search, Settings as SettingsIcon, ShieldCheck, Users, X, Monitor, SlidersHorizontal, Mail, Megaphone, Globe, Sparkles, Video, Image as ImageIcon, HelpCircle, Layers, Trash2, Tag, ExternalLink } from 'lucide-react';
+import type { Category, Product, Settings, User, AgentExtendedContent, FeaturePillar, MediaGalleryItem, ComparisonRow, AgentFaq } from '../../../../packages/shared/model';
 import { ProductCard, ProductIcon } from './App';
 import { api, Badge, date, Empty, Field, Loading, Notice, PageHeading, uploadFile, useData } from './common';
 const customerNav = [['', 'Overview', LayoutDashboard], ['/agents', 'My agents', Box], ['/licenses', 'Keys & devices', KeyRound], ['/billing', 'Billing & orders', CreditCard], ['/support', 'Support', LifeBuoy], ['/partner', 'Partner program', Users], ['/settings', 'Profile & security', SettingsIcon]] as const;
-const staffNav = [['', 'Overview', LayoutDashboard], ['/products', 'Products & releases', Box], ['/categories', 'Categories', Box], ['/customers', 'Customers', Users], ['/licenses', 'Licenses', KeyRound], ['/orders', 'Orders', CreditCard], ['/promotions', 'Promotions', Activity], ['/affiliates', 'Partners & Payouts', Users], ['/team', 'Team', Users], ['/announcements', 'Announcements', Mail], ['/content', 'Content', FileText], ['/activity', 'Audit & delivery', Activity], ['/ai-agent', 'AI Support Agent', Bot], ['/marketing', 'Broadcasts', Megaphone], ['/settings', 'Settings', SettingsIcon]] as const;
-const allowed: Record<string, string[]> = { owner: ['*'], administrator: ['', '/marketing', '/products', '/categories', '/customers', '/licenses', '/orders', '/promotions', '/announcements', '/content', '/activity', '/affiliates', '/ai-agent'], product_manager: ['', '/marketing', '/products', '/categories', '/announcements', '/content'], support: ['', '/customers', '/licenses', '/orders', '/announcements'] };
+const staffNav = [['', 'Overview', LayoutDashboard], ['/products', 'Products & Content', Box], ['/releases', 'Agent Releases', SlidersHorizontal], ['/categories', 'Categories', Box], ['/customers', 'Customers', Users], ['/licenses', 'Licenses', KeyRound], ['/orders', 'Orders', CreditCard], ['/promotions', 'Promotions', Activity], ['/affiliates', 'Partners & Payouts', Users], ['/team', 'Team', Users], ['/announcements', 'Announcements', Mail], ['/content', 'Content', FileText], ['/activity', 'Audit & delivery', Activity], ['/ai-agent', 'AI Support Agent', Bot], ['/marketing', 'Broadcasts', Megaphone], ['/settings', 'Settings', SettingsIcon]] as const;
+const allowed: Record<string, string[]> = { owner: ['*'], administrator: ['', '/marketing', '/products', '/releases', '/categories', '/customers', '/licenses', '/orders', '/promotions', '/announcements', '/content', '/activity', '/affiliates', '/ai-agent'], product_manager: ['', '/marketing', '/products', '/releases', '/categories', '/announcements', '/content'], support: ['', '/customers', '/licenses', '/orders', '/announcements'] };
 function CommandPalette({ user }: { user: User }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -18,7 +18,7 @@ function CommandPalette({ user }: { user: User }) {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
   if (!open) return null;
-  const adminLinks = [ { name: 'Go to Products', path: '/admin/products' }, { name: 'Go to Customers', path: '/admin/customers' }, { name: 'Go to Licenses', path: '/admin/licenses' }, { name: 'Go to Orders', path: '/admin/orders' }, { name: 'Go to Settings', path: '/admin/settings' } ].filter(l => l.name.toLowerCase().includes(query.toLowerCase()));
+  const adminLinks = [ { name: 'Go to Products', path: '/admin/products' }, { name: 'Go to Agent Releases', path: '/admin/releases' }, { name: 'Go to Customers', path: '/admin/customers' }, { name: 'Go to Licenses', path: '/admin/licenses' }, { name: 'Go to Orders', path: '/admin/orders' }, { name: 'Go to Settings', path: '/admin/settings' } ].filter(l => l.name.toLowerCase().includes(query.toLowerCase()));
   const customerLinks = [ { name: 'Go to Agents', path: '/account/agents' }, { name: 'Go to Licenses', path: '/account/licenses' }, { name: 'Go to Billing', path: '/account/billing' }, { name: 'Go to Support', path: '/account/support' }, { name: 'Go to Settings', path: '/account/settings' } ].filter(l => l.name.toLowerCase().includes(query.toLowerCase()));
   const links = user.role === 'customer' ? customerLinks : adminLinks;
   return (
@@ -851,16 +851,17 @@ function AffiliateManager() {
 }
 
 function Admin({ section, user, settings, onCatalogChange }: { section: string; user: User; settings: Settings; onCatalogChange: () => void }) {
-    const map: Record<string, string> = { '': 'analytics', '/products': 'products', '/categories': 'categories', '/customers': 'customers', '/licenses': 'licenses', '/orders': 'orders', '/promotions': 'settings', '/team': 'team', '/announcements': 'announcements/team', '/content': 'content', '/activity': 'activity', '/settings': 'settings' }; const endpoint = section === '' && user.role === 'support' ? 'customers' : map[section] || 'products'; const { data, error, reload } = useData('/admin/' + endpoint); const [query, setQuery] = useState(''), [filter, setFilter] = useState('all'), [editing, setEditing] = useState<Product | null | undefined>(undefined), [feedback, setFeedback] = useState(''), [licenseAction, setLicenseAction] = useState<{ id: string; action: string } | null>(null), [giftModal, setGiftModal] = useState(false);
-    const titles: Record<string, string> = { '': 'Your agency, at a glance.', '/products': 'Your agent collection.', '/customers': 'The people behind the accounts.', '/licenses': 'Access, under your control.', '/orders': 'Every order, in one place.', '/promotions': 'Run sales and global announcements.', '/team': 'Good work takes a team.', '/announcements': 'Internal directives.', '/content': 'Make it sound like you.', '/activity': 'A clear record of every change.', '/settings': 'The details that make it yours.' };
+    const map: Record<string, string> = { '': 'analytics', '/products': 'products', '/releases': 'products', '/categories': 'categories', '/customers': 'customers', '/licenses': 'licenses', '/orders': 'orders', '/promotions': 'settings', '/team': 'team', '/announcements': 'announcements/team', '/content': 'content', '/activity': 'activity', '/settings': 'settings' }; const endpoint = section === '' && user.role === 'support' ? 'customers' : map[section] || 'products'; const { data, error, reload } = useData('/admin/' + endpoint); const [query, setQuery] = useState(''), [filter, setFilter] = useState('all'), [editing, setEditing] = useState<Product | null | undefined>(undefined), [feedback, setFeedback] = useState(''), [licenseAction, setLicenseAction] = useState<{ id: string; action: string } | null>(null), [giftModal, setGiftModal] = useState(false);
+    const titles: Record<string, string> = { '': 'Your agency, at a glance.', '/products': 'Agent Collection & Content.', '/releases': 'Agent Releases & Commercial Deployment.', '/customers': 'The people behind the accounts.', '/licenses': 'Access, under your control.', '/orders': 'Every order, in one place.', '/promotions': 'Run sales and global announcements.', '/team': 'Good work takes a team.', '/announcements': 'Internal directives.', '/content': 'Make it sound like you.', '/activity': 'A clear record of every change.', '/settings': 'The details that make it yours.' };
     const items = (data?.items || []) as any[]; const filtered = items.filter(item => JSON.stringify(item).toLowerCase().includes(query.toLowerCase()) && (filter === 'all' || (filter === 'nonbuyers' ? item.purchases === 0 : item.status === filter)));
     async function action(path: string, body?: object, method: string = 'POST') { try { await api(path, { method, body: Object.keys(body || {}).length ? JSON.stringify(body) : undefined }); reload(); setFeedback('Action completed successfully.'); } catch (e: any) { setFeedback(e.message); } }
     return <><PageHeading eyebrow={section === '' ? 'WELCOME TO YOUR WORKSPACE' : 'AGENCY MANAGEMENT'} title={titles[section] || 'Workspace'} description={section === '' ? 'Start with the essentials. Build your collection, get to know your customers, and keep things moving.' : undefined} action={section === '/products' ? <button className="button primary" onClick={() => setEditing(null)}><Plus size={17} />Add agent</button> : section === '/customers' ? <button className="button secondary" onClick={() => exportCsv('customers.csv', ['ID', 'Email', 'Name', 'Status', 'Registered'], items.map(u => [u.id, u.email, u.name, u.suspended ? 'suspended' : u.status || 'active', u.createdAt]))}><Download size={17} />Export CSV</button> : section === '/orders' ? <button className="button secondary" onClick={() => exportCsv('orders.csv', ['ID', 'Customer', 'Product', 'Amount', 'Date'], items.map(o => [o.id, o.customer, o.product, o.amount, o.createdAt]))}><Download size={17} />Export CSV</button> : section === '/licenses' && user.role !== 'support' ? <button className="button primary" onClick={() => setGiftModal(true)}><Plus size={17} />Gift License</button> : undefined} />{error ? <Notice kind="error">{error}</Notice> : !data ? <Loading /> : <>{feedback && <Notice>{feedback}</Notice>}
         {section === '' && <><div className="stat-grid"><Stat label="Total Revenue (30d)" value={'₹' + (data?.metrics?.revenue || 0).toLocaleString()} icon={<CreditCard />} /><Stat label="Active Licenses" value={data?.metrics?.activeLicenses || 0} icon={<KeyRound />} /><Stat label="Recent Sales (30d)" value={data?.metrics?.recentSales || 0} icon={<Activity />} /></div><div className="workspace-welcome"><div><span className="eyebrow">A STRONG START</span><h2>Let’s make NORVI<br /><span className="serif">yours.</span></h2><p>Your website is taking shape. Add your product details and explore the customer journey.</p><a className="button primary" href={user.role === 'support' ? '/admin/customers' : '/admin/products'}>{user.role === 'support' ? 'Explore customers' : 'Manage your agents'}<ArrowUpRight size={17} /></a></div><div className="setup-list">{[['Website name', 'NORVI is ready', true], ['Product details', 'Names, features, prices, and releases', false], ['Secure accounts', 'Connect your authentication service', false], ['Payments & email', 'Connect your business accounts', false]].map(([title, desc, done]) => <div key={String(title)}><span className={done ? 'check-circle done' : 'check-circle'}>{done ? <Check size={14} /> : <span />}</span><div><b>{title}</b><small>{desc}</small></div></div>)}</div></div><div className="panel-heading"><h3>Find your next step</h3><a href="/" className="text-button">View website <ArrowUpRight size={15} /></a></div>{user.role !== 'support' && <SocialMediaForm settings={settings} onSave={onCatalogChange} />}
           <div className="quick-links">{(user.role === 'support' ? [['Customers', 'Find accounts, including non-buyers', '/admin/customers', Users], ['Licenses', 'Help with devices and access', '/admin/licenses', KeyRound]] : [['Your products', 'Add, edit, and publish your agents', '/admin/products', Box], ['Website content', 'Edit your headline and description', '/admin/content', FileText]]).map(([title, desc, href, Icon]: any) => <a className="panel" href={href} key={title}><Icon size={22} /><h3>{title}</h3><p>{desc}</p><ArrowUpRight size={19} /></a>)}</div></>}
-        {['/products', '/categories', '/customers', '/licenses'].includes(section) && <div className="catalog-toolbar"><label className="search"><Search size={17} /><input aria-label="Search records" placeholder={section === '/customers' ? 'Search name or email…' : 'Search records…'} value={query} onChange={e => setQuery(e.target.value)} /></label><select aria-label="Filter records" value={filter} onChange={e => setFilter(e.target.value)}><option value="all">All records</option>{section === '/products' ? <><option value="published">Published</option><option value="draft">Drafts</option><option value="archived">Archived</option></> : section === '/customers' ? <option value="nonbuyers">No purchases</option> : <><option value="active">Active</option><option value="revoked">Revoked</option></>}</select></div>}
+        {['/products', '/releases', '/categories', '/customers', '/licenses'].includes(section) && <div className="catalog-toolbar"><label className="search"><Search size={17} /><input aria-label="Search records" placeholder={section === '/customers' ? 'Search name or email…' : 'Search records…'} value={query} onChange={e => setQuery(e.target.value)} /></label><select aria-label="Filter records" value={filter} onChange={e => setFilter(e.target.value)}><option value="all">All records</option>{['/products', '/releases'].includes(section) ? <><option value="published">Published</option><option value="draft">Drafts</option><option value="archived">Archived</option></> : section === '/customers' ? <option value="nonbuyers">No purchases</option> : <><option value="active">Active</option><option value="revoked">Revoked</option></>}</select></div>}
         {section === '/categories' && <CategoriesAdmin categories={data.categories} onSave={() => { reload(); onCatalogChange(); }} />}
-        {section === '/products' && <><div className="admin-products">{filtered.map((p: Product) => <div className="panel admin-product" key={p.id}><ProductIcon product={p} /><div className="grow" style={{ flex: 1, minWidth: 0 }}><h3>{p.name}</h3><p>{p.tagline}</p><span className="small-note">/{p.slug} · {p.price}</span></div><Badge>{p.status}</Badge><div style={{display:"flex", gap: 8}}><button className="button secondary" onClick={() => setEditing(p)}>Edit <ArrowUpRight size={15} /></button><button className="button secondary" style={{color: "var(--red)", borderColor: "var(--red)"}} onClick={() => { if(window.confirm("Are you sure you want to permanently delete this agent?")) { action("/admin/products/" + p.id, {}, "DELETE"); } }}>Delete</button></div></div>)}</div>{!filtered.length && <Empty title="No products match." description="Change your filters or add your first agent." />}</>}
+        {section === '/products' && <><CatalogNoticeEditor settings={settings} onSave={onCatalogChange} /><div className="admin-products">{filtered.map((p: Product) => <div className="panel admin-product" key={p.id}><ProductIcon product={p} /><div className="grow" style={{ flex: 1, minWidth: 0 }}><h3>{p.name}</h3><p>{p.tagline}</p><span className="small-note">/{p.slug} · {p.price}</span></div><Badge>{p.status}</Badge><div style={{display:"flex", gap: 8}}><button className="button secondary" onClick={() => setEditing(p)}>Edit Content & SEO <ArrowUpRight size={15} /></button><button className="button secondary" style={{color: "var(--red)", borderColor: "var(--red)"}} onClick={() => { if(window.confirm("Are you sure you want to permanently delete this agent?")) { action("/admin/products/" + p.id, {}, "DELETE"); } }}>Delete</button></div></div>)}</div>{!filtered.length && <Empty title="No products match." description="Change your filters or add your first agent." />}</>}
+        {section === '/releases' && <AgentReleasesAdmin products={filtered} onSave={() => { reload(); onCatalogChange(); }} />}
         {section === '/customers' && <><div className="table-wrap"><table><thead><tr><th>Customer</th><th>Registered</th><th>Purchases</th><th>Licenses</th><th>Status</th><th>Actions</th></tr></thead><tbody>{filtered.map(u => <tr key={u.id}><td><b>{u.name || 'Unnamed'}</b><small className="block">{u.email}</small></td><td>{date(u.createdAt)}</td><td>{u.orderCount || u.purchases || 0}</td><td>{u.activeLicenses || u.licenseCount || 0}</td><td><Badge>{u.suspended ? 'suspended' : u.status || 'active'}</Badge></td><td><div className="row-actions"><button className="button secondary" onClick={() => action('/admin/customers/' + u.id + '/suspend', { suspended: !(u.suspended || u.status === 'suspended') })}>{(u.suspended || u.status === 'suspended') ? 'Restore account' : 'Suspend account'}</button>{user.role === 'owner' && <button className="button secondary" onClick={async () => { await action('/admin/impersonate', { id: u.id }); window.location.href = u.role === 'customer' ? '/account' : '/admin'; }}>Login As</button>}</div></td></tr>)}</tbody></table></div>{!filtered.length && <Empty title="No matching customers." description="Try a different search or filter." />}</>}
         {section === '/licenses' && (!filtered.length ? <Empty title="No licenses issued yet." description="Open a customer preview and simulate a purchase. The resulting license will appear here." href="/login" label="Explore customer flow" /> : <div className="license-list">{filtered.map(l => <div className="panel" key={l.id}><div className="panel-heading"><div><h3>{l.product}</h3><p>{l.customer}</p></div><Badge>{l.status}</Badge></div><code>NORVI-XXXX-XXXX-XXXX-{l.suffix}</code><div className="row-actions">{user.role !== 'support' && <><button className="button secondary" onClick={() => setLicenseAction({ id: l.id, action: l.status === 'active' ? 'revoke' : 'restore' })}>{l.status === 'active' ? 'Revoke access' : 'Restore access'}</button><button className="button secondary" onClick={() => setLicenseAction({ id: l.id, action: 'rotate' })}>Rotate key</button></>}<button className="button secondary" style={{color: 'var(--red)', borderColor: 'var(--red)'}} onClick={() => setLicenseAction({ id: l.id, action: 'delete' })}>Delete</button><button className="button secondary" disabled={!l.device} onClick={() => action('/licenses/' + l.id + '/device-reset')}>Reset device</button>{user.role === 'owner' && <OwnerReveal id={l.id} />}</div></div>)}</div>)}
         {section === '/orders' && <><OrderTable items={items} /></>}
@@ -910,91 +911,667 @@ function SocialMediaForm({ settings, onSave }: { settings: Settings; onSave: () 
   );
 }
 
-export function ProductForm({ product, onSave, categories }: { product: Product | null; onSave: () => void; categories: Category[] }) { 
-  const [error, setError] = useState(''), [busy, setBusy] = useState(false); 
-  return <form className="editor-form" onSubmit={async e => { 
-    e.preventDefault(); 
-    setBusy(true); 
-    const form = e.currentTarget as HTMLFormElement;
-    const d = Object.fromEntries(new FormData(form)); 
-    try { 
-      let logoUrl = product?.logoUrl || null;
-      if (d.logoFile && (d.logoFile as File).size > 0) {
-        logoUrl = await uploadFile(d.logoFile as File);
-      }
-      let workflowMediaUrl = product?.workflowMediaUrl || null;
-      if (d.workflowMediaFile && (d.workflowMediaFile as File).size > 0) {
-        workflowMediaUrl = await uploadFile(d.workflowMediaFile as File);
-      }
-      delete d.logoFile;
-      delete d.workflowMediaFile;
-      await api('/admin/products', { 
-        method: 'POST', 
-        body: JSON.stringify({ 
-          ...d, 
-          id: product?.id, 
-          features: String(d.features).split('\n').filter(Boolean),
-          logoUrl,
-          workflowMediaUrl
-        }) 
-      }); 
-      onSave(); 
-    } catch (e: any) { 
-      setError(e.message); 
-      setBusy(false); 
-    } 
-  }}>
-    <div className="form-grid">
-      <Field label="Agent name"><input name="name" required minLength={2} maxLength={80} defaultValue={product?.name} placeholder="name_Agent_4" /></Field>
-      <Field label="URL slug" hint="Lowercase words separated by hyphens."><input name="slug" required pattern="[a-z0-9]+(-[a-z0-9]+)*" defaultValue={product?.slug} placeholder="agent-4" /></Field>
-      <Field label="Category">
-        <select name="categoryId" required defaultValue={product?.categoryId}>
-          {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-        </select>
-      </Field>
-      <Field label="Price label (Public)"><input name="price" required defaultValue={product?.price} placeholder="Starting at ₹499" /></Field>
+export function CatalogNoticeEditor({ settings, onSave }: { settings: Settings; onSave: () => void }) {
+  const [text, setText] = useState(settings?.bannerText || '');
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState('');
+
+  const handleSave = async (val: string) => {
+    setBusy(true);
+    setMessage('');
+    try {
+      await api('/admin/settings', {
+        method: 'PATCH',
+        body: JSON.stringify({ ...settings, bannerText: val })
+      });
+      setText(val);
+      setMessage(val ? 'Notice published successfully to public website.' : 'Notice cleared from website.');
+      onSave();
+    } catch (err: any) {
+      setMessage('Error: ' + err.message);
+    }
+    setBusy(false);
+  };
+
+  return (
+    <div className="panel" style={{ marginBottom: '1.5rem', borderLeft: '3px solid var(--accent)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem', gap: '1rem', flexWrap: 'wrap' }}>
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <h3 style={{ margin: 0, fontSize: '1.05rem' }}>Agent Showcase Notice / Disclaimer</h3>
+            {text ? (
+              <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: 12, background: 'rgba(34, 197, 94, 0.15)', color: '#22c55e', border: '1px solid rgba(34, 197, 94, 0.3)', fontWeight: 600 }}>Active on Website</span>
+            ) : (
+              <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: 12, background: 'var(--surface)', color: 'var(--text-light)', border: '1px solid var(--border)' }}>No Notice Set</span>
+            )}
+          </div>
+          <p style={{ margin: '0.35rem 0 0', fontSize: '0.85rem', color: 'var(--text-light)' }}>
+            This message appears above your agent showcase on the homepage and catalog. Edit or remove it anytime.
+          </p>
+        </div>
       </div>
-      <div className="form-grid">
-        <Field label="1-Month Price (₹)"><input type="number" name="price_1m" defaultValue={product?.price1m || 0} /></Field>
-        <Field label="3-Month Price (₹)"><input type="number" name="price_3m" defaultValue={product?.price3m || 0} /></Field>
-        <Field label="Lifetime Price (₹)"><input type="number" name="price_lifetime" defaultValue={product?.price_lifetime || 999} /></Field>
+
+      <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+        <textarea
+          rows={2}
+          value={text}
+          onChange={e => setText(e.target.value)}
+          placeholder="e.g. Omnix is in development. Voro and Rolvio are preparing for launch. Pricing and release requirements are being finalized."
+          style={{ flex: 1, minWidth: '280px', padding: '0.6rem 0.75rem', borderRadius: '6px', background: 'var(--background)', border: '1px solid var(--border)', color: 'var(--text)', fontSize: '0.9rem' }}
+        />
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <button className="button primary small" disabled={busy} onClick={() => handleSave(text)}>
+            {busy ? 'Saving...' : 'Save Notice'}<Check size={14} />
+          </button>
+          {text && (
+            <button className="button secondary small" disabled={busy} onClick={() => handleSave('')}>
+              Clear
+            </button>
+          )}
+        </div>
       </div>
-    <Field label="Logo image (optional)"><input name="logoFile" type="file" accept="image/*" /></Field>
-    <Field label="Short introduction"><input name="tagline" required minLength={3} maxLength={140} defaultValue={product?.tagline} placeholder="A short description of the benefit" /></Field>
-    <Field label="Description"><textarea name="description" required minLength={5} maxLength={2000} rows={3} defaultValue={product?.description} placeholder="description_Agent_4" /></Field>
-    <Field label="Features" hint="One feature per line, up to eight."><textarea name="features" rows={3} defaultValue={product?.features?.join('\n')} placeholder="feature_Agent_4_1" /></Field>
-    
-    <div className="form-grid">
-      <Field label="Requirements"><input name="requirements" defaultValue={product?.requirements || 'requirements_Agent_4'} /></Field>
-      <Field label="Version"><input name="version" defaultValue={product?.version || 'version_Agent_4'} /></Field>
-      <Field label="Release status">
-        <select name="releaseStatus" defaultValue={product?.releaseStatus || 'development'}>
-          <option value="development">In development</option>
-          <option value="prelaunch">Preparing for launch</option>
-          <option value="live">Live - Available for download</option>
-        </select>
-      </Field>
-      <Field label="Publication status">
-        <select name="status" defaultValue={product?.status || 'draft'}>
-          <option value="draft">Draft — private</option>
-          <option value="published">Published — local preview</option>
-          <option value="archived">Archived — stop new sales</option>
-        </select>
-      </Field>
+      {message && <Notice kind={message.startsWith('Error') ? 'error' : 'success'}>{message}</Notice>}
     </div>
+  );
+}
 
-    <h3>Walkthrough Section</h3>
-    <Field label="Walkthrough Heading"><input name="workflowHeading" required defaultValue={product?.workflowHeading || 'Built for your workflow.'} /></Field>
-    <Field label="Walkthrough Description"><textarea name="workflowDescription" required rows={2} defaultValue={product?.workflowDescription} /></Field>
-    <Field label="Walkthrough Media (Video or Image)"><input name="workflowMediaFile" type="file" accept="video/mp4,video/webm,image/*" /></Field>
-    <Field label="Walkthrough Note (optional)"><input name="workflowNote" defaultValue={product?.workflowNote} /></Field>
-    <Field label="AI Usage (e.g. Unlimited local usage. Bring your own API keys.)"><input name="aiUsage" defaultValue={product?.aiUsage} /></Field>
-    <Field label="Device Allowance (e.g. 1 active device per license)"><input name="deviceAllowance" defaultValue={product?.deviceAllowance} /></Field>
+export function AgentReleasesAdmin({ products, onSave }: { products: Product[]; onSave: () => void }) {
+  if (!products.length) {
+    return <Empty title="No agents found." description="Create an agent in Products first to manage its releases." href="/admin/products" label="Go to Products" />;
+  }
 
-    <Notice>Agent binaries and verified payment prices will be connected separately. This editor manages the local preview catalog.</Notice>
-    {error && <Notice kind="error">{error}</Notice>}
-    <button className="button primary" disabled={busy}>{busy ? 'Saving...' : 'Save agent'}<Check size={16} /></button>
-  </form>; 
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+      <div className="panel" style={{ background: 'var(--surface)' }}>
+        <h3 style={{ margin: '0 0 0.25rem 0' }}>Agent Commercial Releases & Deployment</h3>
+        <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-light)' }}>
+          Manage launch readiness status, public versions, system requirements, binary download links, and multi-tier pricing models for every agent in your portfolio.
+        </p>
+      </div>
+
+      {products.map(p => (
+        <AgentReleaseCard key={p.id} product={p} onSave={onSave} />
+      ))}
+    </div>
+  );
+}
+
+function AgentReleaseCard({ product, onSave }: { product: Product; onSave: () => void }) {
+  const [releaseStatus, setReleaseStatus] = useState(product.releaseStatus || 'development');
+  const [status, setStatus] = useState(product.status || 'published');
+  const [version, setVersion] = useState(product.version || 'v1.0.0');
+  const [requirements, setRequirements] = useState(product.requirements || 'Windows 10+ 64-bit / macOS 12+');
+  const [price, setPrice] = useState(product.price || 'Starting at ₹499');
+  const [price1m, setPrice1m] = useState(product.price1m || '0');
+  const [price3m, setPrice3m] = useState(product.price3m || '0');
+  const [priceLifetime, setPriceLifetime] = useState(product.price_lifetime || '999');
+  const [aiUsage, setAiUsage] = useState(product.aiUsage || 'Unlimited local usage. Bring your own API keys.');
+  const [deviceAllowance, setDeviceAllowance] = useState(product.deviceAllowance || '1 active device per license');
+  const [trialActive, setTrialActive] = useState<boolean>(product.trialActive !== false);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState('');
+
+  const statusColors = {
+    development: { bg: 'rgba(234, 179, 8, 0.15)', text: '#eab308', border: 'rgba(234, 179, 8, 0.3)', label: 'In Development' },
+    prelaunch: { bg: 'rgba(59, 130, 246, 0.15)', text: '#3b82f6', border: 'rgba(59, 130, 246, 0.3)', label: 'Preparing for Launch' },
+    live: { bg: 'rgba(34, 197, 94, 0.15)', text: '#22c55e', border: 'rgba(34, 197, 94, 0.3)', label: 'Live - Available' }
+  };
+  const sc = statusColors[releaseStatus as keyof typeof statusColors] || statusColors.development;
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    setMessage('');
+    try {
+      await api('/admin/products', {
+        method: 'POST',
+        body: JSON.stringify({
+          ...product,
+          releaseStatus,
+          status,
+          version,
+          requirements,
+          price,
+          price_1m: price1m,
+          price_3m: price3m,
+          price_lifetime: priceLifetime,
+          aiUsage,
+          deviceAllowance,
+          trialActive,
+          extendedContent: product.extendedContent || {}
+        })
+      });
+      if (product.id) {
+        await api(`/admin/products/${product.id}/trial`, {
+          method: 'POST',
+          body: JSON.stringify({ trialActive })
+        }).catch(() => {});
+      }
+      setMessage('Release & commercial settings saved successfully.');
+      onSave();
+    } catch (err: any) {
+      setMessage('Error: ' + err.message);
+    }
+    setBusy(false);
+  };
+
+  return (
+    <form className="panel" onSubmit={handleSave} style={{ borderTop: `3px solid ${sc.text}` }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <ProductIcon product={product} />
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <h3 style={{ margin: 0 }}>{product.name}</h3>
+              <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: 12, background: sc.bg, color: sc.text, border: `1px solid ${sc.border}`, fontWeight: 600 }}>
+                {sc.label}
+              </span>
+            </div>
+            <span style={{ fontSize: '13px', color: 'var(--text-light)' }}>
+              /{product.slug} · Current version: <b>{version}</b>
+            </span>
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <a href={`/agents/${product.slug}`} target="_blank" className="text-button" style={{ fontSize: '13px' }} rel="noreferrer">
+            View Public Page <ArrowUpRight size={14} />
+          </a>
+          <button className="button primary small" disabled={busy}>
+            {busy ? 'Saving...' : 'Save Release'}<Check size={14} />
+          </button>
+        </div>
+      </div>
+
+      <div className="form-grid">
+        <Field label="Release Status" hint="Controls public download ability and countdown flags">
+          <select value={releaseStatus} onChange={e => setReleaseStatus(e.target.value as any)}>
+            <option value="development">In development (Private / Testing)</option>
+            <option value="prelaunch">Preparing for launch (Pre-launch waitlist)</option>
+            <option value="live">Live - Available for download</option>
+          </select>
+        </Field>
+        <Field label="Catalog Visibility">
+          <select value={status} onChange={e => setStatus(e.target.value as any)}>
+            <option value="published">Published (Visible in catalog)</option>
+            <option value="draft">Draft (Hidden from public)</option>
+            <option value="archived">Archived (Discontinue sales)</option>
+          </select>
+        </Field>
+        <Field label="Current Release Version" hint="e.g. v1.2.0">
+          <input value={version} onChange={e => setVersion(e.target.value)} required />
+        </Field>
+        <Field label="System Requirements" hint="e.g. Windows 10+ 64-bit / macOS 12+">
+          <input value={requirements} onChange={e => setRequirements(e.target.value)} required />
+        </Field>
+      </div>
+
+      <h4 style={{ margin: '1.25rem 0 0.5rem 0', fontSize: '0.95rem' }}>Commercial Pricing Matrix</h4>
+      <div className="form-grid">
+        <Field label="Public Display Price" hint="Text shown on catalog cards">
+          <input value={price} onChange={e => setPrice(e.target.value)} placeholder="Starting at ₹499" required />
+        </Field>
+        <Field label="1-Month License Price (₹ / $)">
+          <input type="number" value={price1m} onChange={e => setPrice1m(e.target.value)} />
+        </Field>
+        <Field label="3-Month License Price (₹ / $)">
+          <input type="number" value={price3m} onChange={e => setPrice3m(e.target.value)} />
+        </Field>
+        <Field label="Lifetime License Price (₹ / $)">
+          <input type="number" value={priceLifetime} onChange={e => setPriceLifetime(e.target.value)} />
+        </Field>
+      </div>
+
+      <h4 style={{ margin: '1.25rem 0 0.5rem 0', fontSize: '0.95rem' }}>License, Trial & Usage Limits</h4>
+      <div className="form-grid">
+        <Field label="1-Day Free Trial" hint="Allow new users to claim a 1-day trial key">
+          <select value={trialActive ? 'active' : 'disabled'} onChange={e => setTrialActive(e.target.value === 'active')}>
+            <option value="active">Active (Free trial enabled on public page)</option>
+            <option value="disabled">Disabled (No free trial; paid checkout only)</option>
+          </select>
+        </Field>
+        <Field label="Device Allowance" hint="Max simultaneous device hardware bindings">
+          <input value={deviceAllowance} onChange={e => setDeviceAllowance(e.target.value)} placeholder="1 active device per license" />
+        </Field>
+      </div>
+      <Field label="AI Usage Policy" hint="Displayed during purchase and on product detail page">
+        <input value={aiUsage} onChange={e => setAiUsage(e.target.value)} placeholder="Unlimited local usage. Bring your own API keys." />
+      </Field>
+
+      {message && <Notice kind={message.startsWith('Error') ? 'error' : 'success'}>{message}</Notice>}
+    </form>
+  );
+}
+
+export function ProductForm({ product, onSave, categories }: { product: Product | null; onSave: () => void; categories: Category[] }) { 
+  const [activeTab, setActiveTab] = useState<'overview' | 'media' | 'pillars' | 'platforms' | 'comparison' | 'faqs' | 'seo'>('overview');
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  // Tab 1: Identity & Copy
+  const [name, setName] = useState(product?.name || '');
+  const [slug, setSlug] = useState(product?.slug || '');
+  const [categoryId, setCategoryId] = useState(product?.categoryId || categories[0]?.id || '');
+  const [tagline, setTagline] = useState(product?.tagline || '');
+  const [description, setDescription] = useState(product?.description || '');
+  const [features, setFeatures] = useState(product?.features?.join('\n') || '');
+
+  // Tab 2: Visual Media & Gallery
+  const [logoUrl, setLogoUrl] = useState(product?.logoUrl || null);
+  const ext = (product?.extendedContent || {}) as AgentExtendedContent;
+  const [heroType, setHeroType] = useState<'video' | 'gif' | 'image'>(ext.heroMediaType || 'video');
+  const [heroUrl, setHeroUrl] = useState(ext.heroMediaUrl || '');
+  const [badgeText, setBadgeText] = useState(ext.badgeText || '');
+  const [workflowHeading, setWorkflowHeading] = useState(product?.workflowHeading || 'Built for your workflow.');
+  const [workflowDescription, setWorkflowDescription] = useState(product?.workflowDescription || '');
+  const [workflowMediaUrl, setWorkflowMediaUrl] = useState(product?.workflowMediaUrl || null);
+  const [workflowNote, setWorkflowNote] = useState(product?.workflowNote || '');
+  const [gallery, setGallery] = useState<MediaGalleryItem[]>(ext.gallery || []);
+
+  // Tab 3: Feature Pillars
+  const [featurePillars, setFeaturePillars] = useState<FeaturePillar[]>(ext.featurePillars || []);
+
+  // Tab 4: Platform Badges
+  const [platformBadges, setPlatformBadges] = useState<string[]>(ext.platformBadges || []);
+  const [newBadgeText, setNewBadgeText] = useState('');
+
+  // Tab 5: Competitor Comparison
+  const comp = ext.comparison || { competitor1Name: '', competitor2Name: '', rows: [] };
+  const [comparisonHeadline, setComparisonHeadline] = useState(comp.headline || '');
+  const [competitor1Name, setCompetitor1Name] = useState(comp.competitor1Name || '');
+  const [competitor2Name, setCompetitor2Name] = useState(comp.competitor2Name || '');
+  const [comparisonRows, setComparisonRows] = useState<ComparisonRow[]>(comp.rows || []);
+
+  // Tab 6: FAQs
+  const [faqs, setFaqs] = useState<AgentFaq[]>(ext.faqs || []);
+
+  // Tab 7: SEO Engine
+  const seo = ext.seo || {};
+  const [metaTitle, setMetaTitle] = useState(seo.metaTitle || '');
+  const [metaDescription, setMetaDescription] = useState(seo.metaDescription || '');
+  const [focusKeywords, setFocusKeywords] = useState(seo.focusKeywords || '');
+  const [ogImage, setOgImage] = useState(seo.ogImage || '');
+
+  const handleFileUpload = async (file: File, callback: (url: string) => void) => {
+    try {
+      const url = await uploadFile(file);
+      callback(url);
+    } catch (e: any) {
+      alert('Upload failed: ' + e.message);
+    }
+  };
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    setError('');
+    try {
+      const updatedExtendedContent: AgentExtendedContent = {
+        badgeText: badgeText || undefined,
+        heroMediaType: heroUrl ? heroType : undefined,
+        heroMediaUrl: heroUrl || null,
+        platformBadges: platformBadges.length ? platformBadges : undefined,
+        featurePillars: featurePillars.filter(p => p.title.trim()).length ? featurePillars.filter(p => p.title.trim()) : undefined,
+        gallery: gallery.filter(g => g.url.trim()).length ? gallery.filter(g => g.url.trim()) : undefined,
+        comparison: (comparisonHeadline || competitor1Name || comparisonRows.length) ? {
+          headline: comparisonHeadline || `Why Choose ${name || 'Our Agent'}`,
+          competitor1Name: competitor1Name || 'Alternatives',
+          competitor2Name: competitor2Name || '',
+          rows: comparisonRows.filter(r => r.feature.trim())
+        } : undefined,
+        faqs: faqs.filter(f => f.question.trim()).length ? faqs.filter(f => f.question.trim()) : undefined,
+        seo: (metaTitle || metaDescription || focusKeywords || ogImage) ? {
+          metaTitle: metaTitle || undefined,
+          metaDescription: metaDescription || undefined,
+          focusKeywords: focusKeywords || undefined,
+          ogImage: ogImage || undefined
+        } : undefined
+      };
+
+      const payload = {
+        id: product?.id,
+        name,
+        slug,
+        categoryId,
+        tagline,
+        description,
+        features: features.split('\n').map(s => s.trim()).filter(Boolean),
+        logoUrl,
+        workflowHeading,
+        workflowDescription,
+        workflowMediaUrl,
+        workflowNote,
+        // Preserve release & pricing settings
+        price: product?.price || 'Starting at ₹499',
+        price_1m: product?.price1m || '0',
+        price_3m: product?.price3m || '0',
+        price_lifetime: product?.price_lifetime || '999',
+        version: product?.version || 'v1.0.0',
+        requirements: product?.requirements || 'Windows 10+ 64-bit / macOS 12+',
+        releaseStatus: product?.releaseStatus || 'development',
+        status: product?.status || 'published',
+        aiUsage: product?.aiUsage || '',
+        deviceAllowance: product?.deviceAllowance || '',
+        extendedContent: updatedExtendedContent
+      };
+
+      await api('/admin/products', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+
+      onSave();
+    } catch (err: any) {
+      setError(err.message);
+      setBusy(false);
+    }
+  };
+
+  const navTabs = [
+    { id: 'overview', label: 'Identity & Copy' },
+    { id: 'media', label: 'Media & Gallery' },
+    { id: 'pillars', label: 'Feature Pillars' },
+    { id: 'platforms', label: 'Platform Badges' },
+    { id: 'comparison', label: 'Comparison Matrix' },
+    { id: 'faqs', label: 'FAQs Builder' },
+    { id: 'seo', label: 'Google SEO & Preview' }
+  ];
+
+  return (
+    <form className="editor-form" onSubmit={handleSave}>
+      <div style={{ display: 'flex', gap: '6px', borderBottom: '1px solid var(--border)', paddingBottom: '12px', marginBottom: '18px', overflowX: 'auto', flexWrap: 'wrap' }}>
+        {navTabs.map(t => (
+          <button
+            key={t.id}
+            type="button"
+            className={`button ${activeTab === t.id ? 'primary' : 'secondary'} small`}
+            onClick={() => setActiveTab(t.id as any)}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === 'overview' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <div className="form-grid">
+            <Field label="Agent Name"><input value={name} onChange={e => setName(e.target.value)} required minLength={2} maxLength={80} placeholder="e.g. Voro" /></Field>
+            <Field label="URL Slug" hint="Lowercase words separated by hyphens"><input value={slug} onChange={e => setSlug(e.target.value.toLowerCase())} required pattern="[a-z0-9]+(-[a-z0-9]+)*" placeholder="e.g. voro" /></Field>
+            <Field label="Category">
+              <select value={categoryId} onChange={e => setCategoryId(e.target.value)} required>
+                {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </Field>
+          </div>
+          <Field label="Tagline / Short Introduction"><input value={tagline} onChange={e => setTagline(e.target.value)} required minLength={3} maxLength={140} placeholder="e.g. Real-time AI interview assistant & coding copilot" /></Field>
+          <Field label="Full Overview Description"><textarea value={description} onChange={e => setDescription(e.target.value)} required minLength={10} maxLength={2000} rows={4} placeholder="Comprehensive description of what this agent does and who it's for..." /></Field>
+          <Field label="Core Highlights" hint="One feature per line"><textarea value={features} onChange={e => setFeatures(e.target.value)} rows={3} placeholder="Real-time OCR screen context&#10;Private undetectable audio&#10;Coding problem solving" /></Field>
+        </div>
+      )}
+
+      {activeTab === 'media' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+          <div className="panel" style={{ background: 'var(--surface)' }}>
+            <h4 style={{ margin: '0 0 10px 0' }}>Agent Icon / Logo</h4>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              {logoUrl ? <img src={logoUrl} alt="Logo" style={{ width: 48, height: 48, borderRadius: 8, objectFit: 'cover', background: '#000' }} /> : <div style={{ width: 48, height: 48, borderRadius: 8, background: 'var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><ImageIcon size={20} /></div>}
+              <div style={{ flex: 1 }}>
+                <input type="file" accept="image/*" onChange={e => { if (e.target.files?.[0]) handleFileUpload(e.target.files[0], setLogoUrl); }} />
+                <input style={{ marginTop: '6px' }} value={logoUrl || ''} onChange={e => setLogoUrl(e.target.value)} placeholder="Or paste public logo URL" />
+              </div>
+            </div>
+          </div>
+
+          <div className="panel" style={{ background: 'var(--surface)' }}>
+            <h4 style={{ margin: '0 0 10px 0' }}>Hero Demo Media (Video / GIF / Image)</h4>
+            <p style={{ margin: '0 0 12px 0', fontSize: '13px', color: 'var(--text-light)' }}>
+              This displays prominently in the public hero section (like Parakeet.ai's animated video showcase).
+            </p>
+            <div className="form-grid">
+              <Field label="Media Type">
+                <select value={heroType} onChange={e => setHeroType(e.target.value as any)}>
+                  <option value="video">MP4 / WebM Video</option>
+                  <option value="gif">Animated GIF</option>
+                  <option value="image">Still Screenshot (PNG / WebP)</option>
+                </select>
+              </Field>
+              <Field label="Upload File">
+                <input type="file" accept="video/mp4,video/webm,image/*" onChange={e => { if (e.target.files?.[0]) handleFileUpload(e.target.files[0], setHeroUrl); }} />
+              </Field>
+            </div>
+            <Field label="Hero Media Direct URL">
+              <input value={heroUrl} onChange={e => setHeroUrl(e.target.value)} placeholder="https://..." />
+            </Field>
+            <Field label="Hero Badge Text (e.g. ⚡ Real-Time HUD Overlay)">
+              <input value={badgeText} onChange={e => setBadgeText(e.target.value)} placeholder="e.g. ⚡ Real-Time HUD Overlay" />
+            </Field>
+            {heroUrl && (
+              <div style={{ marginTop: '10px', height: '140px', background: '#000', borderRadius: '6px', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {heroType === 'video' ? <video src={heroUrl} controls style={{ maxHeight: '100%' }} /> : <img src={heroUrl} alt="Preview" style={{ maxHeight: '100%', objectFit: 'contain' }} />}
+              </div>
+            )}
+          </div>
+
+          <div className="panel" style={{ background: 'var(--surface)' }}>
+            <h4 style={{ margin: '0 0 10px 0' }}>Walkthrough Section</h4>
+            <Field label="Walkthrough Heading"><input value={workflowHeading} onChange={e => setWorkflowHeading(e.target.value)} placeholder="Built for your workflow." /></Field>
+            <Field label="Walkthrough Description"><textarea rows={2} value={workflowDescription} onChange={e => setWorkflowDescription(e.target.value)} placeholder="How this agent fits into the user's daily operations..." /></Field>
+            <div className="form-grid">
+              <Field label="Walkthrough Media File">
+                <input type="file" accept="video/mp4,video/webm,image/*" onChange={e => { if (e.target.files?.[0]) handleFileUpload(e.target.files[0], setWorkflowMediaUrl); }} />
+              </Field>
+              <Field label="Walkthrough Media URL">
+                <input value={workflowMediaUrl || ''} onChange={e => setWorkflowMediaUrl(e.target.value)} placeholder="https://..." />
+              </Field>
+            </div>
+            <Field label="Walkthrough Note (optional)"><input value={workflowNote} onChange={e => setWorkflowNote(e.target.value)} placeholder="e.g. Windows installer includes auto-updater" /></Field>
+          </div>
+
+          <div className="panel" style={{ background: 'var(--surface)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+              <h4 style={{ margin: 0 }}>Screenshot & Demo Gallery</h4>
+              <button type="button" className="button secondary small" onClick={() => setGallery([...gallery, { id: 'gallery-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6), type: 'image', url: '', caption: '' }])}>
+                <Plus size={14} /> Add Gallery Item
+              </button>
+            </div>
+            {!gallery.length ? (
+              <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-light)' }}>No gallery items added yet. Click above to add screenshots or demo clips.</p>
+            ) : (
+              gallery.map((g, idx) => (
+                <div key={idx} style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px', background: 'var(--background)', padding: '8px', borderRadius: '6px', border: '1px solid var(--border)', flexWrap: 'wrap' }}>
+                  <select value={g.type} onChange={e => setGallery(gallery.map((item, i) => i === idx ? { ...item, type: e.target.value as any } : item))} style={{ width: 90 }}>
+                    <option value="image">Image</option>
+                    <option value="gif">GIF</option>
+                    <option value="video">Video</option>
+                  </select>
+                  <input style={{ flex: 1, minWidth: 140 }} value={g.url} onChange={e => setGallery(gallery.map((item, i) => i === idx ? { ...item, url: e.target.value } : item))} placeholder="Media URL or upload file" />
+                  <input type="file" style={{ width: 130 }} onChange={e => { if (e.target.files?.[0]) handleFileUpload(e.target.files[0], url => setGallery(gallery.map((item, i) => i === idx ? { ...item, url } : item))); }} />
+                  <input style={{ flex: 1, minWidth: 120 }} value={g.caption || ''} onChange={e => setGallery(gallery.map((item, i) => i === idx ? { ...item, caption: e.target.value } : item))} placeholder="Caption" />
+                  <button type="button" className="icon-button" onClick={() => setGallery(gallery.filter((_, i) => i !== idx))} title="Delete item"><Trash2 size={16} /></button>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'pillars' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-light)' }}>
+              Feature pillars display as high-impact cards on the public page with custom category tags and icons.
+            </p>
+            <button type="button" className="button primary small" onClick={() => setFeaturePillars([...featurePillars, { id: 'pillar-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6), title: '', tag: '', icon: 'Shield', description: '' }])}>
+              <Plus size={14} /> Add Feature Pillar
+            </button>
+          </div>
+          {!featurePillars.length ? (
+            <p style={{ padding: '20px', textAlign: 'center', background: 'var(--surface)', borderRadius: 8, color: 'var(--text-light)' }}>No feature pillars configured yet.</p>
+          ) : (
+            featurePillars.map((p, idx) => (
+              <div key={idx} className="panel" style={{ background: 'var(--surface)', padding: '14px', position: 'relative' }}>
+                <div style={{ position: 'absolute', top: 12, right: 12 }}>
+                  <button type="button" className="icon-button" onClick={() => setFeaturePillars(featurePillars.filter((_, i) => i !== idx))}><Trash2 size={16} /></button>
+                </div>
+                <div className="form-grid">
+                  <Field label="Pillar Title"><input value={p.title} onChange={e => setFeaturePillars(featurePillars.map((item, i) => i === idx ? { ...item, title: e.target.value } : item))} placeholder="e.g. Invisible Screen OCR" required /></Field>
+                  <Field label="Category Tag"><input value={p.tag || ''} onChange={e => setFeaturePillars(featurePillars.map((item, i) => i === idx ? { ...item, tag: e.target.value } : item))} placeholder="e.g. Anti-Detection" /></Field>
+                  <Field label="Icon">
+                    <select value={p.icon || 'Shield'} onChange={e => setFeaturePillars(featurePillars.map((item, i) => i === idx ? { ...item, icon: e.target.value } : item))}>
+                      {['Shield', 'Code', 'Bot', 'Sparkles', 'Cpu', 'Eye', 'Check', 'Zap', 'Globe', 'Layers'].map(ic => <option key={ic} value={ic}>{ic}</option>)}
+                    </select>
+                  </Field>
+                </div>
+                <Field label="Description"><textarea rows={2} value={p.description} onChange={e => setFeaturePillars(featurePillars.map((item, i) => i === idx ? { ...item, description: e.target.value } : item))} placeholder="Detailed explanation of how this capability works..." required /></Field>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
+      {activeTab === 'platforms' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-light)' }}>
+            Add platforms, video conferencing apps, or operating systems that this agent integrates with.
+          </p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', minHeight: 40, padding: 12, background: 'var(--surface)', borderRadius: 8, border: '1px solid var(--border)' }}>
+            {!platformBadges.length ? <span style={{ color: 'var(--text-light)', fontSize: '13px' }}>No badges added. Click below or type custom platforms.</span> : platformBadges.map((badge, idx) => (
+              <span key={idx} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'var(--background)', border: '1px solid var(--border)', padding: '4px 10px', borderRadius: 16, fontSize: '12px' }}>
+                <Check size={12} color="var(--accent)" /> {badge}
+                <button type="button" onClick={() => setPlatformBadges(platformBadges.filter((_, i) => i !== idx))} style={{ background: 'none', border: 'none', color: 'var(--text-light)', cursor: 'pointer', padding: 0, lineHeight: 1 }}><X size={13} /></button>
+              </span>
+            ))}
+          </div>
+
+          <div>
+            <label style={{ fontSize: '12px', color: 'var(--text-light)', marginBottom: 6, display: 'block' }}>Quick Add Common Badges:</label>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {['Windows 11', 'macOS', 'Zoom', 'Microsoft Teams', 'Google Meet', 'HackerRank', 'LeetCode', 'LinkedIn', 'Indeed', 'Chrome'].map(b => (
+                <button key={b} type="button" className="button secondary small" onClick={() => { if (!platformBadges.includes(b)) setPlatformBadges([...platformBadges, b]); }}>
+                  + {b}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 6 }}>
+            <input value={newBadgeText} onChange={e => setNewBadgeText(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); if (newBadgeText.trim() && !platformBadges.includes(newBadgeText.trim())) { setPlatformBadges([...platformBadges, newBadgeText.trim()]); setNewBadgeText(''); } } }} placeholder="Add custom platform (press Enter)" style={{ flex: 1 }} />
+            <button type="button" className="button secondary" onClick={() => { if (newBadgeText.trim() && !platformBadges.includes(newBadgeText.trim())) { setPlatformBadges([...platformBadges, newBadgeText.trim()]); setNewBadgeText(''); } }}>Add</button>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'comparison' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-light)' }}>
+            Build a side-by-side comparison matrix showing why your agent outperforms competitors (e.g. Voro vs Parakeet.ai).
+          </p>
+          <div className="form-grid">
+            <Field label="Section Headline"><input value={comparisonHeadline} onChange={e => setComparisonHeadline(e.target.value)} placeholder={`e.g. Why Candidates Choose ${name || 'Our Agent'}`} /></Field>
+            <Field label="Competitor 1 Name"><input value={competitor1Name} onChange={e => setCompetitor1Name(e.target.value)} placeholder="e.g. Parakeet.ai" /></Field>
+            <Field label="Competitor 2 Name (optional)"><input value={competitor2Name} onChange={e => setCompetitor2Name(e.target.value)} placeholder="e.g. Generic ChatGPT" /></Field>
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h4 style={{ margin: 0, fontSize: '14px' }}>Feature Comparison Rows</h4>
+            <button type="button" className="button secondary small" onClick={() => setComparisonRows([...comparisonRows, { feature: '', us: 'Yes', comp1: 'No', comp2: 'No' }])}>
+              <Plus size={14} /> Add Row
+            </button>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1.8fr 1.3fr 1.3fr 1.3fr 36px', gap: 8, padding: '0 8px', fontSize: '12px', color: 'var(--text-light)', fontWeight: 600 }}>
+            <span>Feature / Capability</span>
+            <span style={{ color: 'var(--accent)' }}>Our Agent ({name || 'Voro'})</span>
+            <span>{competitor1Name || 'Competitor 1'}</span>
+            <span>{competitor2Name || 'Competitor 2'}</span>
+            <span></span>
+          </div>
+
+          {!comparisonRows.length ? <p style={{ fontSize: '13px', color: 'var(--text-light)' }}>No rows yet. Click above to add feature comparisons.</p> : (
+            comparisonRows.map((r, idx) => (
+              <div key={idx} style={{ display: 'grid', gridTemplateColumns: '1.8fr 1.3fr 1.3fr 1.3fr 36px', gap: 8, alignItems: 'center', background: 'var(--surface)', padding: 8, borderRadius: 6 }}>
+                <input value={r.feature} onChange={e => setComparisonRows(comparisonRows.map((item, i) => i === idx ? { ...item, feature: e.target.value } : item))} placeholder="Feature name (e.g. Invisible Screen OCR)" />
+                <input value={String(r.us)} onChange={e => setComparisonRows(comparisonRows.map((item, i) => i === idx ? { ...item, us: e.target.value } : item))} placeholder="Our value (e.g. Yes - 100% Private)" />
+                <input value={String(r.comp1)} onChange={e => setComparisonRows(comparisonRows.map((item, i) => i === idx ? { ...item, comp1: e.target.value } : item))} placeholder={`${competitor1Name || 'Competitor 1'} value`} />
+                <input value={String(r.comp2 ?? '')} onChange={e => setComparisonRows(comparisonRows.map((item, i) => i === idx ? { ...item, comp2: e.target.value } : item))} placeholder={`${competitor2Name || 'Competitor 2'} value`} />
+                <button type="button" className="icon-button" onClick={() => setComparisonRows(comparisonRows.filter((_, i) => i !== idx))} title="Delete row"><Trash2 size={16} /></button>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
+      {activeTab === 'faqs' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-light)' }}>
+              These FAQs appear as expandable accordions on the public page and automatically generate Google FAQ rich snippets!
+            </p>
+            <button type="button" className="button primary small" onClick={() => setFaqs([...faqs, { question: '', answer: '' }])}>
+              <Plus size={14} /> Add FAQ
+            </button>
+          </div>
+          {!faqs.length ? <p style={{ fontSize: '13px', color: 'var(--text-light)', textAlign: 'center', padding: 20 }}>No FAQs added yet.</p> : (
+            faqs.map((f, idx) => (
+              <div key={idx} className="panel" style={{ background: 'var(--surface)', padding: 12, position: 'relative' }}>
+                <div style={{ position: 'absolute', top: 10, right: 10 }}>
+                  <button type="button" className="icon-button" onClick={() => setFaqs(faqs.filter((_, i) => i !== idx))}><Trash2 size={16} /></button>
+                </div>
+                <Field label="Question"><input value={f.question} onChange={e => setFaqs(faqs.map((item, i) => i === idx ? { ...item, question: e.target.value } : item))} placeholder="e.g. Can Zoom or interviewers detect Voro?" required /></Field>
+                <Field label="Answer"><textarea rows={2} value={f.answer} onChange={e => setFaqs(faqs.map((item, i) => i === idx ? { ...item, answer: e.target.value } : item))} placeholder="e.g. No. Voro runs in kernel-isolated memory with virtual audio loops..." required /></Field>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
+      {activeTab === 'seo' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontWeight: 600, fontSize: '13px' }}>Live Google SERP Simulator</span>
+            <span style={{ fontSize: '11px', color: 'var(--accent)' }}>Updates live as you type</span>
+          </div>
+
+          <div style={{ background: '#202124', border: '1px solid #3c4043', borderRadius: '8px', padding: '16px', color: '#e8eaed', fontFamily: 'arial, sans-serif' }}>
+            <div style={{ fontSize: '12px', color: '#bdc1c6', display: 'flex', alignItems: 'center', gap: 6, marginBottom: '4px' }}>
+              <Globe size={14} color="#8ab4f8" />
+              <span>https://nor-vi.in › agents › {slug || 'agent'}</span>
+            </div>
+            <div style={{ fontSize: '18px', color: '#8ab4f8', fontWeight: 500, lineHeight: 1.3, marginBottom: '6px', cursor: 'pointer', textDecoration: 'underline' }}>
+              {metaTitle || `${name || 'Agent'} - ${tagline || 'AI Assistant'} | NORVI`}
+            </div>
+            <div style={{ fontSize: '12px', color: '#f28b82', display: 'flex', alignItems: 'center', gap: 4, marginBottom: '6px' }}>
+              <span style={{ color: '#fbbc04' }}>★★★★★</span>
+              <span style={{ color: '#bdc1c6' }}>Rating: 4.9 · ‎128 reviews · ‎Free trial available</span>
+            </div>
+            <div style={{ fontSize: '14px', color: '#bdc1c6', lineHeight: 1.5 }}>
+              {metaDescription || description || 'Explore high-performing autonomous AI agents on NORVI.'}
+            </div>
+          </div>
+
+          <Field label={`SEO Meta Title (${(metaTitle || `${name} - ${tagline} | NORVI`).length}/60 chars)`} hint="Google cuts off titles beyond 60 characters">
+            <input value={metaTitle} onChange={e => setMetaTitle(e.target.value)} placeholder="e.g. Voro - #1 Real-Time AI Interview Assistant & Coding Copilot" />
+          </Field>
+          <Field label={`SEO Meta Description (${(metaDescription || description).length}/160 chars)`} hint="Recommended: 140-160 characters with focus keywords">
+            <textarea rows={3} value={metaDescription} onChange={e => setMetaDescription(e.target.value)} placeholder="e.g. Master your live technical and behavioral interviews with Voro: the undetectable AI interview assistant with screen-aware OCR. Try free." />
+          </Field>
+          <Field label="Focus Target Keywords (comma-separated)" hint="Used for indexing and semantic search rank">
+            <input value={focusKeywords} onChange={e => setFocusKeywords(e.target.value)} placeholder="e.g. interview assistant agent, ai coding copilot, parakeet ai alternative" />
+          </Field>
+          <Field label="Social Share Image (OG Image URL)">
+            <input value={ogImage} onChange={e => setOgImage(e.target.value)} placeholder="https://..." />
+          </Field>
+        </div>
+      )}
+
+
+      {error && <Notice kind="error">{error}</Notice>}
+      <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+        <button type="submit" className="button primary" disabled={busy}>
+          {busy ? 'Saving...' : 'Save Agent Content'}<Check size={16} />
+        </button>
+      </div>
+    </form>
+  );
 }
 export function CategoriesAdmin({ categories, onSave }: { categories: Category[]; onSave: () => void }) {
   const [editing, setEditing] = useState<Category | null | undefined>(undefined);
@@ -1048,7 +1625,7 @@ export function CategoriesAdmin({ categories, onSave }: { categories: Category[]
 }
 
 export function RolePermissionsAdmin({ settings, onSave }: { settings: Settings; onSave: () => void }) {
-  const [permissions, setPermissions] = useState(settings.permissions || { "support": ["/customers", "/licenses", "/orders"], "product_manager": ["/products", "/content"], "administrator": ["/products", "/customers", "/licenses", "/orders", "/subscriptions", "/team", "/content", "/settings", "/activity"] });
+  const [permissions, setPermissions] = useState(settings.permissions || { "support": ["/customers", "/licenses", "/orders"], "product_manager": ["/products", "/releases", "/content"], "administrator": ["/products", "/releases", "/customers", "/licenses", "/orders", "/subscriptions", "/team", "/content", "/settings", "/activity"] });
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
   const roles = ['administrator', 'product_manager', 'support'];

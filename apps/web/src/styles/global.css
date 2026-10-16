@@ -39,3 +39,355 @@
     max-width: calc(100vw - 24px) !important;
   }
 }
+
+/* ==========================================================================
+   Upgraded Dynamic Public Agent Landing Page Modules
+   ========================================================================== */
+
+.agent-badge-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(212, 248, 156, 0.12);
+  border: 1px solid rgba(212, 248, 156, 0.3);
+  color: var(--lime);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: 999px;
+  margin-bottom: 18px;
+  letter-spacing: 0.3px;
+}
+
+.agent-platform-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-top: 24px;
+  margin-bottom: 24px;
+}
+
+.platform-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #171d15;
+  border: 1px solid #33402b;
+  border-radius: 6px;
+  padding: 5px 12px;
+  font-size: 12px;
+  color: #cedcc3;
+}
+
+.platform-chip svg {
+  color: var(--lime);
+}
+
+.hero-showcase-media {
+  margin-top: 32px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid #3d4a34;
+  background: #0d120c;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+  position: relative;
+}
+
+.hero-showcase-media video,
+.hero-showcase-media img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.pillars-section {
+  margin-top: 75px;
+  margin-bottom: 60px;
+}
+
+.pillars-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 22px;
+  margin-top: 28px;
+}
+
+.pillar-card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 26px;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.2s, border-color 0.2s;
+}
+
+.pillar-card:hover {
+  border-color: #647b50;
+  transform: translateY(-3px);
+}
+
+.pillar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.pillar-icon-box {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  background: #25331f;
+  color: var(--lime);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pillar-tag {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  color: var(--lime);
+  background: rgba(212, 248, 156, 0.08);
+  padding: 3px 8px;
+  border-radius: 4px;
+  border: 1px solid rgba(212, 248, 156, 0.2);
+}
+
+.pillar-card h3 {
+  font-size: 20px;
+  margin-bottom: 10px;
+  color: var(--text);
+}
+
+.pillar-card p {
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--muted);
+  margin: 0;
+}
+
+.pillar-media {
+  margin-top: 18px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #33402b;
+}
+
+.pillar-media img,
+.pillar-media video {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.gallery-section {
+  margin: 75px 0 60px;
+}
+
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 22px;
+  margin-top: 28px;
+}
+
+.gallery-card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.gallery-media-wrap {
+  width: 100%;
+  background: #0c100a;
+  position: relative;
+  min-height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gallery-media-wrap img,
+.gallery-media-wrap video {
+  width: 100%;
+  height: auto;
+  display: block;
+  max-height: 380px;
+  object-fit: cover;
+}
+
+.gallery-caption {
+  padding: 16px 20px;
+  font-size: 13px;
+  color: #ced6c7;
+  line-height: 1.5;
+  border-top: 1px solid var(--line);
+  background: #171c15;
+}
+
+.comparison-section {
+  margin: 75px 0 60px;
+}
+
+.comparison-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+  margin-top: 28px;
+}
+
+.comparison-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.comparison-table th,
+.comparison-table td {
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--line);
+  font-size: 14px;
+}
+
+.comparison-table th {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  background: #171c15;
+}
+
+.comparison-table th.us-col,
+.comparison-table td.us-col {
+  background: rgba(212, 248, 156, 0.05);
+  color: var(--text);
+  font-weight: 600;
+  border-left: 1px solid #3c4b32;
+  border-right: 1px solid #3c4b32;
+}
+
+.comparison-table th.us-col {
+  color: var(--lime);
+  font-size: 15px;
+}
+
+.agent-workflow-section {
+  margin: 75px 0 60px;
+}
+
+.agent-steps-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 24px;
+  margin-top: 28px;
+}
+
+.agent-step-card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 26px;
+}
+
+.agent-step-number {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--lime);
+  border: 1px solid #435436;
+  background: #202b1b;
+  border-radius: 6px;
+  padding: 4px 10px;
+  margin-bottom: 16px;
+}
+
+.agent-step-card h3 {
+  font-size: 20px;
+  margin-bottom: 10px;
+}
+
+.agent-step-card p {
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.agent-faq-section {
+  margin: 75px 0 60px;
+}
+
+.agent-faq-list details {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  margin-bottom: 14px;
+  padding: 20px 24px;
+  transition: border-color 0.2s;
+}
+
+.agent-faq-list details[open] {
+  border-color: #556c44;
+}
+
+.agent-faq-list summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.agent-faq-list summary::-webkit-details-marker {
+  display: none;
+}
+
+.agent-faq-list details p {
+  margin-top: 14px;
+  font-size: 14px;
+  line-height: 1.7;
+  color: #ced6c7;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.agent-cta-banner {
+  background: linear-gradient(135deg, #24351d, #182215);
+  border: 1px solid #495e3a;
+  border-radius: 14px;
+  padding: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 30px;
+  margin: 70px 0 40px;
+}
+
+.agent-cta-banner h2 {
+  font-size: 32px;
+  margin-bottom: 10px;
+}
+
+.agent-cta-banner p {
+  font-size: 15px;
+  margin: 0;
+  color: #afbaa6;
+}
+
+@media (max-width: 850px) {
+  .agent-cta-banner {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 30px 24px;
+  }
+}

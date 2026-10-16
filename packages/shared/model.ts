@@ -1,6 +1,25 @@
 export type Role = 'owner' | 'administrator' | 'product_manager' | 'support' | 'customer';
 export type Category = { id: string; slug: string; name: string; createdAt?: string };
-export type Product = { id: string; slug: string; name: string; categoryId: string; category?: Category; tagline: string; description: string; price: string; price1m?: string; price3m?: string; price_lifetime?: string; is_on_sale?: boolean; trialActive?: boolean; aiUsage?: string; deviceAllowance?: string; status: 'draft' | 'published' | 'archived'; releaseStatus: 'development' | 'prelaunch' | 'live'; logoUrl: string | null; features: string[]; version: string; requirements: string; workflowHeading: string; workflowDescription: string; workflowMediaUrl: string | null; workflowNote: string; updatedAt?: string };
+export type FeaturePillar = { id: string; title: string; description: string; icon?: string; tag?: string; mediaUrl?: string | null; };
+export type MediaGalleryItem = { id: string; type: 'image' | 'video' | 'gif'; url: string; caption?: string; };
+export type ComparisonRow = { feature: string; us: boolean | string; comp1: boolean | string; comp2: boolean | string; };
+export type CompetitorComparison = { headline?: string; competitor1Name: string; competitor2Name: string; rows: ComparisonRow[]; };
+export type WorkflowStep = { step: string; title: string; description: string; };
+export type AgentFaq = { question: string; answer: string; };
+export type AgentSeo = { metaTitle?: string; metaDescription?: string; focusKeywords?: string; ogImage?: string | null; };
+export type AgentExtendedContent = {
+  badgeText?: string;
+  heroMediaUrl?: string | null;
+  heroMediaType?: 'video' | 'gif' | 'image';
+  platformBadges?: string[];
+  featurePillars?: FeaturePillar[];
+  gallery?: MediaGalleryItem[];
+  comparison?: CompetitorComparison;
+  workflowSteps?: WorkflowStep[];
+  faqs?: AgentFaq[];
+  seo?: AgentSeo;
+};
+export type Product = { id: string; slug: string; name: string; categoryId: string; category?: Category; tagline: string; description: string; price: string; price1m?: string; price3m?: string; price_lifetime?: string; is_on_sale?: boolean; trialActive?: boolean; aiUsage?: string; deviceAllowance?: string; status: 'draft' | 'published' | 'archived'; releaseStatus: 'development' | 'prelaunch' | 'live'; logoUrl: string | null; features: string[]; version: string; requirements: string; workflowHeading: string; workflowDescription: string; workflowMediaUrl: string | null; workflowNote: string; updatedAt?: string; extendedContent?: AgentExtendedContent; };
 export type User = { id: string; name: string; email: string; role: Role; status: 'active' | 'suspended'; createdAt: string; lastLogin: string | null };
 export type License = { id: string; userId: string; productId: string; status: 'active' | 'revoked'; keyHash: string; encryptedKey: string; suffix: string; createdAt: string; device: string | null; expiresAt: string | null };
 export type Order = { id: string; userId: string; productId: string; status: 'simulated' | 'refunded' | 'pending' | 'paid' | 'failed'; amount: string; createdAt: string; licenseId: string };
@@ -69,7 +88,61 @@ export const products: Product[] = [
     workflowDescription: "An interview assistant with screen and audio context, résumé memory, and coding assistance. Designed for practice and situations where assistance is permitted. The application is reported complete; the NORVI release and compatibility checks are still being prepared.",
     workflowMediaUrl: null,
     workflowNote: "",
-    updatedAt: "2026-09-23"
+    updatedAt: "2026-09-23",
+    extendedContent: {
+      badgeText: "⚡ Ultra-Low Latency | 100% Undetectable | Local & Cloud AI",
+      platformBadges: ["Zoom", "Microsoft Teams", "Google Meet", "HackerRank", "LeetCode", "CoderPad"],
+      featurePillars: [
+        {
+          id: "voro-p1",
+          title: "Hardware-Routed Audio Stealth",
+          tag: "Undetectable",
+          icon: "ShieldCheck",
+          description: "Bypasses Windows Media Foundation capture hooks. Audio routes directly to your private earpiece so no call participants ever hear it."
+        },
+        {
+          id: "voro-p2",
+          title: "Screen-Aware Multimodal OCR",
+          tag: "Live Vision",
+          icon: "ScanEye",
+          description: "Reads coding problems, diagrams, and formulas directly off your active screen in real-time."
+        },
+        {
+          id: "voro-p3",
+          title: "Résumé & Coding Copilot",
+          tag: "Tailored Answers",
+          icon: "Bot",
+          description: "Tailors generated answers to your exact background, past projects, and solves live coding challenges with optimal time complexity."
+        }
+      ],
+      comparison: {
+        headline: "Why Voro Outperforms the Alternatives",
+        competitor1Name: "Parakeet.ai",
+        competitor2Name: "ChatGPT / Web AI",
+        rows: [
+          { feature: "Invisible on Screen Share", us: true, comp1: true, comp2: false },
+          { feature: "Hardware Audio Bypass", us: true, comp1: false, comp2: false },
+          { feature: "100% Offline / Local Execution", us: true, comp1: false, comp2: false },
+          { feature: "Pricing Model", us: "From ₹499 / Lifetime", comp1: "$149.90 / month", comp2: "$20 / month" },
+          { feature: "LeetCode & Code Assistant", us: true, comp1: true, comp2: true }
+        ]
+      },
+      workflowSteps: [
+        { step: "01", title: "Launch & Enter Key", description: "Open Voro on your Windows PC. It silently sits in your system tray." },
+        { step: "02", title: "Load Context", description: "Paste your target job description or résumé so answers are tailored to your real experience." },
+        { step: "03", title: "Join Meeting", description: "Open Zoom, Teams, or HackerRank. Voro listens and projects instant answers to your private HUD." }
+      ],
+      faqs: [
+        { question: "Will Zoom, Teams, or Google Meet detect Voro?", answer: "No. Voro utilizes hardware-level overlay layering that is completely invisible to screen-sharing capture software." },
+        { question: "Can interviewers hear Voro voice output?", answer: "No. Voro routes audio exclusively to your selected headphone output, bypassing Windows recording hooks." },
+        { question: "Can I use my own Gemini or OpenAI API keys?", answer: "Yes. Voro supports Bring-Your-Own-Key (BYOK) for zero token markups, as well as 100% offline local models (Ollama)." }
+      ],
+      seo: {
+        metaTitle: "Voro - #1 Real-Time AI Interview Assistant & Coding Copilot | Undetectable",
+        metaDescription: "Nail your live interviews with Voro: the #1 real-time AI interview assistant with screen awareness, invisible audio routing, and live coding support. Try free.",
+        focusKeywords: "interview assistant agent, real time ai interview assistant, ai interview copilot, leetcode ai helper, parakeet ai alternative, voro ai"
+      }
+    }
   },
   {
     id: "agent-3",
@@ -95,7 +168,59 @@ export const products: Product[] = [
     workflowDescription: "Discover relevant openings, compare job descriptions with your résumé, assist with applications, and track responses in a Kanban workspace. The application is reported complete; supported-platform testing and the NORVI release are being prepared. Applications require your authorization and accurate profile information.",
     workflowMediaUrl: null,
     workflowNote: "",
-    updatedAt: "2026-09-23"
+    updatedAt: "2026-09-23",
+    extendedContent: {
+      badgeText: "🚀 Automated Applications | Resume Matching | Smart Follow-up",
+      platformBadges: ["LinkedIn", "Indeed", "Wellfound", "Glassdoor", "ZipRecruiter"],
+      featurePillars: [
+        {
+          id: "rolvio-p1",
+          title: "Smart Resume Matching",
+          tag: "High ATS Fit",
+          icon: "Bot",
+          description: "Analyzes job descriptions and matches your resume skills with precision before applying."
+        },
+        {
+          id: "rolvio-p2",
+          title: "Browser-Driven Auto-Apply",
+          tag: "Hands-Free",
+          icon: "Zap",
+          description: "Automatically fills applications, answers custom screening questions, and bypasses duplicate job posts."
+        },
+        {
+          id: "rolvio-p3",
+          title: "Response & Follow-up Tracking",
+          tag: "Kanban",
+          icon: "Layers",
+          description: "Monitors interview invitations and recruiter emails in a visual status board."
+        }
+      ],
+      comparison: {
+        headline: "Why Rolvio Outperforms Job Bots",
+        competitor1Name: "LazyApply",
+        competitor2Name: "Manual Applying",
+        rows: [
+          { feature: "Smart Question Answering", us: true, comp1: false, comp2: true },
+          { feature: "Duplicate Application Guard", us: true, comp1: false, comp2: false },
+          { feature: "Email Response Tracking", us: true, comp1: false, comp2: false },
+          { feature: "Pricing Model", us: "From ₹499 / Lifetime", comp1: "$250 / lifetime", comp2: "Hours of daily work" }
+        ]
+      },
+      workflowSteps: [
+        { step: "01", title: "Profile Setup", description: "Add your resume, target titles, locations, and salary expectations." },
+        { step: "02", title: "Review Matches", description: "Rolvio discovers verified jobs and calculates ATS match scores." },
+        { step: "03", title: "Automated Submissions", description: "Rolvio applies cleanly through your browser with human-like interactions." }
+      ],
+      faqs: [
+        { question: "Can job platforms detect automated applications?", answer: "Rolvio mimics natural human typing patterns, mouse movements, and variable delays to safeguard your accounts." },
+        { question: "Can I review applications before they are sent?", answer: "Yes. You can run Rolvio in full auto mode or semi-autonomous review mode where it pauses for your approval." }
+      ],
+      seo: {
+        metaTitle: "Rolvio - AI Automated Job Applicant & Career Assistant | NORVI",
+        metaDescription: "Automate your job search with Rolvio. Smart resume matching, automated job applications on LinkedIn and Indeed, and email response tracking.",
+        focusKeywords: "automation for applying job, job apply agent, automated job application, auto apply linkedin, rolvio ai"
+      }
+    }
   }
 ];
 export function seed(): Store {

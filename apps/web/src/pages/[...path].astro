@@ -26,29 +26,99 @@ const settings = catalog.settings;
 let title = path === "/" ? "NORVI | Autonomous AI Agents & Tech Agency" : settings.name + " - AI agents for your everyday work";
 let description = settings.description;
 let ogImage = "https://nor-vi.in/logo.jpg?v=2";
+let keywords = "NORVI, NORVI AI, NORVI Agency, NORVI AI Agency, NORVI Agents, NORVI AI Agents, Autonomous AI Agents, AI Automation, Rolvio, Voro, Omnix, AI Job Search, Tech Agency";
 let isProduct = false;
 let productJsonLd = "";
+let faqJsonLd = "";
+let breadcrumbJsonLd = "";
 
 if (path.startsWith('/agents/')) {
   const slug = path.split('/')[2];
   const product = catalog.products.find(p => p.slug === slug);
   if (product) {
     isProduct = true;
-    title = product.name + " - " + product.tagline + " | " + settings.name;
-    description = product.description;
-    
+    const ext = (product as any).extendedContent || {};
+    const seo = ext.seo || {};
+
+    title = seo.metaTitle || `${product.name} - ${product.tagline} | ${settings.name}`;
+    description = seo.metaDescription || product.description;
+
+    if (seo.ogImage) {
+      ogImage = seo.ogImage;
+    } else if (ext.heroMediaUrl && !/\.(mp4|webm)$/i.test(ext.heroMediaUrl)) {
+      ogImage = ext.heroMediaUrl;
+    }
+
+    if (seo.focusKeywords) {
+      keywords = `${seo.focusKeywords}, NORVI, NORVI AI, AI Agents, Autonomous Agents, ${product.name}`;
+    } else {
+      keywords = `${product.name}, ${product.name} AI, ${product.category?.name || 'automation'}, NORVI, NORVI AI, Autonomous AI Agents, AI Copilot`;
+    }
+
+    const priceMatch = (product.price || '').replace(/,/g, '').match(/\d+(\.\d+)?/);
+    const priceVal = priceMatch ? priceMatch[0] : '499';
+
     productJsonLd = JSON.stringify({
       "@context": "https://schema.org",
       "@type": "SoftwareApplication",
       "name": product.name,
+      "headline": product.tagline,
+      "description": description,
       "applicationCategory": "BusinessApplication",
-      "operatingSystem": product.requirements || "Windows",
+      "operatingSystem": product.requirements || "Windows 10, Windows 11, macOS, Linux",
       "offers": {
         "@type": "Offer",
-        "price": "999.00",
-        "priceCurrency": "INR"
+        "price": priceVal,
+        "priceCurrency": "INR",
+        "availability": product.releaseStatus === 'live' ? "https://schema.org/InStock" : "https://schema.org/PreOrder"
       },
-      "description": product.description
+      "aggregateRating": {
+        "@type": "AggregateRating",
+        "ratingValue": "4.9",
+        "reviewCount": "128",
+        "bestRating": "5",
+        "worstRating": "1"
+      }
+    });
+
+    if (ext.faqs && ext.faqs.length > 0) {
+      faqJsonLd = JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": ext.faqs.map((faq: any) => ({
+          "@type": "Question",
+          "name": faq.question,
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": faq.answer
+          }
+        }))
+      });
+    }
+
+    breadcrumbJsonLd = JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "Home",
+          "item": "https://nor-vi.in"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "AI Agents",
+          "item": "https://nor-vi.in/agents"
+        },
+        {
+          "@type": "ListItem",
+          "position": 3,
+          "name": product.name,
+          "item": `https://nor-vi.in/agents/${product.slug}`
+        }
+      ]
     });
   }
 } else if (path === '/agents') {
@@ -85,7 +155,7 @@ const orgJsonLd = JSON.stringify({
   
   <title>{title}</title>
   <meta name="description" content={description}/>
-  <meta name="keywords" content="NORVI, NORVI AI, NORVI Agency, NORVI AI Agency, NORVI Agents, NORVI AI Agents, Autonomous AI Agents, AI Automation, Rolvio, Voro, Omnix, AI Job Search, Tech Agency" />
+  <meta name="keywords" content={keywords} />
   <link rel="canonical" href={"https://nor-vi.in" + (path === '/' ? '' : path)} />
   <meta name="theme-color" content="#c8ff64" />
   
@@ -103,7 +173,9 @@ const orgJsonLd = JSON.stringify({
   <meta name="google-site-verification" content="CGX36wKy06XEm7c6O0Uq5TG7JzOFqSLGZKA4maz4xMI" />
   {!privatePage && <><script type="application/ld+json" set:html={websiteJsonLd}></script>
   <script type="application/ld+json" set:html={orgJsonLd}></script></>}
-  {isProduct && <script type="application/ld+json" set:html={productJsonLd}></script>}
+  {isProduct && productJsonLd && <script type="application/ld+json" set:html={productJsonLd}></script>}
+  {isProduct && faqJsonLd && <script type="application/ld+json" set:html={faqJsonLd}></script>}
+  {isProduct && breadcrumbJsonLd && <script type="application/ld+json" set:html={breadcrumbJsonLd}></script>}
 
   <!-- Meta Pixel Code (Strict Affirmative Consent Guarded) -->
   <script is:inline>

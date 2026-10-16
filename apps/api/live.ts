@@ -78,13 +78,13 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
       : factory(c);
     const [productsResult, settingsResult, categoriesResult] = await Promise.all([
       supabase.from('products')
-        .select('id, slug, name, categoryId:category_id, tagline, description, price:price_label, price1m:price_1m, price3m:price_3m, price_lifetime:price_lifetime, status, logoUrl:logo_url, features, version, requirements, releaseStatus:release_status, workflowHeading:workflow_heading, workflowDescription:workflow_description, workflowMediaUrl:workflow_media_url, workflowNote:workflow_note, aiUsage:ai_usage, deviceAllowance:device_allowance, is_on_sale, trialActive:trial_active')
+        .select('id, slug, name, categoryId:category_id, tagline, description, price:price_label, price1m:price_1m, price3m:price_3m, price_lifetime:price_lifetime, status, logoUrl:logo_url, features, version, requirements, releaseStatus:release_status, workflowHeading:workflow_heading, workflowDescription:workflow_description, workflowMediaUrl:workflow_media_url, workflowNote:workflow_note, aiUsage:ai_usage, deviceAllowance:device_allowance, is_on_sale, trialActive:trial_active, extendedContent:extended_content')
         .in('status', ['published', 'archived'])
         .order('created_at', { ascending: true }),
       supabase.from('site_settings').select('name, headline, description, email, company, domain, maintenance_mode, permissions, banner_text, sale_active, sale_percentage, socialInstagram:social_instagram, socialYoutube:social_youtube, socialFacebook:social_facebook, socialTwitter:social_twitter').single(),
       supabase.from('categories').select('id, slug, name, createdAt:created_at')
     ]);
-    const products = (productsResult.data || catalog.products).map(p => ({...p, category: (categoriesResult.data || catalog.categories).find(c => c.id === p.categoryId) || null}));
+    const products = (productsResult.data || catalog.products).map(p => ({...p, extendedContent: (p as any).extendedContent || {}, category: (categoriesResult.data || catalog.categories).find(c => c.id === p.categoryId) || null}));
     const settings = settingsResult.data ? { ...settingsResult.data, maintenanceMode: settingsResult.data.maintenance_mode, bannerText: settingsResult.data.banner_text, saleActive: settingsResult.data.sale_active, salePercentage: settingsResult.data.sale_percentage, permissions: (Object.keys(settingsResult.data.permissions || {}).length > 0) ? settingsResult.data.permissions : defaultPermissions } : catalog.settings;
     const categories = categoriesResult.data || catalog.categories;
     return c.json({ categories, products, settings, preview: false });
@@ -800,7 +800,8 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
         p_price_3m: parseFloat(input.price_3m) || 0,
         p_price_lifetime: parseFloat(input.price_lifetime) || 999,
         p_ai_usage: input.aiUsage || null,
-        p_device_allowance: input.deviceAllowance || null
+        p_device_allowance: input.deviceAllowance || null,
+        p_extended_content: input.extendedContent || {}
       });
     return error ? c.json({ error: 'Product could not be saved. ' + error.message }, 400) : c.json({ ok: true });
   });
@@ -852,7 +853,8 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     const { error } = await c.get('db').rpc('admin_update_settings', {
       p_name: input.name, p_headline: input.headline, p_description: input.description,
       p_email: input.email, p_company: input.company, p_domain: input.domain,
-        p_social_instagram: input.socialInstagram, p_social_youtube: input.socialYoutube, p_social_facebook: input.socialFacebook, p_social_twitter: input.socialTwitter
+      p_banner_text: input.bannerText !== undefined ? input.bannerText : null,
+      p_social_instagram: input.socialInstagram, p_social_youtube: input.socialYoutube, p_social_facebook: input.socialFacebook, p_social_twitter: input.socialTwitter
     });
     if (error) return c.json({ error: 'Settings could not be saved: ' + error.message }, 400);
     if (c.get('user').role === 'owner' && typeof input.maintenanceMode === 'boolean') {

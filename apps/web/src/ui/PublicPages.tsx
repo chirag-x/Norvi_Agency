@@ -1,11 +1,46 @@
 import { useState, useEffect, useRef } from 'react';
-import { ArrowRight,ArrowUpRight,Search,Check,ShieldCheck,KeyRound,Download,Mail,LifeBuoy,Workflow , Activity, Instagram, Youtube, Facebook, Twitter} from 'lucide-react';
+import { 
+  ArrowRight, ArrowUpRight, Search, Check, ShieldCheck, KeyRound, Download, 
+  Mail, LifeBuoy, Workflow, Activity, Instagram, Youtube, Facebook, Twitter,
+  Sparkles, Plus, Code, Mic, Bot, Film, Cpu, Zap, Monitor, Layers, Lock, Terminal, Eye
+} from 'lucide-react';
 import type { Product,Settings } from '../../../../packages/shared/model';
 import { ProductCard,ProductIcon } from './App';
 import { PageHeading,Notice,Field,Empty,api,useData } from './common';
 import { trackMetaPurchase } from './analytics';
 export function Catalog({products, settings}:{products:Product[]; settings?:Settings}){const [query,setQuery]=useState('');const filtered=products.filter(p=>(p.name+' '+p.category+' '+p.description).toLowerCase().includes(query.toLowerCase()));return <div className="container page"><PageHeading eyebrow="YOUR NEXT WORKFLOW STARTS HERE" title="Meet your next agent." description="— collection of tools for a little less routine and a lot more possibility."/><div className="catalog-toolbar"><span className="tab active">All agents <b>{products.length}</b></span><label className="search"><Search size={17}/><input aria-label="Search agents" placeholder="Find an agent…" value={query} onChange={e=>setQuery(e.target.value)}/></label></div><div className="product-grid">{filtered.map(p=><ProductCard key={p.id} product={p}/>)}</div>{!filtered.length&&<Empty title="No matches just yet." description="Try another name or clear your search."/>}<div className="inline-callout"><div><h3>Not sure where to start?</h3><p>Learn how purchase, download, and activation will work.</p></div><a className="text-button" href="/help">Get a little guidance <ArrowUpRight size={18}/></a></div></div>;}
-  export function Detail({product, settings}:{product:Product|undefined; settings?:Settings}){
+function PillarIcon({ name, size = 20 }: { name?: string; size?: number }) {
+  const icon = (name || '').toLowerCase();
+  if (icon.includes('shield') || icon.includes('security')) return <ShieldCheck size={size} />;
+  if (icon.includes('code') || icon.includes('developer')) return <Code size={size} />;
+  if (icon.includes('mic') || icon.includes('audio') || icon.includes('voice')) return <Mic size={size} />;
+  if (icon.includes('bot') || icon.includes('ai') || icon.includes('agent')) return <Bot size={size} />;
+  if (icon.includes('film') || icon.includes('video') || icon.includes('media')) return <Film size={size} />;
+  if (icon.includes('cpu') || icon.includes('hardware') || icon.includes('chip')) return <Cpu size={size} />;
+  if (icon.includes('zap') || icon.includes('fast') || icon.includes('speed')) return <Zap size={size} />;
+  if (icon.includes('monitor') || icon.includes('screen') || icon.includes('display')) return <Monitor size={size} />;
+  if (icon.includes('layer') || icon.includes('stack')) return <Layers size={size} />;
+  if (icon.includes('lock') || icon.includes('private')) return <Lock size={size} />;
+  if (icon.includes('terminal') || icon.includes('cli')) return <Terminal size={size} />;
+  if (icon.includes('eye') || icon.includes('vision') || icon.includes('scan')) return <Eye size={size} />;
+  if (icon.includes('activity')) return <Activity size={size} />;
+  return <Sparkles size={size} />;
+}
+
+function renderComparisonCell(val: boolean | string | undefined | null, isUs: boolean) {
+  if (val === true) {
+    return <Check size={18} style={{ color: 'var(--lime)', verticalAlign: 'middle' }} />;
+  }
+  if (val === false) {
+    return <span style={{ opacity: 0.35 }}>&mdash;</span>;
+  }
+  if (!val) {
+    return <span style={{ opacity: 0.35 }}>&mdash;</span>;
+  }
+  return <span>{val}</span>;
+}
+
+export function Detail({product, settings}:{product:Product|undefined; settings?:Settings}){
   const { data: account, reload } = useData('/account');
   const ownsProduct = account?.licenses?.some((l:any) => l.productId === product?.id && l.status === 'active');
   const [trialModal, setTrialModal] = useState(false);
@@ -31,14 +66,13 @@ export function Catalog({products, settings}:{products:Product[]; settings?:Sett
     }
   }
 
-  
-  if(!product)return <NotFound/>;
+  if(!product) return <NotFound/>;
 
-  
+  const ext = product.extendedContent;
+  const isVideo = ext?.heroMediaType === 'video' || (ext?.heroMediaUrl && /\.(mp4|webm)$/i.test(ext.heroMediaUrl));
 
   return (
     <div className="container page">
-
       {trialModal && (
         <div className="modal-overlay" style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(0,0,0,0.85)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center', padding:'20px'}}>
           <div className="panel" style={{maxWidth: 420, width: '100%', textAlign:'center', padding:'40px 30px', position:'relative'}}>
@@ -65,9 +99,17 @@ export function Catalog({products, settings}:{products:Product[]; settings?:Sett
           </div>
         </div>
       )}
-      
 
-      <a className="breadcrumb" href="/agents">&larr; All agents</a>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 24 }}>
+        <a className="breadcrumb" href="/agents" style={{ marginBottom: 0 }}>&larr; All agents</a>
+        {ext?.badgeText && (
+          <div className="agent-badge-pill" style={{ marginBottom: 0 }}>
+            <Sparkles size={14} style={{ color: 'var(--lime)' }} />
+            <span>{ext.badgeText}</span>
+          </div>
+        )}
+      </div>
+
       <div className="detail-hero">
         <div>
           <ProductIcon product={product} size={48}/>
@@ -75,8 +117,39 @@ export function Catalog({products, settings}:{products:Product[]; settings?:Sett
           <h1>{product.name}</h1>
           <p className="lead">{product.tagline}</p>
           <p>{product.description}</p>
-          <div className="detail-features">{(product.features||[]).map(f=><span key={f}><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>{f}</span>)}</div>
+
+          {ext?.platformBadges && ext.platformBadges.length > 0 && (
+            <div className="agent-platform-chips">
+              <span style={{ fontSize: 11, letterSpacing: 0.8, color: 'var(--muted)', textTransform: 'uppercase', fontWeight: 600 }}>Works With:</span>
+              {ext.platformBadges.map((badge, idx) => (
+                <span key={idx} className="platform-chip">
+                  <Check size={13} />
+                  {badge}
+                </span>
+              ))}
+            </div>
+          )}
+
+          <div className="detail-features">
+            {(product.features||[]).map(f=>(
+              <span key={f}>
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                {f}
+              </span>
+            ))}
+          </div>
+
+          {ext?.heroMediaUrl && (
+            <div className="hero-showcase-media">
+              {isVideo ? (
+                <video src={ext.heroMediaUrl} autoPlay loop muted playsInline controls style={{ width: '100%', height: 'auto', display: 'block' }} />
+              ) : (
+                <img src={ext.heroMediaUrl} alt={`${product.name} showcase`} style={{ width: '100%', height: 'auto', display: 'block' }} />
+              )}
+            </div>
+          )}
         </div>
+
         <aside className="purchase-panel">
           <span className="eyebrow">MAKE IT PART OF YOUR WORKDAY</span>
           {ownsProduct ? (
@@ -89,15 +162,15 @@ export function Catalog({products, settings}:{products:Product[]; settings?:Sett
           ) : (
             <>
               <h2 style={{display:'flex', flexDirection:'column'}}>
-  {(settings?.saleActive && settings?.salePercentage && product.is_on_sale && /\d/.test(product.price || '')) ? (
-    <>
-      <span style={{textDecoration:'line-through', fontSize:'0.5em', opacity:0.6, marginBottom: '-10px'}}>{product.price}</span>
-      <span style={{color:'var(--green)'}}>
-        {product.price?.replace(/(\d+(?:,\d+)?)/, (match: string) => Math.floor(parseFloat(match.replace(/,/g, '')) * (1 - (settings?.salePercentage || 0) / 100)).toLocaleString())}
-      </span>
-    </>
-  ) : product.price}
-</h2>
+                {(settings?.saleActive && settings?.salePercentage && product.is_on_sale && /\d/.test(product.price || '')) ? (
+                  <>
+                    <span style={{textDecoration:'line-through', fontSize:'0.5em', opacity:0.6, marginBottom: '-10px'}}>{product.price}</span>
+                    <span style={{color:'var(--green)'}}>
+                      {product.price?.replace(/(\d+(?:,\d+)?)/, (match: string) => Math.floor(parseFloat(match.replace(/,/g, '')) * (1 - (settings?.salePercentage || 0) / 100)).toLocaleString())}
+                    </span>
+                  </>
+                ) : product.price}
+              </h2>
               <p>Flexible access &middot; Try before you buy</p>
               {product.status === 'archived' ? (
                 <button className="button secondary full" disabled>Archived &mdash; sales paused</button>
@@ -106,8 +179,7 @@ export function Catalog({products, settings}:{products:Product[]; settings?:Sett
               ) : (
                 <div style={{display: 'flex', flexDirection: 'column', gap: '8px'}}>
                   <a className="button primary full" href={'/checkout/'+product.slug}>{product.releaseStatus === 'live' ? 'Buy now' : 'View availability'} <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="7" y1="17" x2="17" y2="7"></line><polyline points="7 7 17 7 17 17"></polyline></svg></a>
-                    {product.trialActive !== false && <button className="button secondary full" onClick={() => setTrialModal(true)}>Start free trial</button>}
-                  
+                  {product.trialActive !== false && <button className="button secondary full" onClick={() => setTrialModal(true)}>Start free trial</button>}
                 </div>
               )}
             </>
@@ -118,6 +190,123 @@ export function Catalog({products, settings}:{products:Product[]; settings?:Sett
           <div><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><path d="m9 12 2 2 4-4"></path></svg> Account-based license management</div>
         </aside>
       </div>
+
+      {ext?.featurePillars && ext.featurePillars.length > 0 && (
+        <section className="pillars-section">
+          <div className="section-heading" style={{ marginBottom: 20 }}>
+            <div>
+              <span className="eyebrow">BUILT DIFFERENT</span>
+              <h2>Core Capabilities</h2>
+            </div>
+            <p className="section-aside">Engineered for precision, high throughput, and effortless execution.</p>
+          </div>
+          <div className="pillars-grid">
+            {ext.featurePillars.map(pillar => (
+              <div key={pillar.id} className="pillar-card">
+                <div className="pillar-header">
+                  <div className="pillar-icon-box">
+                    <PillarIcon name={pillar.icon} size={20} />
+                  </div>
+                  {pillar.tag && <span className="pillar-tag">{pillar.tag}</span>}
+                </div>
+                <h3>{pillar.title}</h3>
+                <p>{pillar.description}</p>
+                {pillar.mediaUrl && (
+                  <div className="pillar-media">
+                    {/\.(mp4|webm)$/i.test(pillar.mediaUrl) ? (
+                      <video src={pillar.mediaUrl} autoPlay loop muted playsInline />
+                    ) : (
+                      <img src={pillar.mediaUrl} alt={pillar.title} />
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {ext?.gallery && ext.gallery.length > 0 && (
+        <section className="gallery-section">
+          <div className="section-heading" style={{ marginBottom: 20 }}>
+            <div>
+              <span className="eyebrow">SEE IT IN ACTION</span>
+              <h2>Interface &amp; Visuals</h2>
+            </div>
+            <p className="section-aside">A closer look at how {product.name} operates on your desktop.</p>
+          </div>
+          <div className="gallery-grid">
+            {ext.gallery.map(item => (
+              <div key={item.id} className="gallery-card">
+                <div className="gallery-media-wrap">
+                  {item.type === 'video' || /\.(mp4|webm)$/i.test(item.url) ? (
+                    <video src={item.url} controls playsInline preload="metadata" />
+                  ) : (
+                    <img src={item.url} alt={item.caption || `${product.name} interface view`} loading="lazy" />
+                  )}
+                </div>
+                {item.caption && <div className="gallery-caption">{item.caption}</div>}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {ext?.comparison && ext.comparison.rows && ext.comparison.rows.length > 0 && (
+        <section className="comparison-section">
+          <div className="section-heading" style={{ marginBottom: 20 }}>
+            <div>
+              <span className="eyebrow">HEAD-TO-HEAD BREAKDOWN</span>
+              <h2>{ext.comparison.headline || `Why ${product.name} Leads the Industry`}</h2>
+            </div>
+            <p className="section-aside">Transparent side-by-side comparison with traditional alternatives.</p>
+          </div>
+          <div className="comparison-table-wrap">
+            <table className="comparison-table">
+              <thead>
+                <tr>
+                  <th style={{ width: '40%' }}>Feature / Capability</th>
+                  <th className="us-col" style={{ width: '24%' }}>{product.name} (NORVI)</th>
+                  <th style={{ width: '18%' }}>{ext.comparison.competitor1Name || 'Alternative 1'}</th>
+                  <th style={{ width: '18%' }}>{ext.comparison.competitor2Name || 'Alternative 2'}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {ext.comparison.rows.map((row, idx) => (
+                  <tr key={idx}>
+                    <td><b>{row.feature}</b></td>
+                    <td className="us-col">{renderComparisonCell(row.us, true)}</td>
+                    <td>{renderComparisonCell(row.comp1, false)}</td>
+                    <td>{renderComparisonCell(row.comp2, false)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+
+      {ext?.workflowSteps && ext.workflowSteps.length > 0 && (
+        <section className="agent-workflow-section">
+          <div className="section-heading" style={{ marginBottom: 20 }}>
+            <div>
+              <span className="eyebrow">SIMPLE SETUP</span>
+              <h2>How It Works</h2>
+            </div>
+            <p className="section-aside">Up and running on your system in under two minutes.</p>
+          </div>
+          <div className="agent-steps-grid">
+            {ext.workflowSteps.map((step, idx) => (
+              <div key={idx} className="agent-step-card">
+                <span className="agent-step-number">{step.step || `0${idx + 1}`}</span>
+                <h3>{step.title}</h3>
+                <p>{step.description}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       <div className="two-column">
         <section className="panel">
           <h2>{product.workflowHeading || 'Built for your workflow.'}</h2>
@@ -147,6 +336,49 @@ export function Catalog({products, settings}:{products:Product[]; settings?:Sett
           </dl>
           <a href="/help" className="text-button">Installation &amp; activation <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></a>
         </section>
+      </div>
+
+      {ext?.faqs && ext.faqs.length > 0 && (
+        <section className="agent-faq-section">
+          <div className="section-heading" style={{ marginBottom: 20 }}>
+            <div>
+              <span className="eyebrow">COMMON QUESTIONS</span>
+              <h2>Frequently Asked Questions</h2>
+            </div>
+            <p className="section-aside">Everything you need to know about {product.name}.</p>
+          </div>
+          <div className="agent-faq-list">
+            {ext.faqs.map((faq, idx) => (
+              <details key={idx}>
+                <summary>
+                  <span>{faq.question}</span>
+                  <Plus size={18} />
+                </summary>
+                <p style={{ whiteSpace: 'pre-line' }}>{faq.answer}</p>
+              </details>
+            ))}
+          </div>
+        </section>
+      )}
+
+      <div className="agent-cta-banner">
+        <div>
+          <span className="eyebrow" style={{ color: 'var(--lime)', marginBottom: 8 }}>GET STARTED TODAY</span>
+          <h2>Ready to deploy {product.name}?</h2>
+          <p>Join professionals using NORVI autonomous agents to streamline their daily routine.</p>
+        </div>
+        <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+          {product.status !== 'archived' && product.releaseStatus !== 'development' && (
+            <a className="button primary" href={'/checkout/' + product.slug}>
+              Get {product.name} <ArrowUpRight size={18} />
+            </a>
+          )}
+          {product.trialActive !== false && product.releaseStatus !== 'development' && (
+            <button className="button secondary" onClick={() => setTrialModal(true)}>
+              Start free trial
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
