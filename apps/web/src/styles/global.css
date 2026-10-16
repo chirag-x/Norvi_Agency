@@ -101,6 +101,21 @@
   display: block;
 }
 
+.detail-hero .purchase-panel {
+  align-self: flex-start;
+  height: fit-content;
+  position: sticky;
+  top: 30px;
+}
+
+@media (max-width: 850px) {
+  .detail-hero .purchase-panel {
+    position: static;
+    align-self: auto;
+    height: auto;
+  }
+}
+
 .pillars-section {
   margin-top: 75px;
   margin-bottom: 60px;
