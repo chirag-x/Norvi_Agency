@@ -272,7 +272,6 @@ function SupportForm({ user, onSave }: { user?: User; onSave: () => void }) {
       name="support"
       method="POST"
       data-netlify="true"
-      netlify-honeypot="bot-field"
       onSubmit={async (e) => {
         e.preventDefault();
         const form = e.currentTarget;
@@ -283,7 +282,7 @@ function SupportForm({ user, onSave }: { user?: User; onSave: () => void }) {
         setMessage('');
 
         try {
-          // 1. Submit to API (Supabase ticket creation + Discord notification to #norvi-support)
+          // 1. Submit to API (Supabase ticket creation + Discord notification to # │ norvi-support)
           await api('/support', {
             method: 'POST',
             body: JSON.stringify({ subject, message: msg }),
@@ -294,13 +293,7 @@ function SupportForm({ user, onSave }: { user?: User; onSave: () => void }) {
             await fetch('/', {
               method: 'POST',
               headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-              body: new URLSearchParams({
-                'form-name': 'support',
-                name: user?.name || 'Customer',
-                email: user?.email || '',
-                subject,
-                message: msg,
-              }).toString(),
+              body: new URLSearchParams(new FormData(form) as any).toString(),
             });
           } catch (netErr) {
             console.warn('Netlify support form warning:', netErr);
@@ -319,16 +312,15 @@ function SupportForm({ user, onSave }: { user?: User; onSave: () => void }) {
       }}
     >
       <input type="hidden" name="form-name" value="support" />
-      <p hidden style={{ display: 'none' }}>
-        <label>Don’t fill this out: <input name="bot-field" /></label>
-      </p>
+      <input type="hidden" name="name" value={user?.name || 'Customer'} />
+      <input type="hidden" name="email" value={user?.email || ''} />
       <h3>Start a conversation</h3>
       <p>Need help with your agent, activation key, or subscription? Reach our team directly.</p>
       <Field label="Subject">
         <input name="subject" required minLength={3} maxLength={120} placeholder="What can we help with?" disabled={busy} />
       </Field>
       <Field label="Message">
-        <textarea name="message" required minLength={10} maxLength={3000} rows={5} placeholder="Tell us a little more…" disabled={busy} />
+        <textarea name="message" required minLength={5} maxLength={3000} rows={5} placeholder="Tell us a little more…" disabled={busy} />
       </Field>
       <button className="button primary" disabled={busy}>
         {busy ? 'Submitting...' : 'Send support request'} <ArrowRight size={16} />
