@@ -1,5 +1,5 @@
-import { useEffect,useState,type ReactNode } from 'react';
-import { AlertCircle,ArrowUpRight,CheckCircle2,LoaderCircle } from 'lucide-react';
+import { useEffect,useState,type ReactNode,type CSSProperties } from 'react';
+import { AlertCircle,ArrowUpRight,CheckCircle2,LoaderCircle,ExternalLink } from 'lucide-react';
 export async function api<T=any>(path:string,options:RequestInit={}):Promise<T>{const response=await fetch('/api'+path,{...options,headers:{'Content-Type':'application/json',...options.headers}});let data;try{data=await response.json();}catch{throw Error('The website service is unavailable. Start the local preview server and try again.');}if(!response.ok)throw Error(data.error||'Please try again.');return data;}
 export async function uploadFile(file: File, bucket = 'product-assets'): Promise<string> {
   const ticketRes = await fetch('/api/admin/upload-ticket', {
@@ -39,3 +39,113 @@ export function Loading(){return <div className="empty"><LoaderCircle className=
 export function Badge({children, kind}:{children:ReactNode; kind?:string}){return <span className={'badge ' + (kind || (children==='active'||children==='published'||children==='Connected'?'good':''))}>{children}</span>;}
 export function Field({label,children,hint}:{label:string;children:ReactNode;hint?:string}){return <label className="field"><span>{label}</span>{children}{hint&&<small>{hint}</small>}</label>;}
 export function date(value:string|null|undefined){return value?new Date(value).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}):'Not yet';}
+
+export function parseYouTubeVideoId(url: string | null | undefined): string | null {
+  if (!url || typeof url !== 'string') return null;
+  const trimmed = url.trim();
+  if (!trimmed) return null;
+
+  if (/^[a-zA-Z0-9_-]{11}$/.test(trimmed)) {
+    return trimmed;
+  }
+
+  try {
+    const shortMatch = trimmed.match(/(?:https?:\/\/)?(?:www\.)?youtu\.be\/([a-zA-Z0-9_-]{11})/i);
+    if (shortMatch && shortMatch[1]) return shortMatch[1];
+
+    const embedMatch = trimmed.match(/(?:https?:\/\/)?(?:www\.)?youtube(?:-nocookie)?\.com\/embed\/([a-zA-Z0-9_-]{11})/i);
+    if (embedMatch && embedMatch[1]) return embedMatch[1];
+
+    const watchMatch = trimmed.match(/[?&]v=([a-zA-Z0-9_-]{11})/i);
+    if (watchMatch && watchMatch[1]) return watchMatch[1];
+
+    const pathMatch = trimmed.match(/(?:https?:\/\/)?(?:www\.)?youtube\.com\/(?:v|shorts|live)\/([a-zA-Z0-9_-]{11})/i);
+    if (pathMatch && pathMatch[1]) return pathMatch[1];
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
+export function SmartVideoPlayer({
+  url,
+  title = 'Video Player',
+  autoPlay = false,
+  loop = false,
+  muted = false,
+  controls = true,
+  showExternalLink = true,
+  className = '',
+  style
+}: {
+  url?: string | null;
+  title?: string;
+  autoPlay?: boolean;
+  loop?: boolean;
+  muted?: boolean;
+  controls?: boolean;
+  showExternalLink?: boolean;
+  className?: string;
+  style?: CSSProperties;
+}) {
+  if (!url) return null;
+  const youtubeId = parseYouTubeVideoId(url);
+
+  if (youtubeId) {
+    const embedParams = new URLSearchParams({
+      rel: '0',
+      modestbranding: '1',
+      playsinline: '1'
+    });
+    if (autoPlay) embedParams.set('autoplay', '1');
+    if (muted) embedParams.set('mute', '1');
+    if (loop) {
+      embedParams.set('loop', '1');
+      embedParams.set('playlist', youtubeId);
+    }
+    if (!controls) embedParams.set('controls', '0');
+
+    return (
+      <div className={`smart-video-wrap ${className}`} style={{ width: '100%', position: 'relative', ...style }}>
+        <div style={{ position: 'relative', width: '100%', aspectRatio: '16/9', overflow: 'hidden', borderRadius: '8px', background: '#000' }}>
+          <iframe
+            src={`https://www.youtube-nocookie.com/embed/${youtubeId}?${embedParams.toString()}`}
+            title={title}
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowFullScreen
+            style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 0 }}
+          />
+        </div>
+        {showExternalLink && (
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '6px' }}>
+            <a
+              href={`https://www.youtube.com/watch?v=${youtubeId}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-button"
+              style={{ fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '4px', color: 'var(--text-light)', padding: 0 }}
+            >
+              Watch on YouTube <ExternalLink size={12} />
+            </a>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className={`smart-video-wrap ${className}`} style={{ width: '100%', ...style }}>
+      <video
+        src={url}
+        controls={controls}
+        autoPlay={autoPlay}
+        loop={loop}
+        muted={muted}
+        playsInline
+        preload="metadata"
+        style={{ width: '100%', height: 'auto', display: 'block', borderRadius: '8px' }}
+      />
+    </div>
+  );
+}

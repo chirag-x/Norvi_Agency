@@ -8,7 +8,7 @@ import { createClient } from '@supabase/supabase-js';
 import { z } from 'zod';
 import catalog from '../../packages/shared/catalog.json';
 
-export type LiveEnv = { APP_ORIGIN?: string; SUPABASE_URL?: string; SUPABASE_ANON_KEY?: string; SUPABASE_SERVICE_ROLE_KEY?: string; AUTH_RATE_LIMITER?: { limit: (input: { key: string }) => Promise<{ success: boolean }> }; RAZORPAY_KEY_ID?: string; RAZORPAY_KEY_SECRET?: string; RAZORPAY_WEBHOOK_SECRET?: string; RESEND_API_KEY?: string; CRON_SECRET?: string; LICENSE_ENCRYPTION_KEY?: string; EMAIL_FROM?: string; GITHUB_PAT?: string; GITHUB_REPO_OWNER?: string; GITHUB_REPO_NAME?: string; norvi_sales_and_orders?: string; norvi_downloads?: string; norvi_team_and_security?: string; norvi_system_alerts?: string; };
+export type LiveEnv = { APP_ORIGIN?: string; SUPABASE_URL?: string; SUPABASE_ANON_KEY?: string; SUPABASE_SERVICE_ROLE_KEY?: string; AUTH_RATE_LIMITER?: { limit: (input: { key: string }) => Promise<{ success: boolean }> }; RAZORPAY_KEY_ID?: string; RAZORPAY_KEY_SECRET?: string; RAZORPAY_WEBHOOK_SECRET?: string; RESEND_API_KEY?: string; CRON_SECRET?: string; LICENSE_ENCRYPTION_KEY?: string; EMAIL_FROM?: string; GITHUB_PAT?: string; GITHUB_REPO_OWNER?: string; GITHUB_REPO_NAME?: string; norvi_sales_and_orders?: string; norvi_downloads?: string; norvi_team_and_security?: string; norvi_system_alerts?: string; norvi_contact?: string; norvi_support?: string; };
 type Identity = { id: string; email: string; name: string; role: string; status: string; createdAt: string; lastLogin: string | null };
 type AppEnv = { Bindings: LiveEnv; Variables: { db: SupabaseClient; user: Identity; mfaRequired: boolean } };
 type Factory = (c: Context<AppEnv>) => SupabaseClient;
@@ -91,6 +91,7 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
   });
   app.all('/api/preview/*', c => c.json({ error: 'Preview actions are disabled in account mode.' }, 404));
   app.use('/api/*', async (c, next) => {
+    if (c.req.path === '/api/contact') return next();
     if (!isConfigured(c.env)) return c.json({ error: 'Supabase account services need to be configured.' }, 503);
     c.set('db', makeClient(c)); await next();
   });
@@ -373,8 +374,23 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
 
     return c.json({ ok: true, lease: jwt, expires_at: new Date(leaseExp * 1000).toISOString() });
   });
+
+  app.post('/api/contact', async c => {
+    const input = z.object({
+      name: z.string().trim().min(2, 'Name must be at least 2 characters.').max(100),
+      email: z.string().trim().email('Valid email is required.').max(254),
+      message: z.string().trim().min(10, 'Message must be at least 10 characters.').max(3000),
+    }).parse(await c.req.json());
+
+    const discordMsg = `📬 **[New Contact Inquiry]**\n**From:** ${input.name} (<${input.email}>)\n**Time:** <t:${Math.floor(Date.now() / 1000)}:F>\n\n**Message:**\n${input.message}`;
+    const targetWebhook = c.env.norvi_contact || c.env.norvi_team_and_security;
+    fireLog(c, targetWebhook, discordMsg);
+
+    return c.json({ ok: true });
+  });
+
   app.use('/api/*', async (c, next) => {
-    if (c.req.path.startsWith('/api/internal/') || c.req.path.startsWith('/api/webhooks/')) return next();
+    if (c.req.path.startsWith('/api/internal/') || c.req.path.startsWith('/api/webhooks/') || c.req.path === '/api/contact') return next();
     const db = c.get('db'); const { data, error } = await db.auth.getUser();
     if (error || !data.user?.email_confirmed_at) return c.json({ error: 'Sign in with a verified account to continue.' }, 401);
     const [profile, membership, assurance] = await Promise.all([
@@ -500,7 +516,13 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
   });
   app.post('/api/support', async c => {
     const input = z.object({ subject: z.string().trim().min(3).max(120), message: z.string().trim().min(10).max(3000) }).parse(await c.req.json());
+    const user = c.get('user');
     const { error } = await c.get('db').rpc('create_support_request', { request_subject: input.subject, request_message: input.message });
+    if (!error) {
+      const discordMsg = `🎫 **[New Customer Support Ticket]**\n**User:** ${user?.name || 'Customer'} (<${user?.email || 'unknown'}>)\n**Subject:** ${input.subject}\n**Time:** <t:${Math.floor(Date.now() / 1000)}:F>\n\n**Message:**\n${input.message}`;
+      const targetWebhook = c.env.norvi_support || c.env.norvi_team_and_security;
+      fireLog(c, targetWebhook, discordMsg);
+    }
     return error ? c.json({ error: 'Support request could not be saved.' }, 400) : c.json({ ok: true });
   });
   app.get('/api/admin/customers', async c => {

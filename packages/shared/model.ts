@@ -7,6 +7,8 @@ export type CompetitorComparison = { headline?: string; competitor1Name: string;
 export type WorkflowStep = { step: string; title: string; description: string; };
 export type AgentFaq = { question: string; answer: string; };
 export type AgentSeo = { metaTitle?: string; metaDescription?: string; focusKeywords?: string; ogImage?: string | null; };
+export type GuideSection = { id: string; heading: string; content: string; imageUrl?: string | null; };
+export type AgentGuide = { videoUrl?: string | null; summary?: string | null; sections: GuideSection[]; };
 export type AgentExtendedContent = {
   badgeText?: string;
   heroMediaUrl?: string | null;
@@ -18,6 +20,7 @@ export type AgentExtendedContent = {
   workflowSteps?: WorkflowStep[];
   faqs?: AgentFaq[];
   seo?: AgentSeo;
+  guide?: AgentGuide;
 };
 export type Product = { id: string; slug: string; name: string; categoryId: string; category?: Category; tagline: string; description: string; price: string; price1m?: string; price3m?: string; price_lifetime?: string; is_on_sale?: boolean; trialActive?: boolean; aiUsage?: string; deviceAllowance?: string; status: 'draft' | 'published' | 'archived'; releaseStatus: 'development' | 'prelaunch' | 'live'; logoUrl: string | null; features: string[]; version: string; requirements: string; workflowHeading: string; workflowDescription: string; workflowMediaUrl: string | null; workflowNote: string; updatedAt?: string; extendedContent?: AgentExtendedContent; };
 export type User = { id: string; name: string; email: string; role: Role; status: 'active' | 'suspended'; createdAt: string; lastLogin: string | null };
@@ -141,6 +144,29 @@ export const products: Product[] = [
         metaTitle: "Voro - #1 Real-Time AI Interview Assistant & Coding Copilot | Undetectable",
         metaDescription: "Nail your live interviews with Voro: the #1 real-time AI interview assistant with screen awareness, invisible audio routing, and live coding support. Try free.",
         focusKeywords: "interview assistant agent, real time ai interview assistant, ai interview copilot, leetcode ai helper, parakeet ai alternative, voro ai"
+      },
+      guide: {
+        videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+        sections: [
+          {
+            id: "guide-step-1",
+            heading: "1. Download and Extract Voro",
+            content: "Click the Download button from your agent collection. Extract the downloaded zip package into your preferred folder on Windows.",
+            imageUrl: null
+          },
+          {
+            id: "guide-step-2",
+            heading: "2. Activate With Your License Key",
+            content: "Launch Voro.exe. When prompted, click 'View license' in your NORVI dashboard, copy your unique product activation key, and paste it into the application.",
+            imageUrl: null
+          },
+          {
+            id: "guide-step-3",
+            heading: "3. Configure Audio & Stealth Overlay",
+            content: "Open Settings inside Voro and select your audio device. The stealth overlay automatically runs in a private layer invisible to Zoom, Teams, and Google Meet screen shares.",
+            imageUrl: null
+          }
+        ]
       }
     }
   },

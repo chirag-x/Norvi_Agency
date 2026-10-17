@@ -174,6 +174,29 @@
           "metaTitle": "Voro - #1 Real-Time AI Interview Assistant & Coding Copilot | Undetectable",
           "metaDescription": "Nail your live interviews with Voro: the #1 real-time AI interview assistant with screen awareness, invisible audio routing, and live coding support. Try free.",
           "focusKeywords": "interview assistant agent, real time ai interview assistant, ai interview copilot, leetcode ai helper, parakeet ai alternative, voro ai"
+        },
+        "guide": {
+          "videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+          "sections": [
+            {
+              "id": "guide-step-1",
+              "heading": "1. Download and Extract Voro",
+              "content": "Click the Download button from your agent collection. Extract the downloaded zip package into your preferred folder on Windows.",
+              "imageUrl": null
+            },
+            {
+              "id": "guide-step-2",
+              "heading": "2. Activate With Your License Key",
+              "content": "Launch Voro.exe. When prompted, click 'View license' in your NORVI dashboard, copy your unique product activation key, and paste it into the application.",
+              "imageUrl": null
+            },
+            {
+              "id": "guide-step-3",
+              "heading": "3. Configure Audio & Stealth Overlay",
+              "content": "Open Settings inside Voro and select your audio device. The stealth overlay automatically runs in a private layer invisible to Zoom, Teams, and Google Meet screen shares.",
+              "imageUrl": null
+            }
+          ]
         }
       },
       "icon": "message",

@@ -24,6 +24,8 @@ export default async function handler(request: Request): Promise<Response> {
     norvi_downloads: process.env.norvi_downloads,
     norvi_team_and_security: process.env.norvi_team_and_security,
     norvi_system_alerts: process.env.norvi_system_alerts,
+    norvi_contact: process.env.norvi_contact || process.env.NORVI_CONTACT,
+    norvi_support: process.env.norvi_support || process.env.NORVI_SUPPORT,
   });
 }
 

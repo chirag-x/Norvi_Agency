@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import type { Product,Settings } from '../../../../packages/shared/model';
 import { ProductCard,ProductIcon } from './App';
-import { PageHeading,Notice,Field,Empty,api,useData } from './common';
+import { PageHeading,Notice,Field,Empty,api,useData,SmartVideoPlayer,parseYouTubeVideoId } from './common';
 import { trackMetaPurchase } from './analytics';
 export function Catalog({products, settings}:{products:Product[]; settings?:Settings}){const [query,setQuery]=useState('');const filtered=products.filter(p=>(p.name+' '+p.category+' '+p.description).toLowerCase().includes(query.toLowerCase()));return <div className="container page"><PageHeading eyebrow="YOUR NEXT WORKFLOW STARTS HERE" title="Meet your next agent." description="— collection of tools for a little less routine and a lot more possibility."/><div className="catalog-toolbar"><span className="tab active">All agents <b>{products.length}</b></span><label className="search"><Search size={17}/><input aria-label="Search agents" placeholder="Find an agent…" value={query} onChange={e=>setQuery(e.target.value)}/></label></div><div className="product-grid">{filtered.map(p=><ProductCard key={p.id} product={p}/>)}</div>{!filtered.length&&<Empty title="No matches just yet." description="Try another name or clear your search."/>}<div className="inline-callout"><div><h3>Not sure where to start?</h3><p>Learn how purchase, download, and activation will work.</p></div><a className="text-button" href="/help">Get a little guidance <ArrowUpRight size={18}/></a></div></div>;}
 function PillarIcon({ name, size = 20 }: { name?: string; size?: number }) {
@@ -69,7 +69,7 @@ export function Detail({product, settings}:{product:Product|undefined; settings?
   if(!product) return <NotFound/>;
 
   const ext = product.extendedContent;
-  const isVideo = ext?.heroMediaType === 'video' || (ext?.heroMediaUrl && /\.(mp4|webm)$/i.test(ext.heroMediaUrl));
+  const isVideo = ext?.heroMediaType === 'video' || (ext?.heroMediaUrl && (/\.(mp4|webm)$/i.test(ext.heroMediaUrl) || Boolean(parseYouTubeVideoId(ext.heroMediaUrl))));
 
   return (
     <div className="container page">
@@ -142,7 +142,7 @@ export function Detail({product, settings}:{product:Product|undefined; settings?
           {ext?.heroMediaUrl && (
             <div className="hero-showcase-media">
               {isVideo ? (
-                <video src={ext.heroMediaUrl} autoPlay loop muted playsInline controls style={{ width: '100%', height: 'auto', display: 'block' }} />
+                <SmartVideoPlayer url={ext.heroMediaUrl} autoPlay loop muted controls title={`${product.name} showcase`} />
               ) : (
                 <img src={ext.heroMediaUrl} alt={`${product.name} showcase`} style={{ width: '100%', height: 'auto', display: 'block' }} />
               )}
@@ -239,8 +239,8 @@ export function Detail({product, settings}:{product:Product|undefined; settings?
             {ext.gallery.map(item => (
               <div key={item.id} className="gallery-card">
                 <div className="gallery-media-wrap">
-                  {item.type === 'video' || /\.(mp4|webm)$/i.test(item.url) ? (
-                    <video src={item.url} controls playsInline preload="metadata" />
+                  {item.type === 'video' || /\.(mp4|webm)$/i.test(item.url) || Boolean(parseYouTubeVideoId(item.url)) ? (
+                    <SmartVideoPlayer url={item.url} controls title={item.caption || `${product.name} interface view`} />
                   ) : (
                     <img src={item.url} alt={item.caption || `${product.name} interface view`} loading="lazy" />
                   )}
@@ -313,8 +313,8 @@ export function Detail({product, settings}:{product:Product|undefined; settings?
           <p style={{ whiteSpace: 'pre-line' }}>{product.workflowDescription || product.description}</p>
           <div className="demo-placeholder" style={{ position: "relative", padding: 0, overflow: "hidden" }}>
             {product.workflowMediaUrl ? (
-              product.workflowMediaUrl.match(/\.(mp4|webm)$/i) ? 
-              <video src={product.workflowMediaUrl} controls playsInline preload="metadata" style={{ width: "100%", height: "auto", display: "block" }} /> : 
+              (product.workflowMediaUrl.match(/\.(mp4|webm)$/i) || Boolean(parseYouTubeVideoId(product.workflowMediaUrl))) ? 
+              <SmartVideoPlayer url={product.workflowMediaUrl} controls title={`${product.name} walkthrough`} /> : 
               <img src={product.workflowMediaUrl} alt="Walkthrough" style={{ width: "100%", height: "auto", display: "block" }} />
             ) : (
               <>
@@ -440,14 +440,35 @@ export function Contact({settings}:{settings:Settings}){
     setError('');
     const form = e.currentTarget;
     const formData = new FormData(form);
-    
+    const name = String(formData.get('name') || '').trim();
+    const email = String(formData.get('email') || '').trim();
+    const message = String(formData.get('message') || '').trim();
+
     try {
-      const response = await fetch("/", {
+      // 1. Submit to Netlify Forms endpoint for dashboard tracking
+      const netlifyBody = new URLSearchParams({
+        'form-name': 'contact',
+        name,
+        email,
+        message,
+      }).toString();
+
+      await fetch("/", {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams(formData as any).toString()
+        body: netlifyBody,
       });
-      if (!response.ok) throw new Error('Form submission failed.');
+
+      // 2. Submit to API to trigger Discord Webhook (# │ norvi-contact)
+      try {
+        await api('/contact', {
+          method: 'POST',
+          body: JSON.stringify({ name, email, message }),
+        });
+      } catch (apiErr) {
+        console.warn('API contact notification warning:', apiErr);
+      }
+
       setSent(true);
       form.reset();
     } catch (err) {
@@ -457,7 +478,7 @@ export function Contact({settings}:{settings:Settings}){
     }
   };
 
-  return <div className="container page"><PageHeading eyebrow="LET'S TALK" title="Good work starts with a conversation." description="Questions about an agent or your account? Find the right place to start."/><div className="two-column"><div className="panel"><Mail className="accent"/><h3>Get in touch</h3><p><strong>Norvi AI Agency</strong><br/>Kunj Vihar, Gole ka mandir<br/>Gwalior, Madhya Pradesh<br/>India, 474005<br/>Phone: +91-9893534314</p><p>Email: {settings.email}</p><p>Support hours: Mon-Sat, 10am-6pm IST</p><div className="contact-social-links" style={{display:'flex',gap:'1.2rem',marginTop:'1.5rem',marginBottom:'1.5rem'}}>{settings.socialInstagram && <a href={settings.socialInstagram} target="_blank" rel="noreferrer" style={{color:'var(--fg)'}}><Instagram size={22}/></a>}{settings.socialYoutube && <a href={settings.socialYoutube} target="_blank" rel="noreferrer" style={{color:'var(--fg)'}}><Youtube size={22}/></a>}{settings.socialFacebook && <a href={settings.socialFacebook} target="_blank" rel="noreferrer" style={{color:'var(--fg)'}}><Facebook size={22}/></a>}{settings.socialTwitter && <a href={settings.socialTwitter} target="_blank" rel="noreferrer" style={{color:'var(--fg)'}}><Twitter size={22}/></a>}</div><form name="contact" data-netlify="true" onSubmit={handleSubmit}><input type="hidden" name="form-name" value="contact" /><Field label="Your name"><input type="text" name="name" required placeholder="Your name" disabled={busy}/></Field><Field label="Email address"><input type="email" name="email" required placeholder="you@example.com" disabled={busy}/></Field><Field label="Your message"><textarea name="message" required minLength={10} placeholder="What can we help you with?" rows={4} disabled={busy}/></Field><button className="button secondary" type="submit" disabled={busy}>{busy ? 'Sending...' : 'Send message'} <ArrowRight size={16}/></button>{error&&<Notice kind="error">{error}</Notice>}{sent&&<Notice kind="success">Your message has been sent to our support team. We'll be in touch shortly!</Notice>}</form></div><div><div className="panel"><LifeBuoy className="accent"/><h3>Already have an account?</h3><p>Keep your questions and purchase details in one place.</p><a href="/account/support" className="text-button">Open account support <ArrowUpRight size={17}/></a></div><div className="panel"><h3>Prefer a quick answer?</h3><p>Our help center covers accounts, keys, devices, and downloads.</p><a href="/help" className="text-button">Browse the help center <ArrowUpRight size={17}/></a></div></div></div></div>;
+  return <div className="container page"><PageHeading eyebrow="LET'S TALK" title="Good work starts with a conversation." description="Questions about an agent or your account? Find the right place to start."/><div className="two-column"><div className="panel"><Mail className="accent"/><h3>Get in touch</h3><p><strong>Norvi AI Agency</strong><br/>Kunj Vihar, Gole ka mandir<br/>Gwalior, Madhya Pradesh<br/>India, 474005<br/>Phone: +91-9893534314</p><p>Email: {settings.email}</p><p>Support hours: Mon-Sat, 10am-6pm IST</p><div className="contact-social-links" style={{display:'flex',gap:'1.2rem',marginTop:'1.5rem',marginBottom:'1.5rem'}}>{settings.socialInstagram && <a href={settings.socialInstagram} target="_blank" rel="noreferrer" style={{color:'var(--fg)'}}><Instagram size={22}/></a>}{settings.socialYoutube && <a href={settings.socialYoutube} target="_blank" rel="noreferrer" style={{color:'var(--fg)'}}><Youtube size={22}/></a>}{settings.socialFacebook && <a href={settings.socialFacebook} target="_blank" rel="noreferrer" style={{color:'var(--fg)'}}><Facebook size={22}/></a>}{settings.socialTwitter && <a href={settings.socialTwitter} target="_blank" rel="noreferrer" style={{color:'var(--fg)'}}><Twitter size={22}/></a>}</div><form name="contact" method="POST" data-netlify="true" netlify-honeypot="bot-field" onSubmit={handleSubmit}><input type="hidden" name="form-name" value="contact" /><p hidden style={{display:'none'}}><label>Don't fill this out: <input name="bot-field" /></label></p><Field label="Your name"><input type="text" name="name" required placeholder="Your name" disabled={busy}/></Field><Field label="Email address"><input type="email" name="email" required placeholder="you@example.com" disabled={busy}/></Field><Field label="Your message"><textarea name="message" required minLength={10} placeholder="What can we help you with?" rows={4} disabled={busy}/></Field><button className="button secondary" type="submit" disabled={busy}>{busy ? 'Sending...' : 'Send message'} <ArrowRight size={16}/></button>{error&&<Notice kind="error">{error}</Notice>}{sent&&<Notice kind="success">Your message has been sent to our support team. We'll be in touch shortly!</Notice>}</form></div><div><div className="panel"><LifeBuoy className="accent"/><h3>Already have an account?</h3><p>Keep your questions and purchase details in one place.</p><a href="/account/support" className="text-button">Open account support <ArrowUpRight size={17}/></a></div><div className="panel"><h3>Prefer a quick answer?</h3><p>Our help center covers accounts, keys, devices, and downloads.</p><a href="/help" className="text-button">Browse the help center <ArrowUpRight size={17}/></a></div></div></div></div>;
 }
 const legal:Record<string,{title:string;sections:[string,string][]}>={privacy:{title:'Privacy policy',sections:[['Data we expect to collect','Account identity, profile details, purchase references, licenses, device activation records, and support requests.'],['How information will be used','To operate accounts, fulfill purchases, validate access, deliver support, and protect the service. Registration will not automatically opt you into marketing.'],['Service providers','We use secure providers like Supabase for accounts, Razorpay for payments, and Resend for email.'],['Retention and requests','You can delete your account at any time from your dashboard. For privacy inquiries, email norviagency@gmail.com.'],['Grievance Officer','In accordance with the Information Technology Act 2000, the name and contact details of the Grievance Officer are provided below.\n\nName: Gopal Ji Yadav\nEmail: Gopal2nd5654@gmail.com\nPhone: +91-6397916325\nAddress: Norvi AI Agency, Kunj Vihar, Gole ka mandir, Gwalior, Madhya Pradesh, India, 474005.']]},terms:{title:'Terms of service',sections:[['Business and Jurisdiction','These Terms govern your use of products and services offered by Norvi AI Agency, a registered entity in India. These Terms are subject to the exclusive jurisdiction of the courts in Gwalior, Madhya Pradesh, India.'],['Service scope','Norvi sells access to AI agents under flexible terms, including 1-Month, 3-Month, and Lifetime licenses. Product features, requirements, and duration are explicitly defined at checkout and on your dashboard.'],['Accounts and acceptable use','Customers will be responsible for keeping account credentials and activation keys private and using the products under their agreed license.'],['Payments and access','Payments are handled securely via Razorpay. All sales are final once the transaction is completed and the digital key is generated.']]},refunds:{title:'Refund & Cancellation Policy',sections:[['Eligibility','All sales are final once the purchase is completed and your unique license key is securely generated. Please review product details and any available promotions before purchasing. Digital delivery means we do not offer refunds once access is granted.'],['Cancellation','As our products are digital AI agents, orders cannot be cancelled once the payment is processed and the unique license key is generated and dispatched to your dashboard.'],['Request process','For technical issues preventing you from accessing the software, contact norviagency@gmail.com within 7 days.']]},delivery:{title:'Shipping & Delivery Policy',sections:[['Digital Delivery','We sell digital AI agent software and license keys. We do not ship physical products.'],['Instant Fulfillment','Upon successful payment, your unique activation key is delivered instantly to your registered email address.'],['Dashboard Access','Your purchased license key and the software download links will be immediately available in your account dashboard under "Keys & devices".']]},license:{title:'License agreement',sections:[['Product-specific access','Each license belongs to a customer and a particular product. A key for one agent cannot unlock another.'],['Devices and sharing','Your license is valid for your authorized devices based on the product. You may rotate or release active devices directly from your dashboard to manage your software connections securely.'],['Connection requirements','The agent requires periodic online validation. An offline authorization lease lasts for 7 days.'],['Expiry and revocation','Licenses may be revoked for fraud or violation of terms. Subscriptions will expire at the end of their billing cycle unless renewed.'],['Updates and support','Access to updates and support corresponds to your active subscription tier or lifetime access rights.']]}};
 export function Legal({kind}:{kind:string}){const doc=legal[kind];return <div className="container page legal"><PageHeading eyebrow="THE DETAILS" title={doc.title}/>{doc.sections.map(([title,body],i)=><section key={title}><h2>{i+1}. {title}</h2><p style={{whiteSpace:"pre-wrap"}}>{body}</p></section>)}<a href="/contact" className="text-button">Questions? Contact us <ArrowRight size={16}/></a></div>;}

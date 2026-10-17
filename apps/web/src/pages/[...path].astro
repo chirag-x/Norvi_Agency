@@ -200,9 +200,20 @@ const orgJsonLd = JSON.stringify({
   <!-- End Meta Pixel Code -->
 </head>
 <body>
-  <form name="contact" data-netlify="true" netlify-honeypot="bot-field" hidden style="display:none;">
+  <!-- Netlify Form Detection for SPA Pre-rendering -->
+  <form name="contact" method="POST" data-netlify="true" netlify-honeypot="bot-field" hidden style="display:none;">
+    <input type="hidden" name="form-name" value="contact" />
+    <input type="hidden" name="bot-field" />
     <input type="text" name="name" />
     <input type="email" name="email" />
+    <textarea name="message"></textarea>
+  </form>
+  <form name="support" method="POST" data-netlify="true" netlify-honeypot="bot-field" hidden style="display:none;">
+    <input type="hidden" name="form-name" value="support" />
+    <input type="hidden" name="bot-field" />
+    <input type="text" name="name" />
+    <input type="email" name="email" />
+    <input type="text" name="subject" />
     <textarea name="message"></textarea>
   </form>
   <App initialPath={path} client:load />

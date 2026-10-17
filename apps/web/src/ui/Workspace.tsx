@@ -1,9 +1,9 @@
 import { LiveAdmin } from './Accounts';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Activity, ArrowRight, ChevronDown, ChevronUp, Bot, ArrowUpRight, BookOpen, Box, Check, Copy, CreditCard, Download, Eye, FileText, KeyRound, LayoutDashboard, LifeBuoy, LogOut, Plus, Search, Settings as SettingsIcon, ShieldCheck, Users, X, Monitor, SlidersHorizontal, Mail, Megaphone, Globe, Sparkles, Video, Image as ImageIcon, HelpCircle, Layers, Trash2, Tag, ExternalLink } from 'lucide-react';
-import type { Category, Product, Settings, User, AgentExtendedContent, FeaturePillar, MediaGalleryItem, ComparisonRow, AgentFaq } from '../../../../packages/shared/model';
+import type { Category, Product, Settings, User, AgentExtendedContent, FeaturePillar, MediaGalleryItem, ComparisonRow, AgentFaq, GuideSection, AgentGuide } from '../../../../packages/shared/model';
 import { ProductCard, ProductIcon } from './App';
-import { api, Badge, date, Empty, Field, Loading, Notice, PageHeading, uploadFile, useData } from './common';
+import { api, Badge, date, Empty, Field, Loading, Notice, PageHeading, uploadFile, useData, SmartVideoPlayer, parseYouTubeVideoId } from './common';
 const customerNav = [['', 'Overview', LayoutDashboard], ['/agents', 'My agents', Box], ['/licenses', 'Keys & devices', KeyRound], ['/billing', 'Billing & orders', CreditCard], ['/support', 'Support', LifeBuoy], ['/partner', 'Partner program', Users], ['/settings', 'Profile & security', SettingsIcon]] as const;
 const staffNav = [['', 'Overview', LayoutDashboard], ['/products', 'Products & Content', Box], ['/releases', 'Agent Releases', SlidersHorizontal], ['/categories', 'Categories', Box], ['/customers', 'Customers', Users], ['/licenses', 'Licenses', KeyRound], ['/orders', 'Orders', CreditCard], ['/promotions', 'Promotions', Activity], ['/affiliates', 'Partners & Payouts', Users], ['/team', 'Team', Users], ['/announcements', 'Announcements', Mail], ['/content', 'Content', FileText], ['/activity', 'Audit & delivery', Activity], ['/ai-agent', 'AI Support Agent', Bot], ['/marketing', 'Broadcasts', Megaphone], ['/settings', 'Settings', SettingsIcon]] as const;
 const allowed: Record<string, string[]> = { owner: ['*'], administrator: ['', '/marketing', '/products', '/releases', '/categories', '/customers', '/licenses', '/orders', '/promotions', '/announcements', '/content', '/activity', '/affiliates', '/ai-agent'], product_manager: ['', '/marketing', '/products', '/releases', '/categories', '/announcements', '/content'], support: ['', '/customers', '/licenses', '/orders', '/announcements'] };
@@ -51,10 +51,11 @@ export function Workspace({ path, products, settings, onCatalogChange }: { path:
 }
 function Customer({ section, products, user }: { section: string; products: Product[]; user: User }) {
     const { data, error, reload } = useData('/account'); const [feedback, setFeedback] = useState(''), [keyModal, setKeyModal] = useState<{ key: string; name: string } | null>(null); const [announcement, setAnnouncement] = useState<any>(null);
+    const [guideModal, setGuideModal] = useState<{ product: Product; license?: any } | null>(null);
     useEffect(() => { const latest = data?.announcements?.[0]; if (latest && localStorage.getItem('dismissed_announcement') !== latest.id) setAnnouncement(latest); }, [data]);
     if (error) return <Notice kind="error">{error}</Notice>; if (!data) return <Loading />; const licenses = data.licenses as any[], orders = data.orders as any[]; const owned = products.filter(p => licenses.some(l => l.productId === p.id)); const product = (id: string) => products.find(p => p.id === id); async function action(path: string) { try { const result = await api(path, { method: 'POST' }); if (result?.url) { window.location.href = result.url; return; } reload(); return result; } catch (e: any) { setFeedback(e.message); } }
     return <><PageHeading eyebrow="YOUR PERSONAL WORKSPACE" title={section === '' ? 'A little more possibility.' : section === '/agents' ? 'Your agent collection.' : section === '/licenses' ? 'Your keys. Your access.' : section === '/billing' ? 'Everything accounted for.' : section === '/settings' ? 'Make yourself at home.' : 'How can we help?'} description={section === '' ? 'Welcome back, ' + user.name + '. Find everything you need for your next workflow.' : section === '/licenses' ? 'Your product-specific keys, access status, and active devices.' : undefined} />{feedback && <Notice>{feedback}</Notice>}{section === '' && <><div className="stat-grid"><Stat label="Your agents" value={licenses.length} icon={<Box />} /><Stat label="Active licenses" value={licenses.filter(l => l.status === 'active').length} icon={<KeyRound />} /><Stat label="Sample orders" value={orders.length} icon={<CreditCard />} /></div><div className="panel-heading"><h3>Ready for your next workflow</h3><a href="/agents" className="text-button">Explore agents <ArrowUpRight size={16} /></a></div>{!owned.length ? <Empty title="Your collection starts here." description="Explore the agents and simulate your first purchase to see licenses and orders appear here." href="/agents" /> : <div className="product-grid">{owned.map(p => <ProductCard key={p.id} product={p} />)}</div>}<div className="two-column"><div className="panel"><KeyRound className="accent" /><h3>One key. One product.</h3><p>Keep your activation keys private. Your account is always the place to find them.</p><a href="/account/licenses" className="text-button">Manage your keys <ArrowRight size={16} /></a></div><div className="panel"><LifeBuoy className="accent" /><h3>A little help, when you need it.</h3><p>Find the steps for installation, activation, and managing your device.</p><a href="/help" className="text-button">Visit the help center <ArrowRight size={16} /></a></div></div></>}
-        {section === '/agents' && (!licenses.length ? <Empty title="No agents in your collection yet." description="Your purchased products and downloads will appear here." href="/agents" /> : <div className="owned-grid">{licenses.map(l => <div className="panel owned-card" key={l.id}>{product(l.productId) && <ProductIcon product={product(l.productId)!} />}<div><h3>{product(l.productId)?.name || 'Archived agent'}</h3><p>Added {date(l.createdAt)}</p></div><Badge>{l.status}</Badge><div className="owned-actions"><a className="button secondary" href="/account/licenses">View license <KeyRound size={16} /></a><button className="button primary" onClick={() => action('/licenses/' + l.id + '/download')}>Download <Download size={16} /></button></div></div>)}</div>)}
+        {section === '/agents' && (!licenses.length ? <Empty title="No agents in your collection yet." description="Your purchased products and downloads will appear here." href="/agents" /> : <div className="owned-grid">{licenses.map(l => <div className="panel owned-card" key={l.id}>{product(l.productId) && <ProductIcon product={product(l.productId)!} />}<div><h3>{product(l.productId)?.name || 'Archived agent'}</h3><p>Added {date(l.createdAt)}</p></div><Badge>{l.status}</Badge><div className="owned-actions"><a className="button secondary" href="/account/licenses">View license <KeyRound size={16} /></a><button className="button secondary" onClick={() => { const p = product(l.productId); if (p) setGuideModal({ product: p, license: l }); }}>Guide <BookOpen size={16} /></button><button className="button primary" onClick={() => action('/licenses/' + l.id + '/download')}>Download <Download size={16} /></button></div></div>)}</div>)}
         {section === '/licenses' && (!licenses.length ? <Empty title="No activation keys yet." description="Your product-specific keys will appear here after purchases become available." href="/agents" /> : <div className="license-list">{licenses.map(l => <div className="panel" key={l.id}><div className="panel-heading"><h3>{product(l.productId)?.name || 'Archived agent'}</h3><Badge>{l.status}</Badge></div><div className="key-line"><code>NORVI-XXXX-XXXX-XXXX-{l.suffix}</code><button className="button secondary" onClick={async () => { const result = await action('/licenses/' + l.id + '/reveal'); if (result) setKeyModal({ key: result.key, name: product(l.productId)?.name || 'Agent' }); }}><Eye size={16} /> Reveal key</button></div><div className="license-meta" style={{display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1rem'}}><div style={{display:'flex', justifyContent:'space-between', alignItems:'center', background:'var(--surface)', padding:'1rem', borderRadius:'8px', marginTop:'0.5rem'}}>
                     <div style={{flex:1}}>
                       <div style={{fontSize:'12px', color:'var(--text-light)', marginBottom:'4px'}}>Issued</div>
@@ -83,14 +84,259 @@ function Customer({ section, products, user }: { section: string; products: Prod
         {section === '/billing' && <><Notice>All orders here are simulations. No money has been charged and no recurring billing agreement exists.</Notice><OrderTable items={orders.map(o => ({ ...o, product: product(o.productId)?.name }))} /><div className="panel"><h3>Subscriptions</h3><p>No live subscriptions. Real renewal and cancellation controls require the payment integration.</p></div></>}
         {section === '/partner' && <PartnerProgram />}
           {section === '/settings' && <div className="two-column"><ProfileForm user={user} /><div className="panel"><ShieldCheck className="accent" /><h3>Account security</h3><p>Manage your authenticator and account access.</p><a className="button secondary" href="/account/security">Account security</a></div><AccountDeletion /></div>}
-        {section === '/support' && <div className="two-column"><SupportForm onSave={reload} /><div className="panel"><h3>Your requests</h3>{!data.tickets.length ? <p>No requests yet.</p> : data.tickets.map((t: any) => <div className="list-row" key={t.id}><div><b>{t.subject}</b><p>{date(t.createdAt)}</p></div><Badge>{t.status}</Badge></div>)}</div></div>}
+        {section === '/support' && <div className="two-column"><SupportForm user={user} onSave={reload} /><div className="panel"><h3>Your requests</h3>{!data.tickets.length ? <p>No requests yet.</p> : data.tickets.map((t: any) => <div className="list-row" key={t.id}><div><b>{t.subject}</b><p>{date(t.createdAt)}</p></div><Badge>{t.status}</Badge></div>)}</div></div>}
         {keyModal && <Modal title={keyModal.name + ' activation key'} onClose={() => setKeyModal(null)}><Notice>This key is synthetic and works only against the local preview API. Keep real activation keys private when live services are connected.</Notice><code className="full-key">{keyModal.key}</code><CopyButton text={keyModal.key} /></Modal>}
         {announcement && <Modal title="Important Announcement" onClose={() => { localStorage.setItem('dismissed_announcement', announcement.id); setAnnouncement(null); }}><div style={{ padding: '20px 0', fontSize: '16px', lineHeight: 1.6 }}>{announcement.message}</div><button className="button primary" style={{ width: '100%', marginTop: '20px' }} onClick={() => { localStorage.setItem('dismissed_announcement', announcement.id); setAnnouncement(null); }}>I understand</button></Modal>}
+        {guideModal && <AgentGuideModal product={guideModal.product} license={guideModal.license} onClose={() => setGuideModal(null)} onDownload={() => guideModal.license && action('/licenses/' + guideModal.license.id + '/download')} />}
     </>;
+}
+function AgentGuideModal({
+  product,
+  license,
+  onClose,
+  onDownload
+}: {
+  product: Product;
+  license?: any;
+  onClose: () => void;
+  onDownload?: () => void;
+}) {
+  const guide = product.extendedContent?.guide;
+  const sections = guide?.sections || [];
+  const [activeImage, setActiveImage] = useState<string | null>(null);
+
+  return (
+    <Modal title={`${product.name} — Setup & User Guide`} onClose={onClose} wide>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '22px', maxHeight: 'calc(80vh - 70px)', overflowY: 'auto', paddingRight: '4px' }}>
+        
+        {/* Top Summary & Quick Key Access */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', paddingBottom: '16px', borderBottom: '1px solid var(--border)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <ProductIcon product={product} size={40} />
+            <div>
+              <h3 style={{ margin: 0, fontSize: '18px' }}>{product.name}</h3>
+              <p style={{ margin: '2px 0 0 0', fontSize: '13px', color: 'var(--text-light)' }}>
+                {product.tagline || 'Step-by-step setup and walkthrough'}
+              </p>
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            {license && (
+              <a href="/account/licenses" className="button secondary small" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                <KeyRound size={14} /> License Key: NORVI-••••-{license.suffix}
+              </a>
+            )}
+            {onDownload && (
+              <button className="button primary small" onClick={onDownload} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                <Download size={14} /> Download Agent
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Video Tutorial Section */}
+        {guide?.videoUrl ? (
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+              <span className="badge good" style={{ fontSize: '11px', textTransform: 'uppercase' }}>Walkthrough Video</span>
+              <h4 style={{ margin: 0 }}>Full Video Tutorial</h4>
+            </div>
+            <SmartVideoPlayer url={guide.videoUrl} title={`${product.name} Video Guide`} />
+          </div>
+        ) : null}
+
+        {/* Step-by-Step Sections */}
+        <div>
+          <h4 style={{ margin: '0 0 16px 0', fontSize: '16px' }}>Step-by-Step Instructions</h4>
+          {!sections.length ? (
+            <div className="panel" style={{ textAlign: 'center', padding: '32px 20px', background: 'var(--surface)' }}>
+              <BookOpen size={32} style={{ color: 'var(--text-light)', marginBottom: '8px' }} />
+              <h4 style={{ margin: '0 0 6px 0' }}>Documentation in Progress</h4>
+              <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-light)' }}>
+                A step-by-step written guide for {product.name} is being prepared. If you need assistance right away, please contact our support team.
+              </p>
+              <a href="/account/support" className="button secondary small" style={{ marginTop: '16px', display: 'inline-block' }}>
+                Contact Support
+              </a>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {sections.map((sec, idx) => (
+                <div
+                  key={sec.id || idx}
+                  className="panel"
+                  style={{
+                    background: 'var(--surface)',
+                    border: '1px solid var(--border)',
+                    borderRadius: '8px',
+                    padding: '18px'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+                    <span
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: '24px',
+                        height: '24px',
+                        borderRadius: '50%',
+                        background: 'var(--accent)',
+                        color: 'var(--black)',
+                        fontSize: '12px',
+                        fontWeight: 'bold'
+                      }}
+                    >
+                      {idx + 1}
+                    </span>
+                    <h4 style={{ margin: 0, fontSize: '15px' }}>{sec.heading}</h4>
+                  </div>
+                  <p style={{ margin: '0 0 12px 0', fontSize: '14px', lineHeight: 1.6, whiteSpace: 'pre-line', color: 'var(--text)' }}>
+                    {sec.content}
+                  </p>
+                  {sec.imageUrl && (
+                    <div style={{ marginTop: '12px' }}>
+                      <img
+                        src={sec.imageUrl}
+                        alt={sec.heading}
+                        style={{
+                          maxWidth: '100%',
+                          maxHeight: '360px',
+                          borderRadius: '6px',
+                          border: '1px solid var(--border)',
+                          cursor: 'pointer',
+                          display: 'block'
+                        }}
+                        onClick={() => setActiveImage(sec.imageUrl!)}
+                        title="Click to view full size"
+                      />
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Lightbox Modal for Screenshots */}
+        {activeImage && (
+          <div
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'rgba(0,0,0,0.85)',
+              zIndex: 10000,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '24px'
+            }}
+            onClick={() => setActiveImage(null)}
+          >
+            <img
+              src={activeImage}
+              alt="Zoomed view"
+              style={{ maxWidth: '90vw', maxHeight: '90vh', objectFit: 'contain', borderRadius: '8px' }}
+            />
+          </div>
+        )}
+
+        {/* Bottom Help Banner */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', background: 'var(--background)', padding: '14px 18px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+          <div>
+            <span style={{ fontWeight: 600, fontSize: '13px' }}>Having trouble with {product.name}?</span>
+            <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-light)' }}>Our team is ready to help you get up and running.</p>
+          </div>
+          <a href="/account/support" className="text-button" style={{ fontSize: '13px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+            Open Support Ticket <ArrowRight size={14} />
+          </a>
+        </div>
+
+      </div>
+    </Modal>
+  );
 }
 function Stat({ label, value, icon }: { label: string; value: string | number; icon: ReactNode }) { return <div className="stat"><div><span>{label}</span>{icon}</div><b>{value}</b><small>Local preview data</small></div>; }
 function ProfileForm({ user }: { user: User }) { const [name, setName] = useState(user.name), [message, setMessage] = useState(''); return <form className="panel" onSubmit={async e => { e.preventDefault(); try { await api('/me', { method: 'PATCH', body: JSON.stringify({ name }) }); setMessage('Profile saved.'); } catch (e: any) { setMessage(e.message); } }}><h3>Your profile</h3><Field label="Display name"><input required minLength={2} maxLength={80} value={name} onChange={e => setName(e.target.value)} /></Field><Field label="Email address" hint="Email changes are not supported in this phase."><input value={user.email} disabled /></Field><button className="button primary">Save profile <Check size={16} /></button>{message && <Notice>{message}</Notice>}</form>; }
-function SupportForm({ onSave }: { onSave: () => void }) { const [message, setMessage] = useState(''), [busy, setBusy] = useState(false); return <form className="panel" onSubmit={async e => { e.preventDefault(); const form = e.currentTarget; const d = new FormData(form); setBusy(true); try { await api('/support', { method: 'POST', body: JSON.stringify({ subject: d.get('subject'), message: d.get('message') }) }); setMessage('Request saved in the local preview. No email has been sent.'); form.reset(); onSave(); } catch (e: any) { setMessage(e.message); } setBusy(false); }}><h3>Start a conversation</h3><p>Use sample information while exploring the preview.</p><Field label="Subject"><input name="subject" required minLength={3} maxLength={120} placeholder="What can we help with?" /></Field><Field label="Message"><textarea name="message" required minLength={10} maxLength={3000} rows={5} placeholder="Tell us a little more…" /></Field><button className="button primary" disabled={busy}>Save preview request <ArrowRight size={16} /></button>{message && <Notice>{message}</Notice>}</form>; }
+function SupportForm({ user, onSave }: { user?: User; onSave: () => void }) {
+  const [message, setMessage] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
+
+  return (
+    <form
+      className="panel"
+      name="support"
+      method="POST"
+      data-netlify="true"
+      netlify-honeypot="bot-field"
+      onSubmit={async (e) => {
+        e.preventDefault();
+        const form = e.currentTarget;
+        const d = new FormData(form);
+        const subject = String(d.get('subject') || '').trim();
+        const msg = String(d.get('message') || '').trim();
+        setBusy(true);
+        setMessage('');
+
+        try {
+          // 1. Submit to API (Supabase ticket creation + Discord notification to #norvi-support)
+          await api('/support', {
+            method: 'POST',
+            body: JSON.stringify({ subject, message: msg }),
+          });
+
+          // 2. Submit to Netlify Forms for Netlify tracking & logging
+          try {
+            await fetch('/', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+              body: new URLSearchParams({
+                'form-name': 'support',
+                name: user?.name || 'Customer',
+                email: user?.email || '',
+                subject,
+                message: msg,
+              }).toString(),
+            });
+          } catch (netErr) {
+            console.warn('Netlify support form warning:', netErr);
+          }
+
+          setIsSuccess(true);
+          setMessage('Your support request has been submitted. Our team will review it shortly.');
+          form.reset();
+          onSave();
+        } catch (e: any) {
+          setIsSuccess(false);
+          setMessage(e.message || 'Could not submit support request. Please try again.');
+        } finally {
+          setBusy(false);
+        }
+      }}
+    >
+      <input type="hidden" name="form-name" value="support" />
+      <p hidden style={{ display: 'none' }}>
+        <label>Don’t fill this out: <input name="bot-field" /></label>
+      </p>
+      <h3>Start a conversation</h3>
+      <p>Need help with your agent, activation key, or subscription? Reach our team directly.</p>
+      <Field label="Subject">
+        <input name="subject" required minLength={3} maxLength={120} placeholder="What can we help with?" disabled={busy} />
+      </Field>
+      <Field label="Message">
+        <textarea name="message" required minLength={10} maxLength={3000} rows={5} placeholder="Tell us a little more…" disabled={busy} />
+      </Field>
+      <button className="button primary" disabled={busy}>
+        {busy ? 'Submitting...' : 'Send support request'} <ArrowRight size={16} />
+      </button>
+      {message && <Notice kind={isSuccess ? 'success' : 'error'}>{message}</Notice>}
+    </form>
+  );
+}
 function OrderTable({ items }: { items: any[] }) { return !items.length ? <Empty title="No orders just yet." description="Your purchase history will appear here after checkout." /> : <div className="table-wrap"><table><thead><tr><th>Order</th><th>Product</th><th>Date</th><th>Amount</th><th>Status</th></tr></thead><tbody>{items.map(o => <tr key={o.id}><td><code>{o.id.slice(0, 8)}</code>{o.customer && <small className="block">{o.customer}</small>}</td><td>{o.product || o.productId}</td><td>{date(o.createdAt)}</td><td>{o.amount}</td><td><Badge>{o.status}</Badge></td></tr>)}</tbody></table></div>; }
 function Announcements({ user, items, action }: { user: User; items: any[]; action: (path: string, body?: object, method?: string) => Promise<void> }) { const isOwner = user.role === 'owner'; return <><div className="panel"><h3>Team Announcements</h3>{!items.length ? <p>No internal announcements yet.</p> : items.map(a => <div className="list-row" key={a.id}><Mail size={16} /><div className="grow" style={{ flex: 1, minWidth: 0 }}><p style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{a.message}</p></div><span className="small-note">{date(a.createdAt)}</span>{isOwner && <button className="text-button bare" onClick={() => action('/admin/announcements/' + a.id, {}, 'DELETE')}><X size={14}/></button>}</div>)}</div>{isOwner && <form className="panel" onSubmit={async e => { e.preventDefault(); const form = e.currentTarget; await action('/admin/announcements', { audience: 'team', message: new FormData(form).get('message') }); form.reset(); }}><h3>Post an announcement</h3><Field label="Message"><textarea name="message" required minLength={3} rows={3} placeholder="Tell your team what's new..." /></Field><button className="button primary">Broadcast to team</button></form>}</>; }
 function exportCsv(filename: string, headers: string[], rows: any[][]) { const csv = [headers.join(','), ...rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(','))].join('\n'); const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); a.download = filename; a.click(); }
@@ -1143,7 +1389,7 @@ function AgentReleaseCard({ product, onSave }: { product: Product; onSave: () =>
 }
 
 export function ProductForm({ product, onSave, categories }: { product: Product | null; onSave: () => void; categories: Category[] }) { 
-  const [activeTab, setActiveTab] = useState<'overview' | 'media' | 'pillars' | 'platforms' | 'comparison' | 'faqs' | 'seo'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'media' | 'pillars' | 'platforms' | 'comparison' | 'faqs' | 'guide' | 'seo'>('overview');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -1184,7 +1430,12 @@ export function ProductForm({ product, onSave, categories }: { product: Product 
   // Tab 6: FAQs
   const [faqs, setFaqs] = useState<AgentFaq[]>(ext.faqs || []);
 
-  // Tab 7: SEO Engine
+  // Tab 7: Setup Guide
+  const guide = ext.guide || { videoUrl: '', sections: [] };
+  const [guideVideoUrl, setGuideVideoUrl] = useState(guide.videoUrl || '');
+  const [guideSections, setGuideSections] = useState<GuideSection[]>(guide.sections || []);
+
+  // Tab 8: SEO Engine
   const seo = ext.seo || {};
   const [metaTitle, setMetaTitle] = useState(seo.metaTitle || '');
   const [metaDescription, setMetaDescription] = useState(seo.metaDescription || '');
@@ -1219,6 +1470,10 @@ export function ProductForm({ product, onSave, categories }: { product: Product 
           rows: comparisonRows.filter(r => r.feature.trim())
         } : undefined,
         faqs: faqs.filter(f => f.question.trim()).length ? faqs.filter(f => f.question.trim()) : undefined,
+        guide: (guideVideoUrl.trim() || guideSections.filter(s => s.heading.trim()).length) ? {
+          videoUrl: guideVideoUrl.trim() || null,
+          sections: guideSections.filter(s => s.heading.trim())
+        } : undefined,
         seo: (metaTitle || metaDescription || focusKeywords || ogImage) ? {
           metaTitle: metaTitle || undefined,
           metaDescription: metaDescription || undefined,
@@ -1273,6 +1528,7 @@ export function ProductForm({ product, onSave, categories }: { product: Product 
     { id: 'platforms', label: 'Platform Badges' },
     { id: 'comparison', label: 'Comparison Matrix' },
     { id: 'faqs', label: 'FAQs Builder' },
+    { id: 'guide', label: 'Setup Guide' },
     { id: 'seo', label: 'Google SEO & Preview' }
   ];
 
@@ -1338,15 +1594,19 @@ export function ProductForm({ product, onSave, categories }: { product: Product 
                 <input type="file" accept="video/mp4,video/webm,image/*" onChange={e => { if (e.target.files?.[0]) handleFileUpload(e.target.files[0], setHeroUrl); }} />
               </Field>
             </div>
-            <Field label="Hero Media Direct URL">
-              <input value={heroUrl} onChange={e => setHeroUrl(e.target.value)} placeholder="https://..." />
+            <Field label="Hero Media URL (YouTube link, MP4 video, or Image URL)">
+              <input value={heroUrl} onChange={e => setHeroUrl(e.target.value)} placeholder="e.g. https://youtu.be/... or https://..." />
             </Field>
             <Field label="Hero Badge Text (e.g. ⚡ Real-Time HUD Overlay)">
               <input value={badgeText} onChange={e => setBadgeText(e.target.value)} placeholder="e.g. ⚡ Real-Time HUD Overlay" />
             </Field>
             {heroUrl && (
-              <div style={{ marginTop: '10px', height: '140px', background: '#000', borderRadius: '6px', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                {heroType === 'video' ? <video src={heroUrl} controls style={{ maxHeight: '100%' }} /> : <img src={heroUrl} alt="Preview" style={{ maxHeight: '100%', objectFit: 'contain' }} />}
+              <div style={{ marginTop: '10px', background: '#000', borderRadius: '6px', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {heroType === 'video' || parseYouTubeVideoId(heroUrl) ? (
+                  <SmartVideoPlayer url={heroUrl} showExternalLink={false} />
+                ) : (
+                  <img src={heroUrl} alt="Preview" style={{ maxHeight: '160px', objectFit: 'contain' }} />
+                )}
               </div>
             )}
           </div>
@@ -1359,10 +1619,15 @@ export function ProductForm({ product, onSave, categories }: { product: Product 
               <Field label="Walkthrough Media File">
                 <input type="file" accept="video/mp4,video/webm,image/*" onChange={e => { if (e.target.files?.[0]) handleFileUpload(e.target.files[0], setWorkflowMediaUrl); }} />
               </Field>
-              <Field label="Walkthrough Media URL">
-                <input value={workflowMediaUrl || ''} onChange={e => setWorkflowMediaUrl(e.target.value)} placeholder="https://..." />
+              <Field label="Walkthrough Media URL (YouTube link, MP4, or Image)">
+                <input value={workflowMediaUrl || ''} onChange={e => setWorkflowMediaUrl(e.target.value)} placeholder="e.g. https://youtu.be/... or https://..." />
               </Field>
             </div>
+            {workflowMediaUrl && (
+              <div style={{ marginTop: '10px', background: '#000', borderRadius: '6px', overflow: 'hidden' }}>
+                <SmartVideoPlayer url={workflowMediaUrl} showExternalLink={false} />
+              </div>
+            )}
             <Field label="Walkthrough Note (optional)"><input value={workflowNote} onChange={e => setWorkflowNote(e.target.value)} placeholder="e.g. Windows installer includes auto-updater" /></Field>
           </div>
 
@@ -1518,6 +1783,141 @@ export function ProductForm({ product, onSave, categories }: { product: Product 
                 </div>
                 <Field label="Question"><input value={f.question} onChange={e => setFaqs(faqs.map((item, i) => i === idx ? { ...item, question: e.target.value } : item))} placeholder="e.g. Can Zoom or interviewers detect Voro?" required /></Field>
                 <Field label="Answer"><textarea rows={2} value={f.answer} onChange={e => setFaqs(faqs.map((item, i) => i === idx ? { ...item, answer: e.target.value } : item))} placeholder="e.g. No. Voro runs in kernel-isolated memory with virtual audio loops..." required /></Field>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
+      {activeTab === 'guide' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+          <div className="panel" style={{ background: 'var(--surface)' }}>
+            <h4 style={{ margin: '0 0 8px 0' }}>Agent Walkthrough & Setup Video</h4>
+            <p style={{ margin: '0 0 12px 0', fontSize: '13px', color: 'var(--text-light)' }}>
+              Add a YouTube video link or direct MP4/WebM video URL. Customers who own this agent can watch the full setup video here.
+            </p>
+            <div className="form-grid">
+              <Field label="Video URL (YouTube or direct video file)">
+                <input
+                  value={guideVideoUrl}
+                  onChange={e => setGuideVideoUrl(e.target.value)}
+                  placeholder="e.g. https://www.youtube.com/watch?v=... or https://youtu.be/..."
+                />
+              </Field>
+              <Field label="Or Upload Video File">
+                <input
+                  type="file"
+                  accept="video/mp4,video/webm"
+                  onChange={e => { if (e.target.files?.[0]) handleFileUpload(e.target.files[0], setGuideVideoUrl); }}
+                />
+              </Field>
+            </div>
+            {guideVideoUrl && (
+              <div style={{ marginTop: '12px', maxWidth: '480px' }}>
+                <span style={{ fontSize: '12px', color: 'var(--text-light)', display: 'block', marginBottom: '6px' }}>Video Preview:</span>
+                <SmartVideoPlayer url={guideVideoUrl} title="Guide Video Preview" />
+              </div>
+            )}
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <h4 style={{ margin: 0 }}>Step-by-Step Guide Sections</h4>
+              <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: 'var(--text-light)' }}>
+                Create sequential setup steps for your customers. Add clear headings, explanations, and optional screenshots.
+              </p>
+            </div>
+            <button
+              type="button"
+              className="button primary small"
+              onClick={() => setGuideSections([
+                ...guideSections,
+                { id: 'section-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6), heading: '', content: '', imageUrl: null }
+              ])}
+            >
+              <Plus size={14} /> Add Guide Section
+            </button>
+          </div>
+
+          {!guideSections.length ? (
+            <p style={{ fontSize: '13px', color: 'var(--text-light)', textAlign: 'center', padding: '30px 20px', background: 'var(--surface)', borderRadius: '8px' }}>
+              No guide sections added yet. Click "+ Add Guide Section" above to create step-by-step instructions.
+            </p>
+          ) : (
+            guideSections.map((s, idx) => (
+              <div key={s.id || idx} className="panel" style={{ background: 'var(--surface)', padding: '16px', position: 'relative' }}>
+                <div style={{ position: 'absolute', top: 12, right: 12 }}>
+                  <button
+                    type="button"
+                    className="icon-button"
+                    title="Delete section"
+                    onClick={() => setGuideSections(guideSections.filter((_, i) => i !== idx))}
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                  <span className="badge good" style={{ fontSize: '11px', textTransform: 'uppercase' }}>Section {idx + 1}</span>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <Field label="Section Heading">
+                    <input
+                      value={s.heading}
+                      onChange={e => setGuideSections(guideSections.map((item, i) => i === idx ? { ...item, heading: e.target.value } : item))}
+                      placeholder="e.g. Step 1: Download & Extract Files"
+                      required
+                    />
+                  </Field>
+                  <Field label="Section Instructions / Details">
+                    <textarea
+                      rows={3}
+                      value={s.content}
+                      onChange={e => setGuideSections(guideSections.map((item, i) => i === idx ? { ...item, content: e.target.value } : item))}
+                      placeholder="e.g. Download the package to your desktop, right-click, and select 'Extract All'..."
+                      required
+                    />
+                  </Field>
+                  <div className="panel" style={{ background: 'var(--background)', padding: '12px', border: '1px solid var(--border)' }}>
+                    <span style={{ fontSize: '12px', fontWeight: 600, display: 'block', marginBottom: '8px' }}>
+                      Section Image (Optional)
+                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                      <input
+                        style={{ flex: 1, minWidth: '220px' }}
+                        value={s.imageUrl || ''}
+                        onChange={e => setGuideSections(guideSections.map((item, i) => i === idx ? { ...item, imageUrl: e.target.value || null } : item))}
+                        placeholder="Paste image URL (https://...) or upload file"
+                      />
+                      <input
+                        type="file"
+                        accept="image/*"
+                        style={{ width: 'auto' }}
+                        onChange={e => {
+                          if (e.target.files?.[0]) {
+                            handleFileUpload(e.target.files[0], url => {
+                              setGuideSections(guideSections.map((item, i) => i === idx ? { ...item, imageUrl: url } : item));
+                            });
+                          }
+                        }}
+                      />
+                      {s.imageUrl && (
+                        <button
+                          type="button"
+                          className="text-button bare"
+                          style={{ color: 'var(--error)', fontSize: '12px' }}
+                          onClick={() => setGuideSections(guideSections.map((item, i) => i === idx ? { ...item, imageUrl: null } : item))}
+                        >
+                          Remove image
+                        </button>
+                      )}
+                    </div>
+                    {s.imageUrl && (
+                      <div style={{ marginTop: '10px', maxHeight: '140px', overflow: 'hidden', borderRadius: '4px', border: '1px solid var(--border)', display: 'inline-block' }}>
+                        <img src={s.imageUrl} alt="Section preview" style={{ maxHeight: '140px', maxWidth: '100%', objectFit: 'contain', display: 'block' }} />
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             ))
           )}
