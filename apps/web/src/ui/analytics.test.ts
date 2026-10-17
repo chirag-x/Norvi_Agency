@@ -69,6 +69,7 @@ describe('Meta Pixel Multi-Product Tracking & Consent Safeguards (UI)', () => {
       expect(hasAdvertisingConsent()).toBe(true);
 
       // Verify init and PageView were triggered on consent grant
+      expect(fbqMock).toHaveBeenCalledWith('consent', 'grant');
       expect(fbqMock).toHaveBeenCalledWith('init', META_PIXEL_ID);
       expect(fbqMock).toHaveBeenCalledWith('track', 'PageView');
 
@@ -95,6 +96,8 @@ describe('Meta Pixel Multi-Product Tracking & Consent Safeguards (UI)', () => {
       setAdvertisingConsent(false);
       expect(getAdvertisingConsentPreference()).toBe('denied');
       expect(hasAdvertisingConsent()).toBe(false);
+      expect(fbqMock).toHaveBeenCalledWith('consent', 'revoke');
+      fbqMock.mockClear();
 
       const success = trackMetaPurchase({
         orderId: '00000000-0000-4000-8000-000000000002',

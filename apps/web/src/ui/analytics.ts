@@ -24,11 +24,102 @@ export interface PurchaseEventParams {
   numItems?: number;
 }
 
+export interface ViewContentEventParams {
+  productName: string;
+  productSlug: string;
+  productId?: string;
+  price?: number;
+  currency?: string;
+}
+
 export type AdvertisingConsentState = 'granted' | 'denied' | 'unset';
 
 const TRACKED_PURCHASES_KEY_PREFIX = 'norvi_meta_purchase_tracked_';
 const CONSENT_STORAGE_KEY = 'norvi_advertising_consent';
 const inMemoryTrackedOrders = new Set<string>();
+
+/**
+ * Tracks the active product view key for the current navigation instance.
+ * Format: `${productSlug}:${pathname}`
+ * Prevents duplicate ViewContent events on component re-renders or React StrictMode,
+ * while allowing legitimate repeat product views when navigating away and returning.
+ */
+let lastTrackedViewContentKey: string | null = null;
+
+/**
+ * Resets ViewContent tracking key (for testing or route resets).
+ */
+export function resetViewContentTrackingForTesting(): void {
+  lastTrackedViewContentKey = null;
+}
+
+/**
+ * Resets ViewContent tracking when navigating to a different pathname.
+ */
+export function resetViewContentTrackingForPathChange(newPath: string): void {
+  if (!lastTrackedViewContentKey) return;
+  const parts = lastTrackedViewContentKey.split(':');
+  const trackedPath = parts[1];
+  if (trackedPath && trackedPath !== newPath) {
+    lastTrackedViewContentKey = null;
+  }
+}
+
+/**
+ * Extracts a dynamic numeric display price from a product and optional settings.
+ * Handles sale percentages, multi-duration pricing, and non-numeric placeholders.
+ * Returns undefined if no numeric price is available (e.g. "Pricing to be confirmed").
+ */
+export function getProductDisplayPrice(
+  product: { price?: string; price1m?: string | number; price3m?: string | number; price_lifetime?: string | number; is_on_sale?: boolean; [key: string]: any } | null | undefined,
+  settings?: { saleActive?: boolean; salePercentage?: number } | null
+): number | undefined {
+  if (!product) return undefined;
+
+  let baseNum: number | undefined;
+
+  // 1. Try extracting numeric digits from product.price string (e.g. "₹499/mo", "₹1,499", "₹12,499")
+  if (product.price && typeof product.price === 'string') {
+    const cleaned = product.price.replace(/,/g, '');
+    const match = cleaned.match(/(\d+(?:\.\d+)?)/);
+    if (match) {
+      const parsed = parseFloat(match[1]);
+      if (!isNaN(parsed) && parsed > 0) {
+        baseNum = parsed;
+      }
+    }
+  }
+
+  // 2. Fallback to structured multi-duration tier prices: price1m -> price3m -> price_lifetime
+  if (baseNum === undefined && product.price1m !== undefined && product.price1m !== null) {
+    const parsed = parseFloat(String(product.price1m).replace(/,/g, ''));
+    if (!isNaN(parsed) && parsed > 0) {
+      baseNum = parsed;
+    }
+  }
+  if (baseNum === undefined && product.price3m !== undefined && product.price3m !== null) {
+    const parsed = parseFloat(String(product.price3m).replace(/,/g, ''));
+    if (!isNaN(parsed) && parsed > 0) {
+      baseNum = parsed;
+    }
+  }
+  if (baseNum === undefined && product.price_lifetime !== undefined && product.price_lifetime !== null) {
+    const parsed = parseFloat(String(product.price_lifetime).replace(/,/g, ''));
+    if (!isNaN(parsed) && parsed > 0) {
+      baseNum = parsed;
+    }
+  }
+
+  if (baseNum === undefined) return undefined;
+
+  // 3. Apply active sitewide sale percentage if applicable
+  if (settings?.saleActive && typeof settings.salePercentage === 'number' && settings.salePercentage > 0 && product.is_on_sale) {
+    const discounted = Math.floor(baseNum * (1 - settings.salePercentage / 100));
+    return discounted > 0 ? discounted : baseNum;
+  }
+
+  return baseNum;
+}
 
 /**
  * Retrieves the current advertising consent preference.
@@ -110,6 +201,7 @@ export function initMetaPixel(): boolean {
 /**
  * Sets advertising consent flag (usable by Cookie Consent banner, settings, or tests).
  * When consent is affirmatively granted, immediately initializes the Pixel and tracks PageView.
+ * When consent is revoked, immediately calls fbq('consent', 'revoke') to stop automatic tracking.
  */
 export function setAdvertisingConsent(granted: boolean): void {
   if (typeof window === 'undefined') return;
@@ -122,8 +214,24 @@ export function setAdvertisingConsent(granted: boolean): void {
   }
 
   if (granted) {
+    if (typeof window.fbq === 'function') {
+      try {
+        window.fbq('consent', 'grant');
+      } catch (e) {
+        console.warn('[NORVI Analytics] Failed to grant fbq consent:', e);
+      }
+    }
     initMetaPixel();
   } else {
+    // Revoke consent inside Meta Pixel if already loaded in memory
+    if (typeof window.fbq === 'function') {
+      try {
+        window.fbq('consent', 'revoke');
+      } catch (e) {
+        console.warn('[NORVI Analytics] Failed to revoke fbq consent:', e);
+      }
+    }
+    lastTrackedViewContentKey = null;
     console.info('[NORVI Analytics] Advertising consent revoked.');
   }
 
@@ -138,6 +246,10 @@ export function setAdvertisingConsent(granted: boolean): void {
 export function trackMetaPageView(): boolean {
   if (typeof window === 'undefined') return false;
   if (!hasAdvertisingConsent()) return false;
+
+  const currentPath = window.location ? window.location.pathname : '';
+  resetViewContentTrackingForPathChange(currentPath);
+
   if (typeof window.fbq === 'function') {
     try {
       window.fbq('track', 'PageView');
@@ -147,6 +259,83 @@ export function trackMetaPageView(): boolean {
     }
   }
   return false;
+}
+
+/**
+ * Tracks a standard ViewContent event when a user views a specific agent product page.
+ *
+ * Safeguards:
+ * 1. Strict affirmative consent gate (requires prior opt-in).
+ * 2. Strict product validation: rejects events with missing product name or slug.
+ * 3. Lifecycle & navigation-aware deduplication: prevents duplicate events on component
+ *    re-renders or StrictMode, while allowing repeat views when leaving and returning.
+ * 4. Gracefully handles missing/blocked window.fbq without throwing.
+ * 5. Uses dynamic product metadata (name, slug, currency, and numeric price where available).
+ * 6. Non-blocking error handling that never interrupts UI or navigation.
+ */
+export function trackMetaViewContent(params: ViewContentEventParams): boolean {
+  try {
+    if (typeof window === 'undefined') {
+      return false;
+    }
+
+    const { productName, productSlug, price, currency } = params;
+
+    // Strict validation of product identity
+    if (
+      !productName ||
+      typeof productName !== 'string' ||
+      !productName.trim() ||
+      !productSlug ||
+      typeof productSlug !== 'string' ||
+      !productSlug.trim()
+    ) {
+      console.warn('[NORVI Analytics] Missing or invalid product metadata for ViewContent. Event suppressed.', {
+        productName,
+        productSlug,
+      });
+      return false;
+    }
+
+    // Consent gate: do not track if affirmative consent is missing or withheld
+    if (!hasAdvertisingConsent()) {
+      return false;
+    }
+
+    // Navigation-aware duplicate suppression for the current product view instance
+    const currentPath = window.location ? window.location.pathname : '';
+    const currentKey = `${productSlug.trim()}:${currentPath}`;
+    if (lastTrackedViewContentKey === currentKey) {
+      // Already tracked for this page view instance
+      return false;
+    }
+
+    // Check if Meta Pixel is loaded and available
+    if (typeof window.fbq !== 'function') {
+      console.warn('[NORVI Analytics] Meta Pixel (window.fbq) is unavailable or blocked by browser.');
+      return false;
+    }
+
+    // Standard Meta ViewContent payload (100% product-agnostic and dynamic)
+    const payload: Record<string, any> = {
+      content_name: productName.trim(),
+      content_ids: [productSlug.trim()],
+      content_type: 'product',
+      currency: (currency || 'INR').toUpperCase(),
+    };
+
+    if (typeof price === 'number' && !isNaN(price) && price > 0) {
+      payload.value = Number(price.toFixed(2));
+    }
+
+    window.fbq('track', 'ViewContent', payload);
+    lastTrackedViewContentKey = currentKey;
+
+    return true;
+  } catch (err) {
+    console.error('[NORVI Analytics] Non-critical error tracking ViewContent:', err);
+    return false;
+  }
 }
 
 /**

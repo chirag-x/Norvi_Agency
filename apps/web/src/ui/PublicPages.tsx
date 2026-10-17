@@ -7,7 +7,7 @@ import {
 import type { Product,Settings } from '../../../../packages/shared/model';
 import { ProductCard,ProductIcon } from './App';
 import { PageHeading,Notice,Field,Empty,api,useData,SmartVideoPlayer,parseYouTubeVideoId } from './common';
-import { trackMetaPurchase } from './analytics';
+import { trackMetaPurchase, trackMetaViewContent, hasAdvertisingConsent, getProductDisplayPrice } from './analytics';
 export function Catalog({products, settings}:{products:Product[]; settings?:Settings}){const [query,setQuery]=useState('');const filtered=products.filter(p=>(p.name+' '+p.category+' '+p.description).toLowerCase().includes(query.toLowerCase()));return <div className="container page"><PageHeading eyebrow="YOUR NEXT WORKFLOW STARTS HERE" title="Meet your next agent." description="— collection of tools for a little less routine and a lot more possibility."/><div className="catalog-toolbar"><span className="tab active">All agents <b>{products.length}</b></span><label className="search"><Search size={17}/><input aria-label="Search agents" placeholder="Find an agent…" value={query} onChange={e=>setQuery(e.target.value)}/></label></div><div className="product-grid">{filtered.map(p=><ProductCard key={p.id} product={p}/>)}</div>{!filtered.length&&<Empty title="No matches just yet." description="Try another name or clear your search."/>}<div className="inline-callout"><div><h3>Not sure where to start?</h3><p>Learn how purchase, download, and activation will work.</p></div><a className="text-button" href="/help">Get a little guidance <ArrowUpRight size={18}/></a></div></div>;}
 function PillarIcon({ name, size = 20 }: { name?: string; size?: number }) {
   const icon = (name || '').toLowerCase();
@@ -47,6 +47,35 @@ export function Detail({product, settings}:{product:Product|undefined; settings?
   const [trialSuccess, setTrialSuccess] = useState(false);
   const [trialBusy, setTrialBusy] = useState(false);
   const [trialError, setTrialError] = useState('');
+
+  useEffect(() => {
+    if (!product || !product.slug || !product.name) return;
+
+    const fireViewContent = () => {
+      if (hasAdvertisingConsent()) {
+        const displayPrice = getProductDisplayPrice(product, settings);
+        trackMetaViewContent({
+          productName: product.name,
+          productSlug: product.slug,
+          productId: product.id,
+          price: displayPrice,
+          currency: 'INR'
+        });
+      }
+    };
+
+    fireViewContent();
+
+    const handleConsentChange = (e: any) => {
+      if (e?.detail?.granted) {
+        fireViewContent();
+      }
+    };
+    window.addEventListener('norvi:consent-changed', handleConsentChange);
+    return () => {
+      window.removeEventListener('norvi:consent-changed', handleConsentChange);
+    };
+  }, [product?.slug, product?.name, settings?.saleActive, settings?.salePercentage]);
 
   async function startTrial() {
     setTrialBusy(true);
