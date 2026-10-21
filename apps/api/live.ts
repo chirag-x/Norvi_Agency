@@ -144,9 +144,21 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     
     try {
         const parts = token.split('.');
-        if (parts.length !== 2) throw new Error("Invalid token format");
-        const signatureData = parts[0];
-        const signature = parts[1];
+        let signatureData = '';
+        let signature = '';
+        let payloadBase64Str = '';
+
+        if (parts.length === 3) {
+          signatureData = parts[0] + '.' + parts[1];
+          payloadBase64Str = parts[1];
+          signature = parts[2];
+        } else if (parts.length === 2) {
+          signatureData = parts[0];
+          payloadBase64Str = parts[0].includes('.') ? parts[0].split('.')[1] : parts[0];
+          signature = parts[1];
+        } else {
+          throw new Error("Invalid token format");
+        }
         
         const encoder = new TextEncoder();
         const key = await crypto.subtle.importKey("raw", encoder.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["verify"]);
@@ -159,7 +171,8 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
         const isValid = await crypto.subtle.verify("HMAC", key, sigBuffer, encoder.encode(signatureData));
         if (!isValid) throw new Error("Invalid signature");
         
-        let payloadBase64 = signatureData.split('.')[1];
+        let payloadBase64 = (payloadBase64Str || signatureData.split('.')[1] || '');
+        payloadBase64 = payloadBase64.replace(/-/g, "+").replace(/_/g, "/");
         payloadBase64 += '='.repeat((4 - payloadBase64.length % 4) % 4);
         const payload = JSON.parse(atob(payloadBase64));
         
@@ -275,11 +288,12 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     // Since we are in edge runtime/Cloudflare, we'll use a simple HMAC JWT
     const header = btoa(JSON.stringify({ alg: "HS256", typ: "JWT" })).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
     
-    // Lease valid for 7 days, or until trial expires
-    let exp = Math.floor(Date.now() / 1000) + (7 * 24 * 60 * 60);
+    // Lease valid for 24 hours, or until trial/plan expires
+    const now = Math.floor(Date.now() / 1000);
+    let exp = now + (24 * 60 * 60); // 24-hour daily validity
     if (result.expires_at) {
-      const trialExp = Math.floor(new Date(result.expires_at).getTime() / 1000);
-      if (trialExp < exp) exp = trialExp;
+      const planExp = Math.floor(new Date(result.expires_at).getTime() / 1000);
+      if (planExp < exp) exp = planExp;
     }
     
     const payload = btoa(JSON.stringify({
@@ -297,6 +311,159 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     const lease = signatureData + "." + signature;
     
     return c.json({ ok: true, lease, expires_at: result.expires_at });
+  });
+
+  app.post('/api/agent-auth/verify', async c => {
+    const authHeader = c.req.header('Authorization');
+    const body = await c.req.json().catch(() => ({}));
+    const token = (authHeader && authHeader.startsWith('Bearer ')) ? authHeader.split(' ')[1] : body.lease;
+    const deviceId = body.deviceId;
+    const productSlug = body.productSlug;
+
+    if (!token && !body.licenseKey) {
+      return c.json({ error: 'Missing lease token or license key.' }, 400);
+    }
+
+    const secret = licenseSecret(c.env);
+    if (!secret) return c.json({ error: 'Encryption secret not configured' }, 503);
+
+    const encoder = new TextEncoder();
+    const serviceDb = (c.env.SUPABASE_SERVICE_ROLE_KEY && !c.env.SUPABASE_SERVICE_ROLE_KEY.includes('YOUR_'))
+      ? createClient(c.env.SUPABASE_URL!, c.env.SUPABASE_SERVICE_ROLE_KEY!)
+      : c.get('db');
+
+    let licenseId: string | null = null;
+    let targetDeviceId: string = deviceId || '';
+
+    if (token) {
+      try {
+        const parts = token.split('.');
+        let signatureData = '';
+        let signature = '';
+        let payloadBase64 = '';
+
+        if (parts.length === 3) {
+          signatureData = parts[0] + '.' + parts[1];
+          payloadBase64 = parts[1];
+          signature = parts[2];
+        } else if (parts.length === 2) {
+          signatureData = parts[0];
+          payloadBase64 = parts[0].includes('.') ? parts[0].split('.')[1] : parts[0];
+          signature = parts[1];
+        } else {
+          throw new Error('Invalid token format');
+        }
+
+        const key = await crypto.subtle.importKey("raw", encoder.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["verify"]);
+        let sigBase64 = signature.replace(/-/g, "+").replace(/_/g, "/");
+        sigBase64 += '='.repeat((4 - sigBase64.length % 4) % 4);
+        const sigBuffer = Uint8Array.from(atob(sigBase64), ch => ch.charCodeAt(0));
+
+        const isValid = await crypto.subtle.verify("HMAC", key, sigBuffer, encoder.encode(signatureData));
+        if (!isValid) throw new Error('Invalid signature');
+
+        payloadBase64 = payloadBase64.replace(/-/g, "+").replace(/_/g, "/");
+        payloadBase64 += '='.repeat((4 - payloadBase64.length % 4) % 4);
+        const payload = JSON.parse(atob(payloadBase64));
+
+        licenseId = payload.license_id;
+        if (!targetDeviceId && payload.device_id) {
+          targetDeviceId = payload.device_id;
+        }
+      } catch (err: any) {
+        if (!body.licenseKey) {
+          return c.json({ error: 'Invalid or forged lease token.', invalid_token: true }, 401);
+        }
+      }
+    }
+
+    if (!licenseId && body.licenseKey) {
+      const data = encoder.encode(body.licenseKey);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      const keyHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+      const { data: secretRow } = await serviceDb
+        .from('license_secrets')
+        .select('license_id')
+        .eq('key_hash', keyHash)
+        .single();
+
+      if (secretRow) {
+        licenseId = secretRow.license_id;
+      }
+    }
+
+    if (!licenseId) {
+      return c.json({ error: 'License could not be verified.', deactivated: true }, 403);
+    }
+
+    const { data: license, error: licErr } = await serviceDb
+      .from('licenses')
+      .select('id, product_id, status, expires_at, max_devices')
+      .eq('id', licenseId)
+      .single();
+
+    if (licErr || !license) {
+      return c.json({ error: 'License record not found.', deactivated: true }, 404);
+    }
+
+    if (license.status !== 'active') {
+      return c.json({ error: 'This license has been deactivated or revoked.', deactivated: true }, 403);
+    }
+
+    const now = Math.floor(Date.now() / 1000);
+    if (license.expires_at) {
+      const expiresAtSec = Math.floor(new Date(license.expires_at).getTime() / 1000);
+      if (expiresAtSec <= now) {
+        return c.json({ error: 'This license has expired.', expired: true, expires_at: license.expires_at }, 403);
+      }
+    }
+
+    if (targetDeviceId) {
+      const { data: device } = await serviceDb
+        .from('devices')
+        .select('id, active')
+        .eq('license_id', license.id)
+        .eq('installation_id', targetDeviceId)
+        .single();
+
+      if (device && !device.active) {
+        return c.json({ error: 'This device has been deactivated or blocked.', blocked: true }, 403);
+      }
+
+      if (device) {
+        await serviceDb.from('devices').update({ last_seen_at: new Date().toISOString() }).eq('id', device.id);
+      }
+    }
+
+    let exp = now + (24 * 60 * 60); // 24 hours daily validity
+    if (license.expires_at) {
+      const planExp = Math.floor(new Date(license.expires_at).getTime() / 1000);
+      if (planExp < exp) exp = planExp;
+    }
+
+    const header = btoa(JSON.stringify({ alg: "HS256", typ: "JWT" })).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
+    const payload = btoa(JSON.stringify({
+      license_id: license.id,
+      device_id: targetDeviceId,
+      exp: exp,
+      product: productSlug || ''
+    })).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
+
+    const signatureData = header + "." + payload;
+    const signKey = await crypto.subtle.importKey("raw", encoder.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+    const signatureBuffer = await crypto.subtle.sign("HMAC", signKey, encoder.encode(signatureData));
+    const signature = btoa(String.fromCharCode(...new Uint8Array(signatureBuffer))).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
+
+    const freshLease = signatureData + "." + signature;
+
+    return c.json({
+      ok: true,
+      lease: freshLease,
+      expires_at: license.expires_at || new Date(exp * 1000).toISOString(),
+      status: 'active'
+    });
   });
 
   app.post('/api/auth/login', async c => {
@@ -367,7 +534,11 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     }
 
     const now = Math.floor(Date.now() / 1000);
-    const leaseExp = now + (7 * 24 * 60 * 60); // 7-day offline grace period
+    let leaseExp = now + (24 * 60 * 60); // 24-hour daily validity
+    if (data.expires_at) {
+      const planExp = Math.floor(new Date(data.expires_at).getTime() / 1000);
+      if (planExp < leaseExp) leaseExp = planExp;
+    }
     const jwt = await sign({
       sub: input.deviceId,
       iat: now,
@@ -998,6 +1169,7 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     app.post('/api/checkout/validate-code', async c => {
       const { code, productId, duration } = await c.req.json();
       if (!code || !productId) return c.json({ valid: false });
+      const user = c.get('user');
       const db = c.env.SUPABASE_SERVICE_ROLE_KEY ? createClient(c.env.SUPABASE_URL!, c.env.SUPABASE_SERVICE_ROLE_KEY!) : c.get('db');
       const { data, error } = await db.rpc('validate_promo_code', { p_code: code, p_product_id: productId, p_duration: duration || 'lifetime' });
       if (error) {
@@ -1005,7 +1177,10 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
         return c.json({ valid: false, error: error.message });
       }
       if (data && data.valid) {
-        return c.json({ valid: true, type: data.type, discount: data.discount, allowedDurations: data.allowed_durations });
+        if (data.type === 'referral' && data.partner_user_id && user?.id && data.partner_user_id === user.id) {
+          return c.json({ valid: false, reason: 'self_referral' });
+        }
+        return c.json({ valid: true, type: data.type, discount: data.discount, allowedDurations: data.allowed_durations || data.allowedDurations });
       }
       if (data && data.reason === 'duration_mismatch') {
         return c.json({
@@ -1013,8 +1188,11 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
           reason: 'duration_mismatch',
           type: data.type,
           discount: data.discount,
-          allowedDurations: data.allowed_durations
+          allowedDurations: data.allowed_durations || data.allowedDurations
         });
+      }
+      if (data && data.reason) {
+        return c.json({ valid: false, reason: data.reason });
       }
       if (data && data.type) {
         return c.json({ valid: true, type: data.type, discount: data.discount });

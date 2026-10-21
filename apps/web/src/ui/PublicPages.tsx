@@ -539,7 +539,7 @@ export function Checkout({product, settings}:{product:Product|undefined; setting
               setReferralValid(res);
             }
           } else {
-            setReferralValid({ valid: false, reason: 'not_found' });
+            setReferralValid({ valid: false, reason: res.reason || 'not_found' });
             lastCodeRef.current = referralCode;
           }
         } catch {
@@ -709,6 +709,14 @@ export function Checkout({product, settings}:{product:Product|undefined; setting
               ) : referralValid?.reason === 'duration_mismatch' && referralValid?.allowedDurations ? (
                 <span style={{color:'var(--error)', fontSize: '13px'}}>
                   &#10008; Only valid for {referralValid.allowedDurations.map((d: string) => d.replace('_', ' ')).join(', ')}
+                </span>
+              ) : referralValid?.reason === 'self_referral' ? (
+                <span style={{color:'var(--error)', fontSize: '13px'}}>
+                  &#10008; You cannot use your own referral code
+                </span>
+              ) : referralValid?.reason === 'inactive' ? (
+                <span style={{color:'var(--error)', fontSize: '13px'}}>
+                  &#10008; Partner code is inactive
                 </span>
               ) : referralValid?.valid === false ? (
                 <span style={{color:'var(--error)'}}>&#10008; Invalid code</span>
