@@ -514,9 +514,25 @@ export function createAgentAiHandler(deps: AgentAiHandlerDeps) {
     }
 
     if (!upstreamRes.ok) {
+      let rawUpstreamErr = '';
+      try {
+        rawUpstreamErr = (await upstreamRes.text()).replaceAll(openRouterKey, '[REDACTED]');
+      } catch {
+        rawUpstreamErr = '';
+      }
+      console.error(
+        `[agent-ai] OpenRouter error HTTP ${upstreamRes.status} for model=${openRouterPayload.model}:`,
+        rawUpstreamErr.slice(0, 400)
+      );
       await persistUsageFinalize(db, usageLogId, 'failed');
       if (upstreamRes.status === 429) {
         return jsonResponse({ error: 'AI service is temporarily busy. Please try again shortly.' }, 429);
+      }
+      if (upstreamRes.status === 402) {
+        return jsonResponse({ error: 'OpenRouter credit check failed for the configured model.' }, 502);
+      }
+      if (upstreamRes.status === 404) {
+        return jsonResponse({ error: 'No OpenRouter endpoints available for the configured model or data policy.' }, 502);
       }
       if (upstreamRes.status === 400) {
         return jsonResponse({ error: 'AI request could not be processed.' }, 400);

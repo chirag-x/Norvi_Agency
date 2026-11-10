@@ -24,6 +24,10 @@ export function AgentAiPolicySection({
   saving: boolean;
   feedback?: string;
 }) {
+  const usesFreeModel =
+    policy.defaultModel.trim().endsWith(':free') ||
+    policy.defaultModel.trim() === 'openrouter/free' ||
+    policy.taskModels.some(t => t.model.trim().endsWith(':free') || t.model.trim() === 'openrouter/free');
   const datalistId = `openrouter-presets-${productId}`;
 
   const updateTask = (index: number, patch: Partial<AgentAiTaskModel>) => {
@@ -213,7 +217,7 @@ export function AgentAiPolicySection({
         </Field>
       </div>
 
-      <label className="checkbox-row" style={{ margin: '0.5rem 0 1rem 0' }}>
+      <label className="checkbox-row" style={{ margin: '0.5rem 0 0.5rem 0' }}>
         <input
           type="checkbox"
           checked={policy.enforceZdr}
@@ -223,6 +227,12 @@ export function AgentAiPolicySection({
           Enforce OpenRouter Zero Data Retention (<code>data_collection: &quot;deny&quot;</code>) so user prompts are never retained for provider training.
         </span>
       </label>
+
+      {usesFreeModel && policy.enforceZdr && (
+        <Notice kind="error">
+          Notice: One or more models use a <code>:free</code> or <code>openrouter/free</code> endpoint while Zero Data Retention is still checked. Uncheck Zero Data Retention above while testing free models (and enable free endpoints in OpenRouter privacy settings), or switch back to paid model slugs.
+        </Notice>
+      )}
 
       <div
         style={{

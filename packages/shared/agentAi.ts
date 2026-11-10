@@ -43,6 +43,9 @@ export const OPENROUTER_MODEL_PRESETS = [
   { id: 'qwen/qwen3.5-flash-02-23', label: 'Qwen3.5 Flash (1M Context, Very Low Cost, Vision)' },
   { id: 'openai/gpt-5-nano', label: 'GPT-5 Nano (Ultra-Fast JSON/Routing, Vision)' },
   { id: 'google/gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash-Lite (1M Context, Multimodal)' },
+  { id: 'openrouter/free', label: 'OpenRouter Free Auto-Router (Free Testing Only)' },
+  { id: 'google/gemma-4-26b-a4b-it:free', label: 'Gemma 4 26B A4B :free (Free Testing Only)' },
+  { id: 'google/gemma-4-31b-it:free', label: 'Gemma 4 31B :free (Free Testing Only)' },
 ] as const;
 
 export const DEFAULT_AGENT_TASKS_BY_SLUG: Record<string, AgentAiTaskModel[]> = {
