@@ -82,18 +82,18 @@ export const products: Product[] = [
     features: [
       "Screen and audio context",
       "Résumé and conversation memory",
-      "Local and cloud AI options",
+      "Zero-setup NORVI Cloud AI",
       "Coding assistance"
     ],
     version: "Release version to be confirmed",
-    requirements: "Windows-oriented application. Supported Windows versions, audio setup, and local-model hardware requirements need verification.",
+    requirements: "Windows-oriented application. Supported Windows versions and audio setup documented in the setup guide.",
     workflowHeading: "Built for your workflow.",
     workflowDescription: "An interview assistant with screen and audio context, résumé memory, and coding assistance. Designed for practice and situations where assistance is permitted. The application is reported complete; the NORVI release and compatibility checks are still being prepared.",
     workflowMediaUrl: null,
     workflowNote: "",
     updatedAt: "2026-09-23",
     extendedContent: {
-      badgeText: "⚡ Ultra-Low Latency | 100% Undetectable | Local & Cloud AI",
+      badgeText: "⚡ Ultra-Low Latency | 100% Undetectable | Managed Cloud AI",
       platformBadges: ["Zoom", "Microsoft Teams", "Google Meet", "HackerRank", "LeetCode", "CoderPad"],
       featurePillars: [
         {
@@ -125,7 +125,7 @@ export const products: Product[] = [
         rows: [
           { feature: "Invisible on Screen Share", us: true, comp1: true, comp2: false },
           { feature: "Hardware Audio Bypass", us: true, comp1: false, comp2: false },
-          { feature: "100% Offline / Local Execution", us: true, comp1: false, comp2: false },
+          { feature: "Zero-Setup Managed Cloud AI", us: true, comp1: false, comp2: false },
           { feature: "Pricing Model", us: "From ₹499 / Lifetime", comp1: "$149.90 / month", comp2: "$20 / month" },
           { feature: "LeetCode & Code Assistant", us: true, comp1: true, comp2: true }
         ]
@@ -138,7 +138,7 @@ export const products: Product[] = [
       faqs: [
         { question: "Will Zoom, Teams, or Google Meet detect Voro?", answer: "No. Voro utilizes hardware-level overlay layering that is completely invisible to screen-sharing capture software." },
         { question: "Can interviewers hear Voro voice output?", answer: "No. Voro routes audio exclusively to your selected headphone output, bypassing Windows recording hooks." },
-        { question: "Can I use my own Gemini or OpenAI API keys?", answer: "Yes. Voro supports Bring-Your-Own-Key (BYOK) for zero token markups, as well as 100% offline local models (Ollama)." }
+        { question: "Do I need to configure my own AI keys or local servers?", answer: "No. Cloud AI intelligence is included and managed automatically through your NORVI license with zero extra AI keys required." }
       ],
       seo: {
         metaTitle: "Voro - #1 Real-Time AI Interview Assistant & Coding Copilot | Undetectable",
@@ -177,28 +177,28 @@ export const products: Product[] = [
       "categoryId": "cat-3",
       "category": { id: 'cat-3', slug: 'job-search-automation', name: 'Job-search automation' },
       "tagline": "The Autonomous AI Career Agent & Desktop Job-Search Engine",
-      "description": "An end-to-end autonomous AI career agent that automates your entire job hunt. Features local AI resume parsing, ATS skill matching, stealth multi-platform auto-applying across LinkedIn, Indeed, Naukri, Internshala, and Wellfound, strict DOM verification, and background IMAP email interview tracking.",
+      "description": "An end-to-end autonomous AI career agent that automates your entire job hunt. Features AI resume parsing, ATS skill matching, stealth multi-platform auto-applying across LinkedIn, Indeed, Naukri, Internshala, and Wellfound, strict DOM verification, and background IMAP email interview tracking.",
       "price": "₹499",
       "status": "published",
       "releaseStatus": "live",
       "logoUrl": null,
       "features": [
           "Multi-Platform Stealth Auto-Apply (LinkedIn, Indeed, Naukri, Internshala, Wellfound)",
-          "Local AI Resume Parsing & ATS Match Scoring (Ollama / Gemini / OpenAI)",
+          "NORVI Cloud AI Resume Parsing & ATS Match Scoring",
           "Intelligent Dynamic CTC, Notice Period & Screening Question Engine",
           "Zero-False-Positive DOM-Level Proof of Submission Verification",
           "Automated IMAP Recruiter Response & Interview Radar",
           "Dark-Mode Mission Control Kanban Dashboard"
       ],
       "version": "v1.0.0 Stable",
-      "requirements": "Windows 10/11 64-bit, 8GB RAM, Google Chrome / Chromium. Optional: Ollama for 100% offline local AI execution.",
+      "requirements": "Windows 10/11 64-bit, 8GB RAM, Google Chrome / Chromium. Zero local AI setup required.",
       "workflowHeading": "Autonomous career automation, from discovery to interview.",
-      "workflowDescription": "Rolvio operates silently on your desktop. It discovers high-match jobs across 5 platforms, uses local AI to answer screening questions with precision, submits applications using stealth browser automation, and tracks recruiter interview invites in a real-time Kanban board.",
+      "workflowDescription": "Rolvio operates silently on your desktop. It discovers high-match jobs across 5 platforms, uses NORVI Cloud AI to answer screening questions with precision, submits applications using stealth browser automation, and tracks recruiter interview invites in a real-time Kanban board.",
       "workflowMediaUrl": null,
       "workflowNote": "Includes native Windows installer, automatic updates, and SQLite local encrypted answer vault.",
       "updatedAt": "2026-09-23",
       "extendedContent": {
-          "badgeText": "⚡ 100% Stealth Playwright | Local Ollama AI | 5 Global Job Platforms",
+          "badgeText": "⚡ 100% Stealth Playwright | Managed Cloud AI | 5 Global Job Platforms",
           "platformBadges": [
               "LinkedIn",
               "Indeed",
@@ -211,10 +211,10 @@ export const products: Product[] = [
           "featurePillars": [
               {
                   "id": "rolvio-p1",
-                  "title": "Local AI Brain & ATS Precision Fit Scorer",
-                  "tag": "Zero Token Cost & 100% Private",
+                  "title": "NORVI Cloud AI & ATS Precision Fit Scorer",
+                  "tag": "Zero Local Setup",
                   "icon": "Bot",
-                  "description": "Powered by local Ollama LLMs (Llama 3, Gemma 2) or cloud AI. Rolvio ingests your master resume, analyzes every scraped job description, scores compatibility out of 100, and tailors screening answers to your real experience."
+                  "description": "Powered by NORVI Cloud AI with zero local runtime downloads. Rolvio ingests your master resume, filters mismatched jobs locally, scores compatibility out of 100, and tailors screening answers to your real experience."
               },
               {
                   "id": "rolvio-p2",
@@ -257,7 +257,7 @@ export const products: Product[] = [
                   },
                   {
                       "feature": "AI Runtime & Privacy",
-                      "us": "100% Offline Local Ollama or Cloud BYOK",
+                      "us": "Managed NORVI Cloud AI (Zero Local Setup)",
                       "comp1": "Cloud-hosted (Data privacy risk)",
                       "comp2": "N/A"
                   },
@@ -302,7 +302,7 @@ export const products: Product[] = [
               {
                   "step": "02",
                   "title": "Autonomous Radar & Scoring",
-                  "description": "Rolvio scans 5 platforms, extracts job specs, and uses local AI to score each role against your resume."
+                  "description": "Rolvio scans 5 platforms, filters irrelevant listings locally, and uses NORVI Cloud AI to score matching roles against your resume."
               },
               {
                   "step": "03",
@@ -320,8 +320,8 @@ export const products: Product[] = [
                   "answer": "Rolvio uses an intelligent dual-engine approach. For standard questions (notice period, current CTC, expected CTC, years of experience, legal authorization), it dynamically computes and formats the exact numerical or text answer based on your Master Profile. For subjective screening questions (\"Why do you want to work here?\", \"Describe your experience with distributed systems\"), Rolvio's AI Brain generates grounded answers strictly referencing your uploaded resume. All answers are cached in an encrypted local SQLite database so questions are never repeatedly re-prompted."
               },
               {
-                  "question": "Do I have to pay for costly AI API tokens?",
-                  "answer": "No! Rolvio includes native support for 100% offline local LLMs via Ollama (such as Llama 3, Gemma 2, and Mistral). When running locally, all parsing, ATS scoring, and question answering execute entirely on your machine at zero token cost and complete data privacy. If you prefer cloud models, Rolvio also supports Bring-Your-Own-Key (BYOK) for Google Gemini and OpenAI with direct API calls and zero platform markup."
+                  "question": "Do I have to configure AI API keys or install local models?",
+                  "answer": "No! Cloud AI resume parsing, ATS scoring, and screening answers are included automatically with your active NORVI license with zero local AI software or personal API keys required."
               },
               {
                   "question": "Can I review and approve job applications before Rolvio submits them?",
@@ -346,7 +346,7 @@ export const products: Product[] = [
           ],
           "seo": {
               "metaTitle": "Rolvio - #1 Autonomous AI Job Hunter & Career Agent | Stealth Playwright",
-              "metaDescription": "Automate your job search with Rolvio: the #1 desktop AI job hunter. Stealth auto-apply across LinkedIn, Indeed, Naukri, Internshala & Wellfound with local Ollama AI & IMAP interview radar.",
+              "metaDescription": "Automate your job search with Rolvio: the #1 desktop AI job hunter. Stealth auto-apply across LinkedIn, Indeed, Naukri, Internshala & Wellfound with managed Cloud AI & IMAP interview radar.",
               "focusKeywords": "ai job applicant agent, automated job application, auto apply linkedin, indeed auto apply bot, rolvio ai, job hunt automation, playwright job applicant"
           },
           "guide": {
@@ -366,8 +366,8 @@ export const products: Product[] = [
                   },
                   {
                       "id": "guide-step-3",
-                      "heading": "3. Choose Your AI Brain (Local Ollama or Cloud API)",
-                      "content": "Open Settings in Rolvio and select your AI provider:\n• Local AI (Recommended & Free): Ensure Ollama is installed (ollama.com) and run \"ollama run gemma2\" or \"llama3\". Select \"Ollama\" in Rolvio for 100% offline execution with zero API costs.\n• Cloud AI: Select \"Gemini\" or \"OpenAI\" and paste your personal API key for high-speed cloud intelligence.",
+                      "heading": "3. Automatic Cloud AI Activation",
+                      "content": "Once you log in and activate your Rolvio license key, NORVI Cloud AI connects automatically — no Ollama installation or third-party AI API keys needed.",
                       "imageUrl": null
                   },
                   {
@@ -408,7 +408,7 @@ export const products: Product[] = [
       "price1m": "499",
       "price3m": "999",
       "price_lifetime": "1999",
-      "aiUsage": "Unlimited local offline execution via Ollama (Llama 3, Gemma 2), or Bring-Your-Own Gemini/OpenAI API keys.",
+      "aiUsage": "Managed NORVI Cloud AI included with your active license — zero local AI downloads or third-party keys needed.",
       "deviceAllowance": "1 active desktop device per license. Manage and release devices instantly in your NORVI dashboard."
   }
 ];

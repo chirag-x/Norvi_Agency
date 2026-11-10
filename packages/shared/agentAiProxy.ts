@@ -508,12 +508,20 @@ export function createAgentAiHandler(deps: AgentAiHandlerDeps) {
       openRouterPayload.stream_options = { include_usage: true };
     }
 
-    const isRealtimeInterviewTask =
-      taskKey === 'voice_text' || taskKey === 'coding' || taskKey === 'vision';
+    const isLatencyCriticalTask =
+      taskKey === 'voice_text' ||
+      taskKey === 'coding' ||
+      taskKey === 'vision' ||
+      taskKey === 'clip_analysis' ||
+      taskKey === 'social_copy' ||
+      taskKey === 'job_match' ||
+      taskKey === 'form_answer' ||
+      taskKey === 'email_classify' ||
+      taskKey === 'resume_parse';
     let autoSuppressedReasoning = false;
     if (body.reasoning && typeof body.reasoning === 'object' && !Array.isArray(body.reasoning)) {
       openRouterPayload.reasoning = body.reasoning;
-    } else if (isRealtimeInterviewTask && quota.sort !== 'price') {
+    } else if (isLatencyCriticalTask && quota.sort !== 'price') {
       openRouterPayload.reasoning = { enabled: false };
       autoSuppressedReasoning = true;
     }
