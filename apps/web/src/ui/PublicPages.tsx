@@ -40,7 +40,7 @@ function renderComparisonCell(val: boolean | string | undefined | null, isUs: bo
   return <span>{val}</span>;
 }
 
-export function Detail({product, settings}:{product:Product|undefined; settings?:Settings}){
+export function Detail({product, settings, isCatalogLoaded = true}:{product:Product|undefined; settings?:Settings; isCatalogLoaded?:boolean}){
   const { data: account, reload } = useData('/account');
   const ownsProduct = account?.licenses?.some((l:any) => l.productId === product?.id && l.status === 'active');
   const [trialModal, setTrialModal] = useState(false);
@@ -49,7 +49,7 @@ export function Detail({product, settings}:{product:Product|undefined; settings?
   const [trialError, setTrialError] = useState('');
 
   useEffect(() => {
-    if (!product || !product.slug || !product.name) return;
+    if (!isCatalogLoaded || !product || !product.slug || !product.name) return;
 
     const fireViewContent = () => {
       if (hasAdvertisingConsent()) {
@@ -75,7 +75,7 @@ export function Detail({product, settings}:{product:Product|undefined; settings?
     return () => {
       window.removeEventListener('norvi:consent-changed', handleConsentChange);
     };
-  }, [product?.slug, product?.name, settings?.saleActive, settings?.salePercentage]);
+  }, [isCatalogLoaded, product?.slug, product?.name, settings?.saleActive, settings?.salePercentage]);
 
   async function startTrial() {
     setTrialBusy(true);

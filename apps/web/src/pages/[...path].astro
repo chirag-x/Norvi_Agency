@@ -22,8 +22,10 @@ export function getStaticPaths() {
 const path = '/' + (Astro.params.path || '');
 const privatePage = /\/(account|admin|checkout|orders|login|register)/.test(path);
 const settings = catalog.settings;
+const canonicalPath = path === '/' ? '/' : path.replace(/\/+$/, '') + '/';
+const canonicalUrl = `https://nor-vi.in${canonicalPath}`;
 
-let title = path === "/" ? "NORVI | Autonomous AI Agents & Tech Agency" : settings.name + " - AI agents for your everyday work";
+let title = path === "/" ? "NORVI Agency | Autonomous AI Agents" : "NORVI Agency - AI agents for your everyday work";
 let description = settings.description;
 let ogImage = "https://nor-vi.in/logo.jpg?v=2";
 let keywords = "NORVI, NORVI AI, NORVI Agency, NORVI AI Agency, NORVI Agents, NORVI AI Agents, Autonomous AI Agents, AI Automation, Rolvio, Voro, Omnix, AI Job Search, Tech Agency";
@@ -40,7 +42,7 @@ if (path.startsWith('/agents/')) {
     const ext = (product as any).extendedContent || {};
     const seo = ext.seo || {};
 
-    title = seo.metaTitle || `${product.name} - ${product.tagline} | ${settings.name}`;
+    title = seo.metaTitle || `${product.name} - ${product.tagline} | NORVI Agency`;
     description = seo.metaDescription || product.description;
 
     if (seo.ogImage) {
@@ -104,27 +106,33 @@ if (path.startsWith('/agents/')) {
           "@type": "ListItem",
           "position": 1,
           "name": "Home",
-          "item": "https://nor-vi.in"
+          "item": "https://nor-vi.in/"
         },
         {
           "@type": "ListItem",
           "position": 2,
           "name": "AI Agents",
-          "item": "https://nor-vi.in/agents"
+          "item": "https://nor-vi.in/agents/"
         },
         {
           "@type": "ListItem",
           "position": 3,
           "name": product.name,
-          "item": `https://nor-vi.in/agents/${product.slug}`
+          "item": `https://nor-vi.in/agents/${product.slug}/`
         }
       ]
     });
   }
 } else if (path === '/agents') {
-  title = "All AI Agents | " + settings.name;
+  title = "All AI Agents | NORVI Agency";
+} else if (path === '/about') {
+  title = "About Us | NORVI Agency";
+} else if (path === '/partners') {
+  title = "Partner Program | NORVI Agency";
+} else if (path === '/help') {
+  title = "Help Center | NORVI Agency";
 } else if (path === '/contact') {
-  title = "Contact Us | " + settings.name;
+  title = "Contact Us | NORVI Agency";
 }
 
 const websiteJsonLd = JSON.stringify({
@@ -140,7 +148,7 @@ const orgJsonLd = JSON.stringify({
   "@type": "Organization",
   "name": "NORVI Agency",
   "alternateName": ["NORVI", "NORVI AI", "NORVI AI Agency", "NORVI Agents"],
-  "url": "https://nor-vi.in",
+  "url": "https://nor-vi.in/",
   "logo": "https://nor-vi.in/logo.jpg?v=2",
   "description": settings.description,
   "sameAs": []
@@ -156,10 +164,11 @@ const orgJsonLd = JSON.stringify({
   <title>{title}</title>
   <meta name="description" content={description}/>
   <meta name="keywords" content={keywords} />
-  <link rel="canonical" href={"https://nor-vi.in" + (path === '/' ? '' : path)} />
+  <link rel="canonical" href={canonicalUrl} />
   <meta name="theme-color" content="#c8ff64" />
   
   <meta property="og:site_name" content="NORVI Agency" />
+  <meta property="og:url" content={canonicalUrl} />
   <meta property="og:title" content={title} />
   <meta property="og:description" content={description} />
   <meta property="og:image" content={ogImage} />
@@ -171,8 +180,8 @@ const orgJsonLd = JSON.stringify({
   
   <meta name="robots" content={privatePage ? 'noindex,nofollow' : 'index,follow'}/>
   <meta name="google-site-verification" content="CGX36wKy06XEm7c6O0Uq5TG7JzOFqSLGZKA4maz4xMI" />
-  {!privatePage && <><script type="application/ld+json" set:html={websiteJsonLd}></script>
-  <script type="application/ld+json" set:html={orgJsonLd}></script></>}
+  {path === '/' && <script type="application/ld+json" set:html={websiteJsonLd}></script>}
+  {!privatePage && <script type="application/ld+json" set:html={orgJsonLd}></script>}
   {isProduct && productJsonLd && <script type="application/ld+json" set:html={productJsonLd}></script>}
   {isProduct && faqJsonLd && <script type="application/ld+json" set:html={faqJsonLd}></script>}
   {isProduct && breadcrumbJsonLd && <script type="application/ld+json" set:html={breadcrumbJsonLd}></script>}

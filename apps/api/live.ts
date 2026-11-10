@@ -461,7 +461,7 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     return c.json({
       ok: true,
       lease: freshLease,
-      expires_at: license.expires_at || new Date(exp * 1000).toISOString(),
+      expires_at: license.expires_at || null,
       status: 'active'
     });
   });
