@@ -55,6 +55,15 @@ export function AgentAiPolicySection({
     onChange({ ...policy, taskModels: [...policy.taskModels, newRow] });
   };
 
+  const applyDefaultToAllTasks = () => {
+    const trimmed = policy.defaultModel.trim();
+    if (!trimmed) return;
+    onChange({
+      ...policy,
+      taskModels: policy.taskModels.map(item => ({ ...item, model: trimmed })),
+    });
+  };
+
   const removeTask = (index: number) => {
     onChange({ ...policy, taskModels: policy.taskModels.filter((_, i) => i !== index) });
   };
@@ -251,9 +260,20 @@ export function AgentAiPolicySection({
             Assign any OpenRouter model ID per agent task (e.g. voice_text, coding, vision) or add slots for future tasks.
           </span>
         </div>
-        <button type="button" className="button secondary small" onClick={addTask}>
-          <Plus size={14} /> Add Task Slot
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            className="button secondary small"
+            onClick={applyDefaultToAllTasks}
+            disabled={!policy.defaultModel.trim() || policy.taskModels.length === 0}
+            title="Copy Default Fallback OpenRouter Model into every task slot below"
+          >
+            Apply Default Model to All Tasks
+          </button>
+          <button type="button" className="button secondary small" onClick={addTask}>
+            <Plus size={14} /> Add Task Slot
+          </button>
+        </div>
       </div>
 
       {policy.taskModels.length === 0 ? (
