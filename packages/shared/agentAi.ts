@@ -40,12 +40,16 @@ export type AgentAiPolicy = AgentAiPolicyInput & {
 export const OPENROUTER_MODEL_PRESETS = [
   { id: 'google/gemma-4-26b-a4b-it', label: 'Gemma 4 26B A4B MoE (Fast, Low Cost, Vision)' },
   { id: 'google/gemma-4-31b-it', label: 'Gemma 4 31B Dense (High Precision Coding/Vision)' },
+  { id: 'google/gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash-Lite (Ultra-Fast 1M Context, Multimodal)' },
+  { id: 'openai/gpt-4.1-nano', label: 'GPT-4.1 Nano (Ultra-Fast Non-Reasoning Paid, Vision)' },
+  { id: 'openai/gpt-5-nano', label: 'GPT-5 Nano (Fast JSON/Routing, Vision)' },
+  { id: 'meta-llama/llama-3.1-8b-instruct', label: 'Llama 3.1 8B Instruct (Ultra-Fast Low Cost Text)' },
   { id: 'qwen/qwen3.5-flash-02-23', label: 'Qwen3.5 Flash (1M Context, Very Low Cost, Vision)' },
-  { id: 'openai/gpt-5-nano', label: 'GPT-5 Nano (Ultra-Fast JSON/Routing, Vision)' },
-  { id: 'google/gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash-Lite (1M Context, Multimodal)' },
-  { id: 'openrouter/free', label: 'OpenRouter Free Auto-Router (Free Testing Only)' },
+  { id: 'nvidia/nemotron-3.5-lightning:free', label: 'Nemotron 3.5 Lightning :free (<1.5s Free Testing)' },
+  { id: 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free', label: 'Nemotron 3 Nano 30B :free (~1.4s Free Testing)' },
   { id: 'google/gemma-4-26b-a4b-it:free', label: 'Gemma 4 26B A4B :free (Free Testing Only)' },
   { id: 'google/gemma-4-31b-it:free', label: 'Gemma 4 31B :free (Free Testing Only)' },
+  { id: 'openrouter/free', label: 'OpenRouter Free Auto-Router (Random :free Model)' },
 ] as const;
 
 export const DEFAULT_AGENT_TASKS_BY_SLUG: Record<string, AgentAiTaskModel[]> = {

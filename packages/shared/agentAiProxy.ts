@@ -306,6 +306,8 @@ export function createAgentAiHandler(deps: AgentAiHandlerDeps) {
     }
   }
 
+  const productCache = new Map<string, { id: string; slug: string; expiresAt: number }>();
+
   return async function handleRequest(req: Request): Promise<Response> {
     if (req.method === 'OPTIONS') {
       return new Response(null, { status: 204, headers: CORS_HEADERS });
@@ -410,14 +412,25 @@ export function createAgentAiHandler(deps: AgentAiHandlerDeps) {
     const db = deps.createServiceClient(supabaseUrl, serviceRoleKey);
     const productLookupCol = lease.product ? 'slug' : 'id';
     const productLookupVal = lease.product ? lease.product : String(lease.product_id);
-    const { data: product, error: prodErr } = await db
-      .from('products')
-      .select('id, slug')
-      .eq(productLookupCol, productLookupVal)
-      .single();
+    const cacheKey = `${productLookupCol}:${productLookupVal}`;
+    const nowMs = nowSeconds() * 1000;
+    let product = productCache.get(cacheKey);
+    if (!product || product.expiresAt <= nowMs) {
+      const { data: fetchedProduct, error: prodErr } = await db
+        .from('products')
+        .select('id, slug')
+        .eq(productLookupCol, productLookupVal)
+        .single();
 
-    if (prodErr || !product?.id) {
-      return jsonResponse({ error: 'Agent product is unavailable.' }, 403);
+      if (prodErr || !fetchedProduct?.id) {
+        return jsonResponse({ error: 'Agent product is unavailable.' }, 403);
+      }
+      product = {
+        id: fetchedProduct.id,
+        slug: fetchedProduct.slug,
+        expiresAt: nowMs + 5 * 60 * 1000,
+      };
+      productCache.set(cacheKey, product);
     }
     if (headerProduct && product.slug && headerProduct !== String(product.slug).toLowerCase()) {
       return jsonResponse({ error: 'Product mismatch for active license lease.' }, 403);
@@ -495,10 +508,19 @@ export function createAgentAiHandler(deps: AgentAiHandlerDeps) {
       openRouterPayload.stream_options = { include_usage: true };
     }
 
+    const isRealtimeInterviewTask =
+      taskKey === 'voice_text' || taskKey === 'coding' || taskKey === 'vision';
+    let autoSuppressedReasoning = false;
+    if (body.reasoning && typeof body.reasoning === 'object' && !Array.isArray(body.reasoning)) {
+      openRouterPayload.reasoning = body.reasoning;
+    } else if (isRealtimeInterviewTask && quota.sort !== 'price') {
+      openRouterPayload.reasoning = { enabled: false };
+      autoSuppressedReasoning = true;
+    }
+
     // 7. Call OpenRouter
-    let upstreamRes: Response;
-    try {
-      upstreamRes = await fetchFn(OPENROUTER_CHAT_URL, {
+    const sendUpstream = () =>
+      fetchFn(OPENROUTER_CHAT_URL, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${openRouterKey}`,
@@ -508,9 +530,39 @@ export function createAgentAiHandler(deps: AgentAiHandlerDeps) {
         },
         body: JSON.stringify(openRouterPayload),
       });
+
+    let upstreamRes: Response;
+    try {
+      upstreamRes = await sendUpstream();
     } catch {
       await persistUsageFinalize(db, usageLogId, 'failed');
       return jsonResponse({ error: 'Upstream AI service is temporarily unreachable. Please retry.' }, 502);
+    }
+
+    if (!upstreamRes.ok && upstreamRes.status === 400 && autoSuppressedReasoning) {
+      let errPeek = '';
+      try {
+        errPeek = await upstreamRes.text();
+      } catch {
+        errPeek = '';
+      }
+      const lowerPeek = errPeek.toLowerCase();
+      if (
+        lowerPeek.includes('reason') ||
+        lowerPeek.includes('unsupported') ||
+        lowerPeek.includes('unknown') ||
+        lowerPeek.includes('extra_forbidden')
+      ) {
+        delete openRouterPayload.reasoning;
+        try {
+          upstreamRes = await sendUpstream();
+        } catch {
+          await persistUsageFinalize(db, usageLogId, 'failed');
+          return jsonResponse({ error: 'Upstream AI service is temporarily unreachable. Please retry.' }, 502);
+        }
+      } else {
+        upstreamRes = new Response(errPeek, { status: 400, headers: upstreamRes.headers });
+      }
     }
 
     if (!upstreamRes.ok) {
@@ -646,6 +698,8 @@ export function createAgentAiHandler(deps: AgentAiHandlerDeps) {
       headers: {
         ...CORS_HEADERS,
         'Content-Type': 'text/event-stream; charset=utf-8',
+        'Cache-Control': 'no-cache, no-store, no-transform',
+        'X-Accel-Buffering': 'no',
       },
     });
   };
