@@ -10,13 +10,13 @@ Run these checks before shipping updated installers (`Voro`, `Nexus`, `Rolvio`) 
 
 1. **Zero Secret Leakage Check:**
    - Search all desktop codebases (`Voro/`, `Nexus/`, `Rolvio/`) and built `.exe` strings to confirm `sk-or-v1-` (`OPENROUTER_API_KEY`) never appears anywhere on the client side.
-   - Confirm `OPENROUTER_API_KEY` and `LICENSE_ENCRYPTION_KEY` exist **only** in Supabase Edge Function Secrets and Netlify/Worker server environment variables.
+   - Confirm `OPENROUTER_API_KEY` and `LICENSE_ENCRYPTION_KEY` exist **only** in Netlify server environment variables (and `.env.local` for local dev).
 2. **Hidden Limits Leak Check:**
    - Call `GET https://nor-vi.in/api/catalog` unauthenticated → verify `daily_limit`, `weekly_limit`, `monthly_limit`, `trial_daily_limit`, and `task_models` are **absent**.
    - Call `/api/agent-auth/activate` & `/api/agent-auth/verify` → verify the Lease JWT payload contains only `{ license_id, device_id, exp, product }`.
    - Force a license past its `1-day` limit → confirm HTTP `429` returns only a generic cooldown message without numeric limit details.
 3. **Model Lock Tamper Test:**
-   - Send a spoofed request to `agent-ai` with `"model": "anthropic/claude-opus-4"` in the JSON body → confirm the Edge Function ignores the client field and executes only the Admin Panel's configured OpenRouter model.
+   - Send a spoofed request to `/api/agent-ai/v1/chat/completions` with `"model": "anthropic/claude-opus-4"` in the JSON body → confirm the backend proxy ignores the client field and executes only the Admin Panel's configured OpenRouter model.
 4. **Device Binding Test:**
    - Copy a valid `.norvi_voro_lease` token to another machine (`X-Norvi-Device` mismatch) → confirm `agent-ai` rejects with `403`.
 5. **Revocation Kill-Switch Test:**
@@ -30,7 +30,7 @@ Deploy in this exact order so nothing breaks live users:
 
 1. **Step 1:** Run Supabase migration `063_agent_ai_policies.sql` (Phase 1).
 2. **Step 2:** Deploy Admin API + **Agent Releases** UI update to `nor-vi.in` (Phase 2), configure initial OpenRouter models and 1d/1w/1m limits for `voro`, `nexus`, `rolvio`.
-3. **Step 3:** Set Supabase secrets (`OPENROUTER_API_KEY`, `LICENSE_ENCRYPTION_KEY`) and deploy `agent-ai` Edge Function (Phase 3). Test via `curl` / script with a staging Lease JWT.
+3. **Step 3:** Set `OPENROUTER_API_KEY` in Netlify Environment Variables and deploy the updated Netlify site with `/api/agent-ai/*` (Phase 3). Test `GET /api/agent-ai/health` and `POST /api/agent-ai/v1/chat/completions`.
 4. **Step 4:** Upgrade & release **Voro** first (Phase 4) — test live interview streaming latency, coding answers, screenshot vision, and verify Groq STT still works identically.
 5. **Step 5:** Upgrade & release **Nexus** (Phase 5) — test long video clip JSON extraction and social caption generation + Whisper STT untouched.
 6. **Step 6:** Upgrade & release **Rolvio** (Phase 6) — test live `nor-vi.in` login/activation + all 4 AI tasks.
@@ -59,6 +59,6 @@ Whenever you build **Agent #4, #5, or #10** in the future:
    - Set `1-Day`, `1-Week`, `1-Month`, and `Trial 1-Day` hidden limits.
 3. **In the new agent's Python/App code:**
    - Authenticate via `/api/agent-auth/login` + `/api/agent-auth/activate` (`productSlug: "syntra"`).
-   - Point any OpenAI SDK / `httpx` client at `https://<project-ref>.supabase.co/functions/v1/agent-ai/v1/chat/completions` with `Authorization: Bearer <lease_jwt>`, `X-Norvi-Device: <hwid>`, and `X-Norvi-Task: <task_key>`.
+   - Point any OpenAI SDK / `httpx` client at `https://nor-vi.in/api/agent-ai/v1/chat/completions` with `Authorization: Bearer <lease_jwt>`, `X-Norvi-Device: <hwid>`, and `X-Norvi-Task: <task_key>`.
 
-No new SQL migrations, no new Edge Functions, and no user-facing API keys required.
+No new SQL migrations, no new Netlify functions, and no user-facing API keys required.

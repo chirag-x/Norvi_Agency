@@ -8,7 +8,7 @@
 
 - **Auth Is Currently Stubbed (`src/rolvio/core/api.py` & `src/rolvio/core/auth.py`):**
   - `NorviApiClient` currently defaults `base_url = "https://api.norvi.com"` and returns `"mock_secure_token_123"` with stubbed validation (`return token == "mock_secure_token_123"`).
-  - Because our Supabase Edge Function authenticates requests via a real signed **NORVI Lease JWT**, Rolvio **must** connect to your real `https://nor-vi.in/api/agent-auth/*` endpoints first.
+  - Because our Netlify AI proxy authenticates requests via a real signed **NORVI Lease JWT**, Rolvio **must** connect to your real `https://nor-vi.in/api/agent-auth/*` endpoints first.
 - **Current AI Calls (`src/rolvio/core/ai_gateway.py`):**
   - Calls `http://localhost:11434/api/generate` (`model="gemma4:cloud"`) across 4 distinct methods:
     1. `evaluate_job_match()` — ATS compatibility scoring (high volume!)
@@ -34,7 +34,7 @@
   - Store `lease` JWT, `expires_at`, `last_verified_at`, and `license_key` securely in `WindowsCredentialStore` (under `"NorviRolvioApp"`).
 
 ### B. Upgrade `AIGateway` (`src/rolvio/core/ai_gateway.py`)
-- Add `_generate_json(task_key: str, system: str, prompt: str, ...)` targeting `https://<project-ref>.supabase.co/functions/v1/agent-ai/v1/chat/completions`:
+- Add `_generate_json(task_key: str, system: str, prompt: str, ...)` targeting `https://nor-vi.in/api/agent-ai/v1/chat/completions`:
   - Headers:
     - `Authorization: Bearer <lease_jwt>`
     - `X-Norvi-Device: <hardware_id>`

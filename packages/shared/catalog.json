@@ -467,6 +467,7 @@
       "administrator": [
         "",
         "/products",
+        "/releases",
         "/categories",
         "/customers",
         "/licenses",
@@ -479,6 +480,7 @@
       "product_manager": [
         "",
         "/products",
+        "/releases",
         "/categories",
         "/announcements",
         "/content"

@@ -10,11 +10,11 @@
 
 1. **Ollama Cloud free access ended:** Customers can no longer rely on free `gemma4:cloud` access through a local Ollama install.
 2. **Eliminate Ollama desktop installation completely:** Users on low-end PCs no longer need to download, install, or run `OllamaSetup.exe`.
-3. **One centralized OpenRouter account, zero key leaks:** NORVI pays OpenRouter directly using a single account/key stored **only on the server** inside **Supabase Edge Function Secrets** (`OPENROUTER_API_KEY`). No desktop `.exe` ever receives or stores the OpenRouter key.
+3. **One centralized OpenRouter account, zero key leaks:** NORVI pays OpenRouter directly using a single account/key stored **only on the server** inside **Netlify Environment Variables** (`OPENROUTER_API_KEY`). No desktop `.exe` ever receives or stores the OpenRouter key.
 4. **Full Admin Panel control (`Agent Releases` tab):**
    - Choose or type **any OpenRouter model ID per agent and per task** (e.g., separate models for Voro Voice/Text, Voro Coding, Voro Vision, Nexus Clip Analysis, Rolvio Job Matching, and any future agent task) without rebuilding desktop apps.
    - Configure **3 hidden per-license usage limits** per agent: **1-Day**, **1-Week**, and **1-Month** (plus optional Trial 1-Day cap), enforced silently server-side and **never exposed to customers**.
-5. **No new third-party hosting vendor:** Uses your existing **Supabase** project (`Supabase Edge Functions` + `Postgres`) alongside your existing **NORVI Gatekeeper** HMAC Lease JWTs.
+5. **No new third-party hosting vendor:** Runs inside your existing **Netlify backend** (`https://nor-vi.in/api/agent-ai/*`) + **Supabase Postgres**, authenticated with your existing **NORVI Gatekeeper** HMAC Lease JWTs.
 
 ---
 
@@ -27,13 +27,13 @@
 │  • STT (Groq Whisper / Faster-Whisper) remains completely untouched       │
 │  • Authenticates using NORVI Gatekeeper Lease JWT + Device ID             │
 └────────────────────────────────────┬──────────────────────────────────────┘
-                                     │ HTTPS POST .../functions/v1/agent-ai/v1/chat/completions
+                                     │ HTTPS POST https://nor-vi.in/api/agent-ai/v1/chat/completions
                                      │ Authorization: Bearer <NORVI_LEASE_JWT>
                                      │ X-Norvi-Device: <hardware_id>
                                      │ X-Norvi-Task: <task_key> (e.g. voice_text, vision, coding)
                                      ▼
 ┌───────────────────────────────────────────────────────────────────────────┐
-│  SUPABASE EDGE FUNCTION: agent-ai  (verify_jwt = false)                   │
+│  NETLIFY BACKEND PROXY: /api/agent-ai/v1/chat/completions                 │
 │  1. Verify NORVI Lease JWT signature (LICENSE_ENCRYPTION_KEY) & expiry    │
 │  2. Verify active license & active device in Supabase Postgres            │
 │  3. Load private agent AI policy for productId (NEVER public /api/catalog)│
@@ -45,9 +45,9 @@
                                      ▼
 ┌───────────────────────────────────────────────────────────────────────────┐
 │  OPENROUTER MULTI-PROVIDER CLOUD                                          │
-│  • Scales to 100–1,000+ concurrent users across providers                 │
-│  • Streams SSE tokens (Voro) or JSON (Nexus / Rolvio) back via proxy      │
-│  • Edge Function logs token count & cost asynchronously in Supabase       │
+│  • Scales across providers with automatic failover & ZDR privacy          │
+│  • Streams SSE tokens (Voro) or JSON (Nexus / Rolvio) back via Netlify    │
+│  • Awaits finalize_agent_ai_usage to record tokens & cost in Supabase     │
 └───────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -80,7 +80,7 @@ Each phase is isolated, testable, and can be reviewed/deployed step by step:
 | :--- | :--- | :--- |
 | **Phase 1** | [phase-01-database-schema-and-policies.md](./phase-01-database-schema-and-policies.md) | Private Supabase tables for per-agent task models & hidden 1d/1w/1m limits + atomic quota RPC + usage tracking. |
 | **Phase 2** | [phase-02-admin-panel-agent-releases-ui.md](./phase-02-admin-panel-agent-releases-ui.md) | Admin API endpoints + **Agent Releases** UI to type/select OpenRouter models per task (current & future agents) and set hidden 1d/1w/1m limits. |
-| **Phase 3** | [phase-03-supabase-edge-ai-proxy.md](./phase-03-supabase-edge-ai-proxy.md) | Supabase Edge Function `agent-ai` (Lease JWT validation, hidden quota enforcement, server-side model lock, OpenRouter SSE/JSON streaming, usage logging). |
+| **Phase 3** | [phase-03-supabase-edge-ai-proxy.md](./phase-03-supabase-edge-ai-proxy.md) | Netlify Backend `/api/agent-ai` proxy (Lease JWT validation, hidden quota enforcement, server-side model lock, OpenRouter SSE/JSON streaming, usage logging). |
 | **Phase 4** | [phase-04-voro-upgrade.md](./phase-04-voro-upgrade.md) | Upgrade **Voro** to use the NORVI OpenRouter proxy for `voice_text`, `coding`, and `vision`; remove Ollama requirement; keep STT untouched. |
 | **Phase 5** | [phase-05-nexus-upgrade.md](./phase-05-nexus-upgrade.md) | Upgrade **Nexus** to use the NORVI OpenRouter proxy via existing `SessionManager` Lease JWT for `clip_analysis` & `social_copy`; remove Ollama requirement; keep STT untouched. |
 | **Phase 6** | [phase-06-rolvio-upgrade.md](./phase-06-rolvio-upgrade.md) | Wire **Rolvio**'s stubbed `NorviApiClient` to real `nor-vi.in` NORVI Gatekeeper auth + migrate `AIGateway` tasks to the OpenRouter proxy; remove Ollama requirement. |

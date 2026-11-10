@@ -47,7 +47,7 @@
 - Remove local Ollama payload fields (`keep_alive`, `options`).
 
 ### C. Wire the 3 Task Providers (`app/core/application.py`)
-- Point `NORVI_AI_BASE_URL` (default `https://<project-ref>.supabase.co/functions/v1/agent-ai/v1`) in `reload_ai_provider()`:
+- Point `NORVI_AI_BASE_URL` (default `https://nor-vi.in/api/agent-ai/v1`) in `reload_ai_provider()`:
   - `self.ai_provider = OpenRouterProvider(..., task_key="voice_text")`
   - `ai_coding_provider = OpenRouterProvider(..., task_key="coding")`
   - `ai_vision_provider = OpenRouterProvider(..., task_key="vision")`

@@ -1,7 +1,9 @@
 import { LiveAdmin } from './Accounts';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Activity, ArrowRight, ChevronDown, ChevronUp, Bot, ArrowUpRight, BookOpen, Box, Check, Copy, CreditCard, Download, Eye, FileText, KeyRound, LayoutDashboard, LifeBuoy, LogOut, Plus, Search, Settings as SettingsIcon, ShieldCheck, Users, X, Monitor, SlidersHorizontal, Mail, Megaphone, Globe, Sparkles, Video, Image as ImageIcon, HelpCircle, Layers, Trash2, Tag, ExternalLink } from 'lucide-react';
 import type { Category, Product, Settings, User, AgentExtendedContent, FeaturePillar, MediaGalleryItem, ComparisonRow, AgentFaq, GuideSection, AgentGuide } from '../../../../packages/shared/model';
+import { createDefaultAgentAiPolicy, normalizeAgentAiPolicyPayload, type AgentAiPolicy } from '../../../../packages/shared/agentAi';
+import { AgentAiPolicySection } from './AgentAiPolicySection';
 import { ProductCard, ProductIcon } from './App';
 import { api, Badge, date, Empty, Field, Loading, Notice, PageHeading, uploadFile, useData, SmartVideoPlayer, parseYouTubeVideoId } from './common';
 const customerNav = [['', 'Overview', LayoutDashboard], ['/agents', 'My agents', Box], ['/licenses', 'Keys & devices', KeyRound], ['/billing', 'Billing & orders', CreditCard], ['/support', 'Support', LifeBuoy], ['/partner', 'Partner program', Users], ['/settings', 'Profile & security', SettingsIcon]] as const;
@@ -42,9 +44,10 @@ export function Workspace({ path, products, settings, onCatalogChange }: { path:
     if (error) return <div className="container page"><Empty title={admin ? 'Your workspace awaits.' : 'Your agents live here.'} description={error} href={admin ? '/admin/login' : '/login'} label={admin ? 'Open admin sign in' : 'Open customer sign in'} /></div>;
     if (!identity) return <Loading />; if(identity.mfaRequired) return <div className="container page"><Notice>Complete authenticator verification to access your account.</Notice><a className="button primary" href="/account/security">Open account security</a></div>; const user: User = identity.user; if (admin && user.role === 'customer') return <div className="container page"><Notice kind="error">This account has no staff permissions.</Notice><a href="/admin/login" className="button secondary">Open staff preview</a></div>;
     const pMap = settings?.permissions || allowed;
-    const nav = admin ? staffNav.filter(([slug]) => user.role === 'owner' || pMap[user.role]?.includes('*') || pMap[user.role]?.includes(slug)) : customerNav;
+    const canAccessSlug = (slug: string) => user.role === 'owner' || pMap[user.role]?.includes('*') || pMap[user.role]?.includes(slug) || (slug === '/releases' && pMap[user.role]?.includes('/products'));
+    const nav = admin ? staffNav.filter(([slug]) => canAccessSlug(slug)) : customerNav;
       console.log('ACTIVE NAV:', nav);
-    const sectionAllowed = !admin || user.role === 'owner' || pMap[user.role]?.includes('*') || pMap[user.role]?.includes(section);
+    const sectionAllowed = !admin || canAccessSlug(section);
     return <div className="workspace"><CommandPalette user={user} /><aside className="sidebar"><div className="workspace-label">{admin ? 'AGENCY WORKSPACE' : 'PERSONAL WORKSPACE'}</div><nav aria-label="Workspace navigation">{nav.map(([slug, label, Icon]) => <a key={slug} href={base + slug} className={section === slug ? 'selected' : ''}><Icon size={18} />{label}{section === slug && <span className="nav-indicator" />}</a>)}</nav><div className="sidebar-bottom"><div className="preview-box"><ShieldCheck size={18} /><b>{identity.preview ? 'Local preview' : 'NORVI account'}</b><p>{identity.preview ? 'Sample data. No live payments or emails.' : 'Verified account. Sales are not open yet.'}</p></div><a href="/" className="text-button">Back to website <ArrowUpRight size={15} /></a><button className="logout" onClick={async () => { try { await api('/auth/logout', { method: 'POST' }); location.href = admin ? '/admin/login' : '/login'; } catch (e: any) { setLogoutError(e.message); } }}><LogOut size={16} />{identity.preview ? 'Sign out of preview' : 'Sign out'}</button>{logoutError && <Notice kind="error">{logoutError}</Notice>}</div></aside><div className="workspace-main">
         {(user as any).isImpersonated && <div style={{ background: '#f59e0b', color: 'black', padding: '12px 24px', fontWeight: 'bold', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>You are currently impersonating {user.name} ({user.role}).<button className="button primary" onClick={async () => { await api('/admin/impersonate', { method: 'DELETE' }); location.href = '/admin'; }}>Stop Impersonating</button></div>}
         <div className="workspace-topbar"><span>NORVI <span className="slash">/</span> {admin ? 'Agency workspace' : 'My account'}</span><div style={{display: 'flex', alignItems: 'center', gap: 15}}><a href="/" className="text-button" style={{fontSize: 13}}>Back to website <ArrowUpRight size={14} /></a><span className="user-chip"><span className="avatar">{user.name.slice(0, 1).toUpperCase()}</span>{user.name}<Badge>{user.role.replace('_', ' ')}</Badge></span></div></div>{!sectionAllowed ? <Notice kind="error">Your role cannot open this section.</Notice> : admin ? <Admin section={section} user={user} settings={settings} onCatalogChange={onCatalogChange} /> : <Customer section={section} products={products} user={user} />}</div></div>;
@@ -1213,7 +1216,36 @@ export function CatalogNoticeEditor({ settings, onSave }: { settings: Settings; 
   );
 }
 
-export function AgentReleasesAdmin({ products, onSave }: { products: Product[]; onSave: () => void }) {
+export function AgentReleasesAdmin({ products, onSave, initialExpandedId }: { products: Product[]; onSave: () => void; initialExpandedId?: string | null }) {
+  const { data: aiData, error: aiError, reload: reloadAi } = useData('/admin/products/ai-policies');
+  const [expandedIds, setExpandedIds] = useState<Record<string, boolean>>(() =>
+    initialExpandedId ? { [initialExpandedId]: true } : {}
+  );
+  const policyMap = useMemo(() => {
+    const map = new Map<string, AgentAiPolicy>();
+    for (const item of ((aiData?.items || []) as AgentAiPolicy[])) {
+      map.set(item.productId, item);
+    }
+    return map;
+  }, [aiData]);
+  const fallbackPolicyMap = useMemo(() => {
+    const map = new Map<string, AgentAiPolicy>();
+    for (const p of products) {
+      map.set(p.id, createDefaultAgentAiPolicy(p));
+    }
+    return map;
+  }, [products]);
+  const allExpanded = products.length > 0 && products.every(p => !!expandedIds[p.id]);
+  const toggleOne = (id: string) => setExpandedIds(prev => ({ ...prev, [id]: !prev[id] }));
+  const toggleAll = () => {
+    if (allExpanded) {
+      setExpandedIds({});
+    } else {
+      const next: Record<string, boolean> = {};
+      for (const p of products) next[p.id] = true;
+      setExpandedIds(next);
+    }
+  };
   if (!products.length) {
     return <Empty title="No agents found." description="Create an agent in Products first to manage its releases." href="/admin/products" label="Go to Products" />;
   }
@@ -1221,20 +1253,50 @@ export function AgentReleasesAdmin({ products, onSave }: { products: Product[]; 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
       <div className="panel" style={{ background: 'var(--surface)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
+          <div>
         <h3 style={{ margin: '0 0 0.25rem 0' }}>Agent Commercial Releases & Deployment</h3>
         <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-light)' }}>
-          Manage launch readiness status, public versions, system requirements, binary download links, and multi-tier pricing models for every agent in your portfolio.
+          Select any agent below to expand its commercial release settings, OpenRouter AI task models, and hidden 1-day / 1-week / 1-month usage limits.
         </p>
+          </div>
+          <button type="button" className="button secondary small" onClick={toggleAll}>
+            {allExpanded ? <><ChevronUp size={14} /> Collapse All</> : <><ChevronDown size={14} /> Expand All ({products.length})</>}
+          </button>
+        </div>
+        {aiError && <Notice kind="error">Could not load OpenRouter AI policies: {aiError}</Notice>}
       </div>
 
       {products.map(p => (
-        <AgentReleaseCard key={p.id} product={p} onSave={onSave} />
+        <AgentReleaseCard
+          key={p.id}
+          product={p}
+          initialPolicy={policyMap.get(p.id) || fallbackPolicyMap.get(p.id)!}
+          expanded={!!expandedIds[p.id]}
+          onToggle={() => toggleOne(p.id)}
+          onSave={onSave}
+          onPolicySaved={reloadAi}
+        />
       ))}
     </div>
   );
 }
 
-function AgentReleaseCard({ product, onSave }: { product: Product; onSave: () => void }) {
+export function AgentReleaseCard({
+  product,
+  initialPolicy,
+  expanded = false,
+  onToggle,
+  onSave,
+  onPolicySaved,
+}: {
+  product: Product;
+  initialPolicy: AgentAiPolicy;
+  expanded?: boolean;
+  onToggle?: () => void;
+  onSave: () => void;
+  onPolicySaved: () => void;
+}) {
   const [releaseStatus, setReleaseStatus] = useState(product.releaseStatus || 'development');
   const [status, setStatus] = useState(product.status || 'published');
   const [version, setVersion] = useState(product.version || 'v1.0.0');
@@ -1248,6 +1310,44 @@ function AgentReleaseCard({ product, onSave }: { product: Product; onSave: () =>
   const [trialActive, setTrialActive] = useState<boolean>(product.trialActive !== false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
+
+  const [aiPolicy, setAiPolicy] = useState<AgentAiPolicy>(initialPolicy);
+  const [aiDirty, setAiDirty] = useState(false);
+  const [aiSaving, setAiSaving] = useState(false);
+  const [aiFeedback, setAiFeedback] = useState('');
+  const [localExpanded, setLocalExpanded] = useState(expanded);
+  const isExpanded = onToggle ? expanded : localExpanded;
+  const handleToggle = () => (onToggle ? onToggle() : setLocalExpanded(v => !v));
+
+  useEffect(() => {
+    if (!aiDirty) setAiPolicy(initialPolicy);
+  }, [initialPolicy, aiDirty]);
+
+  const persistAiPolicy = async () => {
+    if (!product.id) return;
+    const parsed = normalizeAgentAiPolicyPayload(aiPolicy);
+    if (!parsed.ok) {
+      throw new Error(parsed.error);
+    }
+    await api(`/admin/products/${product.id}/ai-policy`, {
+      method: 'POST',
+      body: JSON.stringify(parsed.data),
+    });
+    setAiDirty(false);
+    onPolicySaved();
+  };
+
+  const handleSaveAiOnly = async () => {
+    setAiSaving(true);
+    setAiFeedback('');
+    try {
+      await persistAiPolicy();
+      setAiFeedback('OpenRouter AI models & hidden limits saved.');
+    } catch (err: any) {
+      setAiFeedback('Error: ' + err.message);
+    }
+    setAiSaving(false);
+  };
 
   const statusColors = {
     development: { bg: 'rgba(234, 179, 8, 0.15)', text: '#eab308', border: 'rgba(234, 179, 8, 0.3)', label: 'In Development' },
@@ -1285,7 +1385,8 @@ function AgentReleaseCard({ product, onSave }: { product: Product; onSave: () =>
           body: JSON.stringify({ trialActive })
         }).catch(() => {});
       }
-      setMessage('Release & commercial settings saved successfully.');
+      if (product.id && aiDirty) { await persistAiPolicy(); }
+      setMessage('Release, AI models, and commercial settings saved successfully.');
       onSave();
     } catch (err: any) {
       setMessage('Error: ' + err.message);
@@ -1294,88 +1395,131 @@ function AgentReleaseCard({ product, onSave }: { product: Product; onSave: () =>
   };
 
   return (
-    <form className="panel" onSubmit={handleSave} style={{ borderTop: `3px solid ${sc.text}` }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+    <form className="panel" onSubmit={handleSave} style={{ borderTop: `3px solid ${sc.text}`, padding: isExpanded ? undefined : '16px 20px', marginBottom: 0 }}>
+      <div
+        onClick={handleToggle}
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: isExpanded ? '1.25rem' : 0,
+          flexWrap: 'wrap',
+          gap: '0.75rem',
+          cursor: 'pointer',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: 240 }}>
           <ProductIcon product={product} />
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
               <h3 style={{ margin: 0 }}>{product.name}</h3>
               <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: 12, background: sc.bg, color: sc.text, border: `1px solid ${sc.border}`, fontWeight: 600 }}>
                 {sc.label}
               </span>
+              <Badge>{status}</Badge>
+              <span className={aiPolicy.aiEnabled ? 'badge good' : 'badge'}>
+                {aiPolicy.aiEnabled ? 'AI Active' : 'AI Paused'}
+              </span>
             </div>
             <span style={{ fontSize: '13px', color: 'var(--text-light)' }}>
-              /{product.slug} · Current version: <b>{version}</b>
+              /{product.slug} · <b>{version}</b> · {price} · AI: <code>{aiPolicy.defaultModel}</code> ({aiPolicy.taskModels.length} task{aiPolicy.taskModels.length === 1 ? '' : 's'})
             </span>
           </div>
         </div>
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }} onClick={e => e.stopPropagation()}>
           <a href={`/agents/${product.slug}`} target="_blank" className="text-button" style={{ fontSize: '13px' }} rel="noreferrer">
             View Public Page <ArrowUpRight size={14} />
           </a>
-          <button className="button primary small" disabled={busy}>
-            {busy ? 'Saving...' : 'Save Release'}<Check size={14} />
+          <button
+            type="button"
+            className="button secondary small"
+            aria-expanded={isExpanded}
+            onClick={handleToggle}
+          >
+            {isExpanded ? <>Collapse <ChevronUp size={14} /></> : <>Edit Release &amp; AI <ChevronDown size={14} /></>}
           </button>
+          {isExpanded && (
+            <button className="button primary small" disabled={busy}>
+              {busy ? 'Saving...' : 'Save Release'}<Check size={14} />
+            </button>
+          )}
         </div>
       </div>
 
-      <div className="form-grid">
-        <Field label="Release Status" hint="Controls public download ability and countdown flags">
-          <select value={releaseStatus} onChange={e => setReleaseStatus(e.target.value as any)}>
-            <option value="development">In development (Private / Testing)</option>
-            <option value="prelaunch">Preparing for launch (Pre-launch waitlist)</option>
-            <option value="live">Live - Available for download</option>
-          </select>
-        </Field>
-        <Field label="Catalog Visibility">
-          <select value={status} onChange={e => setStatus(e.target.value as any)}>
-            <option value="published">Published (Visible in catalog)</option>
-            <option value="draft">Draft (Hidden from public)</option>
-            <option value="archived">Archived (Discontinue sales)</option>
-          </select>
-        </Field>
-        <Field label="Current Release Version" hint="e.g. v1.2.0">
-          <input value={version} onChange={e => setVersion(e.target.value)} required />
-        </Field>
-        <Field label="System Requirements" hint="e.g. Windows 10+ 64-bit / macOS 12+">
-          <input value={requirements} onChange={e => setRequirements(e.target.value)} required />
-        </Field>
-      </div>
+      {isExpanded && (
+        <div style={{ borderTop: '1px solid var(--line)', paddingTop: '1.25rem' }}>
+          <div className="form-grid">
+            <Field label="Release Status" hint="Controls public download ability and countdown flags">
+              <select value={releaseStatus} onChange={e => setReleaseStatus(e.target.value as any)}>
+                <option value="development">In development (Private / Testing)</option>
+                <option value="prelaunch">Preparing for launch (Pre-launch waitlist)</option>
+                <option value="live">Live - Available for download</option>
+              </select>
+            </Field>
+            <Field label="Catalog Visibility">
+              <select value={status} onChange={e => setStatus(e.target.value as any)}>
+                <option value="published">Published (Visible in catalog)</option>
+                <option value="draft">Draft (Hidden from public)</option>
+                <option value="archived">Archived (Discontinue sales)</option>
+              </select>
+            </Field>
+            <Field label="Current Release Version" hint="e.g. v1.2.0">
+              <input value={version} onChange={e => setVersion(e.target.value)} required />
+            </Field>
+            <Field label="System Requirements" hint="e.g. Windows 10+ 64-bit / macOS 12+">
+              <input value={requirements} onChange={e => setRequirements(e.target.value)} required />
+            </Field>
+          </div>
 
-      <h4 style={{ margin: '1.25rem 0 0.5rem 0', fontSize: '0.95rem' }}>Commercial Pricing Matrix</h4>
-      <div className="form-grid">
-        <Field label="Public Display Price" hint="Text shown on catalog cards">
-          <input value={price} onChange={e => setPrice(e.target.value)} placeholder="Starting at ₹499" required />
-        </Field>
-        <Field label="1-Month License Price (₹ / $)">
-          <input type="number" value={price1m} onChange={e => setPrice1m(e.target.value)} />
-        </Field>
-        <Field label="3-Month License Price (₹ / $)">
-          <input type="number" value={price3m} onChange={e => setPrice3m(e.target.value)} />
-        </Field>
-        <Field label="Lifetime License Price (₹ / $)">
-          <input type="number" value={priceLifetime} onChange={e => setPriceLifetime(e.target.value)} />
-        </Field>
-      </div>
+          <h4 style={{ margin: '1.25rem 0 0.5rem 0', fontSize: '0.95rem' }}>Commercial Pricing Matrix</h4>
+          <div className="form-grid">
+            <Field label="Public Display Price" hint="Text shown on catalog cards">
+              <input value={price} onChange={e => setPrice(e.target.value)} placeholder="Starting at ₹499" required />
+            </Field>
+            <Field label="1-Month License Price (₹ / $)">
+              <input type="number" value={price1m} onChange={e => setPrice1m(e.target.value)} />
+            </Field>
+            <Field label="3-Month License Price (₹ / $)">
+              <input type="number" value={price3m} onChange={e => setPrice3m(e.target.value)} />
+            </Field>
+            <Field label="Lifetime License Price (₹ / $)">
+              <input type="number" value={priceLifetime} onChange={e => setPriceLifetime(e.target.value)} />
+            </Field>
+          </div>
 
-      <h4 style={{ margin: '1.25rem 0 0.5rem 0', fontSize: '0.95rem' }}>License, Trial & Usage Limits</h4>
-      <div className="form-grid">
-        <Field label="1-Day Free Trial" hint="Allow new users to claim a 1-day trial key">
-          <select value={trialActive ? 'active' : 'disabled'} onChange={e => setTrialActive(e.target.value === 'active')}>
-            <option value="active">Active (Free trial enabled on public page)</option>
-            <option value="disabled">Disabled (No free trial; paid checkout only)</option>
-          </select>
-        </Field>
-        <Field label="Device Allowance" hint="Max simultaneous device hardware bindings">
-          <input value={deviceAllowance} onChange={e => setDeviceAllowance(e.target.value)} placeholder="1 active device per license" />
-        </Field>
-      </div>
-      <Field label="AI Usage Policy" hint="Displayed during purchase and on product detail page">
-        <input value={aiUsage} onChange={e => setAiUsage(e.target.value)} placeholder="Unlimited local usage. Bring your own API keys." />
-      </Field>
+          <h4 style={{ margin: '1.25rem 0 0.5rem 0', fontSize: '0.95rem' }}>License, Trial & Usage Limits</h4>
+          <div className="form-grid">
+            <Field label="1-Day Free Trial" hint="Allow new users to claim a 1-day trial key">
+              <select value={trialActive ? 'active' : 'disabled'} onChange={e => setTrialActive(e.target.value === 'active')}>
+                <option value="active">Active (Free trial enabled on public page)</option>
+                <option value="disabled">Disabled (No free trial; paid checkout only)</option>
+              </select>
+            </Field>
+            <Field label="Device Allowance" hint="Max simultaneous device hardware bindings">
+              <input value={deviceAllowance} onChange={e => setDeviceAllowance(e.target.value)} placeholder="1 active device per license" />
+            </Field>
+          </div>
 
-      {message && <Notice kind={message.startsWith('Error') ? 'error' : 'success'}>{message}</Notice>}
+          <AgentAiPolicySection
+            productId={product.id}
+            productName={product.name}
+            policy={aiPolicy}
+            onChange={next => {
+              setAiDirty(true);
+              setAiPolicy(next);
+            }}
+            onSavePolicy={handleSaveAiOnly}
+            saving={aiSaving}
+            feedback={aiFeedback}
+          />
+
+          <Field label="AI Usage Policy" hint="Displayed during purchase and on product detail page">
+            <input value={aiUsage} onChange={e => setAiUsage(e.target.value)} placeholder="Unlimited local usage. Bring your own API keys." />
+          </Field>
+
+          {message && <Notice kind={message.startsWith('Error') ? 'error' : 'success'}>{message}</Notice>}
+        </div>
+      )}
     </form>
   );
 }

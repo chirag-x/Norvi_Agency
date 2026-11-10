@@ -22,7 +22,7 @@
 ## 2. Exact Changes Planned for Nexus
 
 ### A. Upgrade `GemmaEngine` (`src/services/ai/gemma_engine.py`)
-- Replace Ollama's `/api/generate` schema (`prompt`, `format: "json"`, `options.num_ctx`) with OpenAI-compatible `POST https://<project-ref>.supabase.co/functions/v1/agent-ai/v1/chat/completions`:
+- Replace Ollama's `/api/generate` schema (`prompt`, `format: "json"`, `options.num_ctx`) with OpenAI-compatible `POST https://nor-vi.in/api/agent-ai/v1/chat/completions` (keeping long-transcript chunks sized to finish comfortably within Netlify's 60s function timeout):
   - Headers:
     - `Authorization: Bearer <SessionManager.get_token()>`
     - `X-Norvi-Device: <get_hardware_id()>`
@@ -41,7 +41,7 @@
 - `src/ui/views/help.py`:
   - Remove "Step 1: Download & Install Ollama" frame; keep Groq STT guide & Clip Lab instructions.
 - `src/app/main.py` & `src/config/config.py`:
-  - Replace `ollama_host` / `ollama_model` references with `norvi_ai_url` (defaulting to Supabase Edge Function URL).
+  - Replace `ollama_host` / `ollama_model` references with `norvi_ai_url` (defaulting to `https://nor-vi.in/api/agent-ai/v1`).
   - Do **not** add any user-facing model/provider picker in `src/ui/views/settings.py`.
 
 ---

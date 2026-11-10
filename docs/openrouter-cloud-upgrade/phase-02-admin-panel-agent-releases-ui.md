@@ -42,7 +42,15 @@ Add two dedicated **staff-only** endpoints (completely separate from `/api/catal
 
 ## 3. Admin Panel UI Design (`Agent Releases` Tab in `Workspace.tsx`)
 
-Inside each `AgentReleaseCard` (under `License, Trial & Usage Limits`), add two clear panels with a **"Save AI Config"** action (or saved together with **Save Release**):
+### Collapsible Agent Dropdown List (Scales to 10+ Agents Without Scrolling)
+
+- When opening `/admin/releases`, each agent (`Voro`, `Nexus`, `Rolvio`, and any future agents) renders as a **compact collapsed header row** (`aria-expanded="false"`), showing only:
+  - Agent icon, name, release status pill, catalog visibility badge, AI Active/Paused badge
+  - Slug, version, price, default OpenRouter model, and task count summary
+  - `View Public Page` link and **`Edit Release & AI`** dropdown button
+- Clicking any agent row (or `Edit Release & AI`) expands its full editable release + OpenRouter AI form right underneath (`aria-expanded="true"`), and a top **`Expand All / Collapse All`** toggle lets staff expand/collapse all agents at once.
+
+Inside each expanded `AgentReleaseCard` (under `License, Trial & Usage Limits`), add two clear panels with a **"Save AI Models & Limits"** action (and saved together with **Save Release**):
 
 ### Section A: OpenRouter Cloud AI Model Routing (Per Task + Future-Proof)
 

@@ -13,7 +13,7 @@
 2. **Row Level Security (RLS):**
    - Enable RLS on all new tables with **no `anon` or `customer` `SELECT` policies**.
    - Staff access happens only through `SECURITY DEFINER` RPCs calling `private.require_staff(...)`, matching existing NORVI migrations (`061_agent_extended_content.sql`, etc.).
-   - The Supabase Edge Function reads and writes using `SUPABASE_SERVICE_ROLE_KEY`.
+   - The Netlify backend AI proxy reads and writes using `SUPABASE_SERVICE_ROLE_KEY`.
 
 ---
 
@@ -79,7 +79,7 @@ When you create a new agent in the future (e.g., Agent #4 with tasks `research`,
 
 ### Table B: `public.agent_ai_usage_logs` (Usage Ledger & Cost Analytics)
 
-Records every AI request made through the Edge Function for rolling 1-day / 1-week / 1-month enforcement and admin cost analytics:
+Records every AI request made through the `/api/agent-ai` proxy for rolling 1-day / 1-week / 1-month enforcement and admin cost analytics:
 
 | Column | Type | Purpose |
 | :--- | :--- | :--- |
@@ -103,7 +103,7 @@ Records every AI request made through the Edge Function for rolling 1-day / 1-we
 
 ## 3. Atomic SQL Functions (RPCs)
 
-### A. `public.consume_agent_ai_quota(...)` (Called by Supabase Edge Function)
+### A. `public.consume_agent_ai_quota(...)` (Called by Netlify AI Proxy)
 
 Why atomic in Postgres? If a user triggers 5 parallel requests (or shares a lease before revocation), checking and inserting in one row-locked transaction prevents race conditions.
 

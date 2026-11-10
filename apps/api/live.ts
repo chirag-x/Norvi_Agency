@@ -7,15 +7,17 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { createClient } from '@supabase/supabase-js';
 import { z } from 'zod';
 import catalog from '../../packages/shared/catalog.json';
+import { normalizeAgentAiPolicyPayload } from '../../packages/shared/agentAi';
+import { createAgentAiHandler, DEFAULT_MAX_BODY_BYTES, type AgentAiClient, type AgentAiHandlerDeps } from '../../packages/shared/agentAiProxy';
 
-export type LiveEnv = { APP_ORIGIN?: string; SUPABASE_URL?: string; SUPABASE_ANON_KEY?: string; SUPABASE_SERVICE_ROLE_KEY?: string; AUTH_RATE_LIMITER?: { limit: (input: { key: string }) => Promise<{ success: boolean }> }; RAZORPAY_KEY_ID?: string; RAZORPAY_KEY_SECRET?: string; RAZORPAY_WEBHOOK_SECRET?: string; RESEND_API_KEY?: string; CRON_SECRET?: string; LICENSE_ENCRYPTION_KEY?: string; EMAIL_FROM?: string; GITHUB_PAT?: string; GITHUB_REPO_OWNER?: string; GITHUB_REPO_NAME?: string; norvi_sales_and_orders?: string; norvi_downloads?: string; norvi_team_and_security?: string; norvi_system_alerts?: string; norvi_contact?: string; norvi_support?: string; };
+export type LiveEnv = { APP_ORIGIN?: string; SUPABASE_URL?: string; SUPABASE_ANON_KEY?: string; SUPABASE_SERVICE_ROLE_KEY?: string; AUTH_RATE_LIMITER?: { limit: (input: { key: string }) => Promise<{ success: boolean }> }; RAZORPAY_KEY_ID?: string; RAZORPAY_KEY_SECRET?: string; RAZORPAY_WEBHOOK_SECRET?: string; RESEND_API_KEY?: string; CRON_SECRET?: string; LICENSE_ENCRYPTION_KEY?: string; OPENROUTER_API_KEY?: string; EMAIL_FROM?: string; GITHUB_PAT?: string; GITHUB_REPO_OWNER?: string; GITHUB_REPO_NAME?: string; norvi_sales_and_orders?: string; norvi_downloads?: string; norvi_team_and_security?: string; norvi_system_alerts?: string; norvi_contact?: string; norvi_support?: string; };
 type Identity = { id: string; email: string; name: string; role: string; status: string; createdAt: string; lastLogin: string | null };
 type AppEnv = { Bindings: LiveEnv; Variables: { db: SupabaseClient; user: Identity; mfaRequired: boolean } };
 type Factory = (c: Context<AppEnv>) => SupabaseClient;
 const credentials = z.object({ email: z.string().trim().email().max(254), password: z.string().min(1).max(128) });
 const password = z.string().min(12, 'Use at least 12 characters.').max(128);
 const licenseSecret = (env: LiveEnv) => env.LICENSE_ENCRYPTION_KEY || env.CRON_SECRET;
-const defaultPermissions: Record<string, string[]> = { owner: ['*'], administrator: ['', '/products', '/categories', '/customers', '/licenses', '/orders', '/payments', '/support', '/subscriptions', '/announcements', '/content', '/activity'], product_manager: ['', '/products', '/categories', '/announcements', '/content'], support: ['', '/customers', '/licenses', '/orders', '/payments', '/support', '/announcements'] };
+const defaultPermissions: Record<string, string[]> = { owner: ['*'], administrator: ['', '/products', '/releases', '/categories', '/customers', '/licenses', '/orders', '/payments', '/support', '/subscriptions', '/announcements', '/content', '/activity'], product_manager: ['', '/products', '/releases', '/categories', '/announcements', '/content'], support: ['', '/customers', '/licenses', '/orders', '/payments', '/support', '/announcements'] };
 
 async function sendDiscordLog(webhookUrl: string | undefined, content: string) {
   const url = (webhookUrl || '').trim().replace(/^["']|["']$/g, '');
@@ -62,18 +64,19 @@ const factory: Factory = c => {
   });
 };
 // Per-request clients; all database access uses the user's JWT, never a service-role key.
-export function createLiveApp(makeClient: Factory = factory, options: { upstreamRateLimit?: 'netlify' } = {}) {
+export function createLiveApp(makeClient: Factory = factory, options: { upstreamRateLimit?: 'netlify'; agentAiDeps?: Partial<AgentAiHandlerDeps> } = {}) {
   const app = new Hono<AppEnv>();
   app.use('/api/*', async (c, next) => {
     c.header('Cache-Control', 'no-store'); c.header('X-Content-Type-Options', 'nosniff'); c.header('Referrer-Policy', 'no-referrer');
     const allowedOrigin = (c.env.APP_ORIGIN || '').replace(/\/$/, '').replace(/^["']|["']$/g, '');
     const requestOrigin = (c.req.header('origin') || '').replace(/\/$/, '');
-    if (!['GET', 'HEAD'].includes(c.req.method) && !c.req.path.startsWith('/api/agent/') && !c.req.path.startsWith('/api/agent-auth/') && !c.req.path.startsWith('/api/webhooks/') && !c.req.path.startsWith('/api/internal/') && requestOrigin !== allowedOrigin) return c.json({ error: 'Request origin is not allowed.' }, 403);
+    if (!['GET', 'HEAD'].includes(c.req.method) && c.req.path !== '/api/agent-ai' && !c.req.path.startsWith('/api/agent-ai/') && !c.req.path.startsWith('/api/agent/') && !c.req.path.startsWith('/api/agent-auth/') && !c.req.path.startsWith('/api/webhooks/') && !c.req.path.startsWith('/api/internal/') && requestOrigin !== allowedOrigin) return c.json({ error: 'Request origin is not allowed.' }, 403);
     await next();
   });
   const regularBodyLimit = bodyLimit({ maxSize: 16384, onError: c => c.json({ error: 'Request is too large.' }, 413) });
   const uploadBodyLimit = bodyLimit({ maxSize: 50 * 1024 * 1024, onError: c => c.json({ error: 'Upload must be smaller than 50 MB.' }, 413) });
-  app.use('/api/*', (c, next) => (c.req.path === '/api/admin/upload' || c.req.path === '/api/admin/promotional-content') ? uploadBodyLimit(c, next) : regularBodyLimit(c, next));
+  const agentAiBodyLimit = bodyLimit({ maxSize: DEFAULT_MAX_BODY_BYTES, onError: c => c.json({ error: 'Request payload is too large.' }, 413) });
+  app.use('/api/*', (c, next) => (c.req.path === '/api/admin/upload' || c.req.path === '/api/admin/promotional-content') ? uploadBodyLimit(c, next) : (c.req.path === '/api/agent-ai' || c.req.path.startsWith('/api/agent-ai/')) ? agentAiBodyLimit(c, next) : regularBodyLimit(c, next));
   app.onError((e, c) => c.json({ error: e instanceof z.ZodError ? e.errors.map(x => x.message).join(' ') : 'The account service could not complete this request.' }, e instanceof z.ZodError ? 400 : 500));
   app.get('/api/health', c => c.json({ mode: isConfigured(c.env) ? 'supabase' : 'unconfigured', livePayments: false }));
   app.get('/api/auth/config', c => c.json({ mode: isConfigured(c.env) ? 'supabase' : 'unconfigured', preview: false, registration: isConfigured(c.env) }));
@@ -97,7 +100,7 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
   });
   app.all('/api/preview/*', c => c.json({ error: 'Preview actions are disabled in account mode.' }, 404));
   app.use('/api/*', async (c, next) => {
-    if (c.req.path === '/api/contact') return next();
+    if (c.req.path === '/api/contact' || c.req.path === '/api/agent-ai' || c.req.path.startsWith('/api/agent-ai/')) return next();
     if (!isConfigured(c.env)) return c.json({ error: 'Supabase account services need to be configured.' }, 503);
     c.set('db', makeClient(c)); await next();
   });
@@ -334,6 +337,7 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
 
     let licenseId: string | null = null;
     let targetDeviceId: string = deviceId || '';
+    let tokenProduct: string = '';
 
     if (token) {
       try {
@@ -367,6 +371,7 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
         const payload = JSON.parse(atob(payloadBase64));
 
         licenseId = payload.license_id;
+        if (typeof payload.product === 'string' && payload.product.trim()) tokenProduct = payload.product.trim();
         if (!targetDeviceId && payload.device_id) {
           targetDeviceId = payload.device_id;
         }
@@ -437,6 +442,14 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
       }
     }
 
+    const { data: prodRow } = license.product_id
+      ? await serviceDb.from('products').select('slug').eq('id', license.product_id).single()
+      : { data: null };
+    if (prodRow?.slug && productSlug && prodRow.slug !== productSlug) {
+      return c.json({ error: 'License does not belong to this agent product.', deactivated: true }, 403);
+    }
+    const resolvedProductSlug = prodRow?.slug || productSlug || tokenProduct || '';
+
     let exp = now + (24 * 60 * 60); // 24 hours daily validity
     if (license.expires_at) {
       const planExp = Math.floor(new Date(license.expires_at).getTime() / 1000);
@@ -448,7 +461,7 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
       license_id: license.id,
       device_id: targetDeviceId,
       exp: exp,
-      product: productSlug || ''
+      product: resolvedProductSlug
     })).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
 
     const signatureData = header + "." + payload;
@@ -551,6 +564,21 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
 
     return c.json({ ok: true, lease: jwt, expires_at: new Date(leaseExp * 1000).toISOString() });
   });
+
+  const handleAgentAi = (c: Context<AppEnv>) => {
+    const proxyHandler = createAgentAiHandler({
+      getEnv: (key) => (c.env as Record<string, string | undefined>)[key],
+      createServiceClient: (supabaseUrl, serviceRoleKey) =>
+        createClient(supabaseUrl, serviceRoleKey, {
+          auth: { autoRefreshToken: false, persistSession: false },
+        }) as unknown as AgentAiClient,
+      awaitFinalize: true,
+      ...(options.agentAiDeps ?? {}),
+    });
+    return proxyHandler(c.req.raw);
+  };
+  app.all('/api/agent-ai', handleAgentAi);
+  app.all('/api/agent-ai/*', handleAgentAi);
 
   app.post('/api/contact', async c => {
     const input = z.object({
@@ -983,6 +1011,37 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     const input = await c.req.json();
     const { error } = await c.get('db').rpc('admin_toggle_trial', { p_product_id: c.req.param('id'), p_trial_active: input.trialActive });
     return error ? c.json({ error: error.message }, 400) : c.json({ ok: true });
+  });
+
+  app.get('/api/admin/products/ai-policies', async c => {
+    if (!['owner', 'administrator', 'product_manager'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
+    const { data, error } = await c.get('db').rpc('admin_get_agent_ai_policies');
+    return error ? c.json({ error: 'AI policies could not be loaded: ' + error.message }, 503) : c.json(data);
+  });
+
+  app.post('/api/admin/products/:id/ai-policy', async c => {
+    if (!['owner', 'administrator', 'product_manager'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
+    const productIdCheck = z.string().uuid().safeParse(c.req.param('id'));
+    if (!productIdCheck.success) return c.json({ error: 'Invalid product ID.' }, 400);
+
+    const parsed = normalizeAgentAiPolicyPayload(await c.req.json());
+    if (!parsed.ok) return c.json({ error: parsed.error }, 400);
+
+    const p = parsed.data;
+    const { error } = await c.get('db').rpc('admin_upsert_agent_ai_policy', {
+      p_product_id: productIdCheck.data,
+      p_ai_enabled: p.aiEnabled,
+      p_default_model: p.defaultModel,
+      p_task_models: p.taskModels,
+      p_daily_limit: p.dailyLimit,
+      p_weekly_limit: p.weeklyLimit,
+      p_monthly_limit: p.monthlyLimit,
+      p_trial_daily_limit: p.trialDailyLimit,
+      p_max_input_chars: p.maxInputChars,
+      p_max_output_tokens: p.maxOutputTokens,
+      p_enforce_zdr: p.enforceZdr,
+    });
+    return error ? c.json({ error: 'AI policy could not be saved: ' + error.message }, 400) : c.json({ ok: true });
   });
 
   app.post('/api/admin/products', async c => {

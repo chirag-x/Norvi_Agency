@@ -17,6 +17,7 @@ export default async function handler(request: Request): Promise<Response> {
     RAZORPAY_KEY_SECRET: process.env.RAZORPAY_KEY_SECRET,
     RAZORPAY_WEBHOOK_SECRET: process.env.RAZORPAY_WEBHOOK_SECRET,
     LICENSE_ENCRYPTION_KEY: process.env.LICENSE_ENCRYPTION_KEY,
+    OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY,
     GITHUB_PAT: process.env.GITHUB_PAT,
     GITHUB_REPO_OWNER: process.env.GITHUB_REPO_OWNER,
     GITHUB_REPO_NAME: process.env.GITHUB_REPO_NAME,
