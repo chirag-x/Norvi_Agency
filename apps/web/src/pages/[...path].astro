@@ -5,17 +5,11 @@ import { routes } from '../../../../packages/shared/model';
 import catalog from '../../../../packages/shared/catalog.json';
 
 export function getStaticPaths() {
-  const fixed = routes.filter(p=>!p.startsWith('checkout/'));
-  // Ensure we use slugs for agents, not IDs
-  const staticRoutes = fixed.map(p => {
-    if (p.startsWith('agents/')) {
-      const id = p.split('/')[1];
-      const product = catalog.products.find(prod => prod.id === id);
-      if (product) return `agents/${product.slug}`;
-    }
-    return p;
-  });
-  
+  const nonAgentFixed = routes.filter(p => !p.startsWith('checkout/') && !p.startsWith('agents/'));
+  const productRoutes = (catalog.products || [])
+    .filter(prod => prod && prod.slug && (prod.status === 'published' || prod.status === 'archived'))
+    .map(prod => `agents/${prod.slug}`);
+  const staticRoutes = Array.from(new Set([...nonAgentFixed, ...productRoutes]));
   return staticRoutes.map(path => ({ params: { path: path || undefined } }));
 }
 
@@ -58,7 +52,7 @@ if (path.startsWith('/agents/')) {
     }
 
     const priceMatch = (product.price || '').replace(/,/g, '').match(/\d+(\.\d+)?/);
-    const priceVal = priceMatch ? priceMatch[0] : '499';
+    const priceVal = priceMatch ? priceMatch[0] : ((product as any).price1m ? String((product as any).price1m) : '499');
 
     productJsonLd = JSON.stringify({
       "@context": "https://schema.org",
@@ -151,7 +145,7 @@ const orgJsonLd = JSON.stringify({
   "url": "https://nor-vi.in/",
   "logo": "https://nor-vi.in/logo.jpg?v=2",
   "description": settings.description,
-  "sameAs": []
+  "sameAs": [(settings as any).socialInstagram, (settings as any).socialYoutube, (settings as any).socialFacebook, (settings as any).socialTwitter].filter(Boolean)
 });
 ---
 <!doctype html>

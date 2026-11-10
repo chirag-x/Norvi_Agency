@@ -1,472 +1,464 @@
 {
   "categories": [
     {
-      "id": "cat-1",
-      "slug": "desktop-automation",
-      "name": "Desktop automation"
-    },
-    {
-      "id": "cat-2",
-      "slug": "interview-assistance",
-      "name": "Interview assistance"
-    },
-    {
-      "id": "cat-3",
+      "id": "33842692-aa5d-4cfa-9c3d-4111fbd68cea",
       "slug": "job-search-automation",
-      "name": "Job-search automation"
+      "name": "Automation",
+      "createdAt": "2026-09-24T08:42:17.673253+00:00"
+    },
+    {
+      "id": "d970ea28-1cca-4f6d-9a88-b9653fdf1341",
+      "slug": "desktop-automation",
+      "name": "Agent",
+      "createdAt": "2026-09-24T08:42:17.673253+00:00"
+    },
+    {
+      "id": "944ab0ea-e72b-49dd-9886-6816094c48de",
+      "slug": "launching",
+      "name": "Launching On 25 October .  You Can Get Voro Now !",
+      "createdAt": "2026-10-14T19:19:23.601167+00:00"
+    },
+    {
+      "id": "430a669a-1b36-418f-9dd9-76b41fc91ddb",
+      "slug": "interview-assistance",
+      "name": "Interview Assistance",
+      "createdAt": "2026-09-24T08:42:17.673253+00:00"
+    },
+    {
+      "id": "73ce8f2d-6749-4861-bd6c-97c675ca3566",
+      "slug": "nexus",
+      "name": "Social Media Automation / Autonomous Content Studio",
+      "createdAt": "2026-10-26T16:28:39.947586+00:00"
     }
   ],
   "products": [
     {
-      "id": "agent-1",
-      "slug": "omnix",
-      "name": "Omnix",
-      "categoryId": "cat-1",
-      "category": "Desktop automation",
-      "tagline": "Speak your next task into action.",
-      "description": "A voice-first desktop agent being developed to understand natural-language instructions, plan tasks, and operate your computer. Capabilities and supported environments will be confirmed through release testing.",
-      "price": "Pricing to be confirmed",
-      "status": "published",
-      "releaseStatus": "development",
-      "logoUrl": null,
+      "id": "00000000-0000-4000-8000-000000000003",
+      "slug": "rolvio",
+      "name": "Rolvio",
+      "categoryId": "944ab0ea-e72b-49dd-9886-6816094c48de",
+      "tagline": " The Autonomous AI Job Hunter that hunts and give you jobs in mail.",
+      "description": "An end-to-end, fully autonomous AI agent designed to automate the entire lifecycle of job hunting. From discovering jobs across multiple platforms to evaluating them with an single click , automatically submitting applications, and tracking invites via email.",
+      "price": "Pick Your Plan",
+      "price1m": 479,
+      "price3m": 1199,
+      "price_lifetime": 4499,
+      "status": "archived",
+      "logoUrl": "https://lpzqvziejdpzykwrhkmn.supabase.co/storage/v1/object/public/product-assets/20648c17-771a-4ccd-9298-fdcad7cdecf9.jpg",
       "features": [
-        "Voice-first task instructions",
-        "Task planning and computer interaction",
-        "Release scope under development"
+        "Intelligent Filtering & AI Resume Matching",
+        "Cross-Platform Automation (LinkedIn, Indeed, etc.)",
+        "Application workflow and duplicate detection",
+        "Anti-Bot Resiliency & Captcha Handling",
+        "Total Inbox Automation & Kanban Board"
       ],
-      "version": "In development",
-      "requirements": "Supported operating systems and hardware requirements to be confirmed.",
-      "workflowHeading": "Built for your workflow.",
-      "workflowDescription": "A voice-first desktop agent being developed to understand natural-language instructions, plan tasks, and operate your computer. Capabilities and supported environments will be confirmed through release testing.",
-      "workflowMediaUrl": null,
-      "workflowNote": "",
-      "updatedAt": "2026-09-23",
-      "icon": "workflow",
-      "color": "lime"
-    },
-    {
-      "id": "agent-2",
-      "slug": "voro",
-      "name": "Voro",
-      "categoryId": "cat-2",
-      "category": "Interview assistance",
-      "tagline": "Bring context to your interview preparation.",
-      "description": "An interview assistant with screen and audio context, résumé memory, and coding assistance. Designed for practice and situations where assistance is permitted. The application is reported complete; the NORVI release and compatibility checks are still being prepared.",
-      "price": "Pricing to be confirmed",
-      "status": "published",
+      "version": "V - 1.1.0",
+      "requirements": "Windows 10/11 , Supports Low end Pc ",
       "releaseStatus": "prelaunch",
-      "logoUrl": null,
-      "features": [
-        "Screen and audio context",
-        "Résumé and conversation memory",
-        "Local and cloud AI options",
-        "Coding assistance"
-      ],
-      "version": "Release version to be confirmed",
-      "requirements": "Windows-oriented application. Supported Windows versions, audio setup, and local-model hardware requirements need verification.",
-      "workflowHeading": "Built for your workflow.",
-      "workflowDescription": "An interview assistant with screen and audio context, résumé memory, and coding assistance. Designed for practice and situations where assistance is permitted. The application is reported complete; the NORVI release and compatibility checks are still being prepared.",
-      "workflowMediaUrl": null,
-      "workflowNote": "",
-      "updatedAt": "2026-09-23",
+      "workflowHeading": "How It Works (The 5 Phases)",
+      "workflowDescription": "Rolvio spins up background workers to scrape job boards. It compares strict requirements against your resume using an its Brain. If approved, it launches autonomous browser sub agents to apply, then tracks email responses natively in a Kanban dashboard.",
+      "workflowMediaUrl": "https://lpzqvziejdpzykwrhkmn.supabase.co/storage/v1/object/public/product-assets/8729a216-603e-4fd3-b202-0c2f84d67751.mp4",
+      "workflowNote": "Testing",
+      "aiUsage": "Unlimited",
+      "deviceAllowance": "3 active device per license. Manage devices in your account.",
+      "is_on_sale": true,
+      "trialActive": true,
       "extendedContent": {
-        "badgeText": "⚡ Ultra-Low Latency | 100% Undetectable | Local & Cloud AI",
-        "platformBadges": [
-          "Zoom",
-          "Microsoft Teams",
-          "Google Meet",
-          "HackerRank",
-          "LeetCode",
-          "CoderPad"
-        ],
-        "featurePillars": [
+        "seo": {
+          "metaTitle": "Rolvio - AI Automated Job Applicant & Career Assistant | NORVI",
+          "focusKeywords": "automation for applying job, job apply agent, automated job application, auto apply linkedin, rolvio ai",
+          "metaDescription": "Automate your job search with Rolvio. Smart resume matching, automated job applications on LinkedIn and Indeed, and email response tracking."
+        },
+        "faqs": [
           {
-            "id": "voro-p1",
-            "title": "Hardware-Routed Audio Stealth",
-            "tag": "Undetectable",
-            "icon": "ShieldCheck",
-            "description": "Bypasses Windows Media Foundation capture hooks. Audio routes directly to your private earpiece so no call participants ever hear it."
+            "answer": "Rolvio mimics natural human typing patterns, mouse movements, and variable delays to safeguard your accounts.",
+            "question": "Can job platforms detect automated applications?"
           },
           {
-            "id": "voro-p2",
-            "title": "Screen-Aware Multimodal OCR",
-            "tag": "Live Vision",
-            "icon": "ScanEye",
-            "description": "Reads coding problems, diagrams, and formulas directly off your active screen in real-time."
-          },
-          {
-            "id": "voro-p3",
-            "title": "Résumé & Coding Copilot",
-            "tag": "Tailored Answers",
-            "icon": "Bot",
-            "description": "Tailors generated answers to your exact background, past projects, and solves live coding challenges with optimal time complexity."
+            "answer": "Yes. You can run Rolvio in full auto mode or semi-autonomous review mode where it pauses for your approval.",
+            "question": "Can I review applications before they are sent?"
           }
         ],
+        "badgeText": "🚀 Automated Applications | Resume Matching | Smart Follow-up",
         "comparison": {
-          "headline": "Why Voro Outperforms the Alternatives",
-          "competitor1Name": "Parakeet.ai",
-          "competitor2Name": "ChatGPT / Web AI",
           "rows": [
             {
-              "feature": "Invisible on Screen Share",
-              "us": true,
-              "comp1": true,
-              "comp2": false
-            },
-            {
-              "feature": "Hardware Audio Bypass",
               "us": true,
               "comp1": false,
-              "comp2": false
+              "comp2": true,
+              "feature": "Smart Question Answering"
             },
             {
-              "feature": "100% Offline / Local Execution",
               "us": true,
               "comp1": false,
-              "comp2": false
+              "comp2": false,
+              "feature": "Duplicate Application Guard"
             },
             {
-              "feature": "Pricing Model",
+              "us": true,
+              "comp1": false,
+              "comp2": false,
+              "feature": "Email Response Tracking"
+            },
+            {
               "us": "From ₹499 / Lifetime",
-              "comp1": "$149.90 / month",
-              "comp2": "$20 / month"
-            },
-            {
-              "feature": "LeetCode & Code Assistant",
-              "us": true,
-              "comp1": true,
-              "comp2": true
+              "comp1": "$250 / lifetime",
+              "comp2": "Hours of daily work",
+              "feature": "Pricing Model"
             }
-          ]
+          ],
+          "headline": "Why Rolvio Outperforms Job Bots",
+          "competitor1Name": "LazyApply",
+          "competitor2Name": "Manual Applying"
         },
         "workflowSteps": [
           {
             "step": "01",
-            "title": "Launch & Enter Key",
-            "description": "Open Voro on your Windows PC. It silently sits in your system tray."
+            "title": "Profile Setup",
+            "description": "Add your resume, target titles, locations, and salary expectations."
           },
           {
             "step": "02",
-            "title": "Load Context",
-            "description": "Paste your target job description or résumé so answers are tailored to your real experience."
+            "title": "Review Matches",
+            "description": "Rolvio discovers verified jobs and calculates ATS match scores."
           },
           {
             "step": "03",
-            "title": "Join Meeting",
-            "description": "Open Zoom, Teams, or HackerRank. Voro listens and projects instant answers to your private HUD."
+            "title": "Automated Submissions",
+            "description": "Rolvio applies cleanly through your browser with human-like interactions."
           }
-        ],
-        "faqs": [
-          {
-            "question": "Will Zoom, Teams, or Google Meet detect Voro?",
-            "answer": "No. Voro utilizes hardware-level overlay layering that is completely invisible to screen-sharing capture software."
-          },
-          {
-            "question": "Can interviewers hear Voro voice output?",
-            "answer": "No. Voro routes audio exclusively to your selected headphone output, bypassing Windows recording hooks."
-          },
-          {
-            "question": "Can I use my own Gemini or OpenAI API keys?",
-            "answer": "Yes. Voro supports Bring-Your-Own-Key (BYOK) for zero token markups, as well as 100% offline local models (Ollama)."
-          }
-        ],
-        "seo": {
-          "metaTitle": "Voro - #1 Real-Time AI Interview Assistant & Coding Copilot | Undetectable",
-          "metaDescription": "Nail your live interviews with Voro: the #1 real-time AI interview assistant with screen awareness, invisible audio routing, and live coding support. Try free.",
-          "focusKeywords": "interview assistant agent, real time ai interview assistant, ai interview copilot, leetcode ai helper, parakeet ai alternative, voro ai"
-        },
-        "guide": {
-          "videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-          "sections": [
-            {
-              "id": "guide-step-1",
-              "heading": "1. Download and Extract Voro",
-              "content": "Click the Download button from your agent collection. Extract the downloaded zip package into your preferred folder on Windows.",
-              "imageUrl": null
-            },
-            {
-              "id": "guide-step-2",
-              "heading": "2. Activate With Your License Key",
-              "content": "Launch Voro.exe. When prompted, click 'View license' in your NORVI dashboard, copy your unique product activation key, and paste it into the application.",
-              "imageUrl": null
-            },
-            {
-              "id": "guide-step-3",
-              "heading": "3. Configure Audio & Stealth Overlay",
-              "content": "Open Settings inside Voro and select your audio device. The stealth overlay automatically runs in a private layer invisible to Zoom, Teams, and Google Meet screen shares.",
-              "imageUrl": null
-            }
-          ]
-        }
-      },
-      "icon": "message",
-      "color": "blue"
-    },
-    {
-      "id": "agent-3",
-      "slug": "rolvio",
-      "name": "Rolvio",
-      "categoryId": "cat-3",
-      "category": "Job-search automation",
-      "tagline": "Your next role, with less routine.",
-      "description": "Discover relevant openings, compare job descriptions with your résumé, assist with applications, and track responses in a Kanban workspace. The application is reported complete; supported-platform testing and the NORVI release are being prepared. Applications require your authorization and accurate profile information.",
-      "price": "Pricing to be confirmed",
-      "status": "published",
-      "releaseStatus": "prelaunch",
-      "logoUrl": null,
-      "features": [
-        "Job discovery and résumé-fit scoring",
-        "Application workflow and duplicate detection",
-        "Email response tracking",
-        "Kanban application dashboard"
-      ],
-      "version": "Release version to be confirmed",
-      "requirements": "Python application with a browser-driven workflow. Packaged installer, supported systems, AI provider setup, and email requirements to be confirmed.",
-      "workflowHeading": "Autonomous career automation, from discovery to interview.",
-      "workflowDescription": "Rolvio operates silently on your desktop. It discovers high-match jobs across 5 platforms, uses local AI to answer screening questions with precision, submits applications using stealth browser automation, and tracks recruiter interview invites in a real-time Kanban board.",
-      "workflowMediaUrl": null,
-      "workflowNote": "Includes native Windows installer, automatic updates, and SQLite local encrypted answer vault.",
-      "updatedAt": "2026-09-23",
-      "extendedContent": {
-        "badgeText": "⚡ 100% Stealth Playwright | Local Ollama AI | 5 Global Job Platforms",
-        "platformBadges": [
-          "LinkedIn",
-          "Indeed",
-          "Naukri",
-          "Internshala",
-          "Wellfound",
-          "Google Chrome",
-          "Windows 11"
         ],
         "featurePillars": [
           {
             "id": "rolvio-p1",
-            "title": "Local AI Brain & ATS Precision Fit Scorer",
-            "tag": "Zero Token Cost & 100% Private",
+            "tag": "High ATS Fit",
             "icon": "Bot",
-            "description": "Powered by local Ollama LLMs (Llama 3, Gemma 2) or cloud AI. Rolvio ingests your master resume, analyzes every scraped job description, scores compatibility out of 100, and tailors screening answers to your real experience."
+            "title": "Smart Resume Matching",
+            "description": "Analyzes job descriptions and matches your resume skills with precision before applying."
           },
           {
             "id": "rolvio-p2",
-            "title": "Stealth Playwright Multi-Platform Engine",
-            "tag": "Anti-Bot Resilient",
-            "icon": "Shield",
-            "description": "Bypasses detection by running directly in your authenticated browser sessions across LinkedIn, Indeed, Naukri, Internshala, and Wellfound. Employs human typing cadence, bezier curve mouse jitter, and automated session recovery."
+            "tag": "Hands-Free",
+            "icon": "Zap",
+            "title": "Browser-Driven Auto-Apply",
+            "description": "Automatically fills applications, answers custom screening questions, and bypasses duplicate job posts."
           },
           {
             "id": "rolvio-p3",
-            "title": "Strict DOM Verification & Memory Vault",
-            "tag": "Zero False Positives",
-            "icon": "Zap",
-            "description": "No hallucinated submissions. Rolvio strictly verifies confirmation dialogs, post-submission URLs, and dismiss prompts before marking an application sent. Persists answers in a local SQLite memory vault to prevent duplicate submissions."
-          },
-          {
-            "id": "rolvio-p4",
-            "title": "Mission Control Kanban & IMAP Interview Radar",
-            "tag": "Inbox Automation",
+            "tag": "Kanban",
             "icon": "Layers",
-            "description": "Never update a spreadsheet again. Rolvio monitors your email inbox via secure IMAP, extracts recruiter replies, categorizes coding tests and interview invitations, and advances job cards dynamically across a visual Kanban board."
+            "title": "Response & Follow-up Tracking",
+            "description": "Monitors interview invitations and recruiter emails in a visual status board."
           }
         ],
-        "comparison": {
-          "headline": "Why Candidates Choose Rolvio Over Bot Extensions",
-          "competitor1Name": "LazyApply / Sonara",
-          "competitor2Name": "Manual Job Applications",
-          "rows": [
-            {
-              "feature": "Custom Screening Question Handling",
-              "us": "AI Context-Aware (Resume-Grounded)",
-              "comp1": "Basic regex / Fails on complex forms",
-              "comp2": "Tedious manual typing"
-            },
-            {
-              "feature": "Submission Proof & Verification",
-              "us": "Strict DOM Modal & Confirmation Check",
-              "comp1": "Unverified button clicks",
-              "comp2": "Manual visual verification"
-            },
-            {
-              "feature": "AI Runtime & Privacy",
-              "us": "100% Offline Local Ollama or Cloud BYOK",
-              "comp1": "Cloud-hosted (Data privacy risk)",
-              "comp2": "N/A"
-            },
-            {
-              "feature": "Platform Support",
-              "us": "LinkedIn, Indeed, Naukri, Internshala, Wellfound",
-              "comp1": "LinkedIn / Indeed only",
-              "comp2": "All (Hours of tab switching)"
-            },
-            {
-              "feature": "Inbox & Interview Radar",
-              "us": "Automated IMAP Email Categorization",
-              "comp1": "No email integration",
-              "comp2": "Manual inbox checking"
-            },
-            {
-              "feature": "Anti-Detection Protection",
-              "us": "Native Playwright + Bezier Jitter & Human Delays",
-              "comp1": "Standard Chrome extensions (Flagged easily)",
-              "comp2": "Natural human"
-            },
-            {
-              "feature": "Persistent Answer Memory",
-              "us": "Local SQLite QA Vault (Learns & Deduplicates)",
-              "comp1": "None",
-              "comp2": "Copy-paste notes"
-            },
-            {
-              "feature": "Pricing Model",
-              "us": "From ₹499 / Lifetime Available (INR)",
-              "comp1": "$150 - $250 / month (USD)",
-              "comp2": "Hours of daily unpaid labor"
-            }
-          ]
-        },
-        "workflowSteps": [
-          {
-            "step": "01",
-            "title": "Ingest Profile & Set Preferences",
-            "description": "Upload your resume and set target job titles, locations, CTC range, and minimum ATS match score."
-          },
-          {
-            "step": "02",
-            "title": "Autonomous Radar & Scoring",
-            "description": "Rolvio scans 5 platforms, extracts job specs, and uses local AI to score each role against your resume."
-          },
-          {
-            "step": "03",
-            "title": "Stealth Execution & Interview Tracking",
-            "description": "Launch 1-click stealth auto-apply and let Rolvio handle applications and sync incoming recruiter interview emails to your Kanban."
-          }
-        ],
-        "faqs": [
-          {
-            "question": "Will LinkedIn, Indeed, or Naukri detect or ban my account?",
-            "answer": "No. Unlike browser extensions that inject unsafe scripts into the DOM or headless cloud bots with datacenter IP addresses, Rolvio runs on your local desktop using Microsoft Playwright. It leverages your existing, authenticated browser session cookies and mimics natural human behavior—including randomized bezier mouse curves, variable typing delays (50–120ms per keystroke), and human-like inspection pauses. If a CAPTCHA ever appears, Rolvio pauses and alerts you to solve it naturally before resuming seamlessly."
-          },
-          {
-            "question": "How does Rolvio handle complex screening questions like CTC, notice period, and experience?",
-            "answer": "Rolvio uses an intelligent dual-engine approach. For standard questions (notice period, current CTC, expected CTC, years of experience, legal authorization), it dynamically computes and formats the exact numerical or text answer based on your Master Profile. For subjective screening questions (\"Why do you want to work here?\", \"Describe your experience with distributed systems\"), Rolvio's AI Brain generates grounded answers strictly referencing your uploaded resume. All answers are cached in an encrypted local SQLite database so questions are never repeatedly re-prompted."
-          },
-          {
-            "question": "Do I have to pay for costly AI API tokens?",
-            "answer": "No! Rolvio includes native support for 100% offline local LLMs via Ollama (such as Llama 3, Gemma 2, and Mistral). When running locally, all parsing, ATS scoring, and question answering execute entirely on your machine at zero token cost and complete data privacy. If you prefer cloud models, Rolvio also supports Bring-Your-Own-Key (BYOK) for Google Gemini and OpenAI with direct API calls and zero platform markup."
-          },
-          {
-            "question": "Can I review and approve job applications before Rolvio submits them?",
-            "answer": "Yes. Rolvio features dual execution modes: \"Review Queue Mode\" and \"1-Click Autonomous Stealth Mode\". In Review Queue Mode, all matched jobs are queued in your Pending Review tab with ATS match scores, allowing you to approve, skip, or modify applications one-by-one. Once you trust the criteria, switch to Autonomous Mode and let Rolvio process your approved queue in the background while you focus on interview prep."
-          },
-          {
-            "question": "How does Rolvio guarantee that an application was actually submitted?",
-            "answer": "Rolvio features strict, zero-false-positive DOM verification. Rather than merely clicking a \"Submit\" button and assuming success, Rolvio monitors the browser state to confirm submission modals, \"Application Submitted\" headers, post-submission redirect URLs, or dismiss confirmation dialogs. If an unexpected error or incomplete question blocks submission, the job is flagged for your review instead of being falsely recorded as applied."
-          },
-          {
-            "question": "How does the IMAP email and interview tracking work?",
-            "answer": "Rolvio connects securely via standard IMAP to your job-search email inbox (e.g., Gmail, Outlook, Yahoo) using encrypted credentials or app passwords. Its background worker checks exclusively for new unread messages from recruiters. When an email arrives, the AI parses the sender, company name, and email context to determine if it is an interview invitation, a technical assessment, or a rejection—automatically updating the application status in your Mission Control Kanban board."
-          },
-          {
-            "question": "Is my personal data, resume, and login credentials safe?",
-            "answer": "Completely. Rolvio is a privacy-first, desktop-native application. Your resumes, profile details, session cookies, application history, and API keys are stored locally on your machine in an encrypted SQLite database. NORVI does not harvest, store, or sell your personal career data."
-          },
-          {
-            "question": "Can I transfer my Rolvio license to a new computer?",
-            "answer": "Yes. Every NORVI license includes hardware device management. If you switch or format your computer, simply log into your NORVI customer dashboard at nor-vi.in/account/licenses, click \"Release device\", and activate Rolvio on your new machine with your existing activation key."
-          }
-        ],
-        "seo": {
-          "metaTitle": "Rolvio - #1 Autonomous AI Job Hunter & Career Agent | Stealth Playwright",
-          "metaDescription": "Automate your job search with Rolvio: the #1 desktop AI job hunter. Stealth auto-apply across LinkedIn, Indeed, Naukri, Internshala & Wellfound with local Ollama AI & IMAP interview radar.",
-          "focusKeywords": "ai job applicant agent, automated job application, auto apply linkedin, indeed auto apply bot, rolvio ai, job hunt automation, playwright job applicant"
-        },
-        "guide": {
-          "videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-          "sections": [
-            {
-              "id": "guide-step-1",
-              "heading": "1. Download & Install Rolvio Desktop",
-              "content": "Download the official Rolvio Windows installer (.exe or .zip) from your NORVI dashboard under \"My agents\". Run the installer and launch Rolvio from your desktop shortcut or Start Menu.",
-              "imageUrl": null
-            },
-            {
-              "id": "guide-step-2",
-              "heading": "2. Activate With Your NORVI License Key",
-              "content": "On first launch, Rolvio will prompt you for your Product Activation Key. Navigate to nor-vi.in/account/licenses in your browser, click \"Reveal key\" next to Rolvio, copy your key (e.g., NORVI-XXXX-XXXX-XXXX-XXXX), and paste it into the application to link your device.",
-              "imageUrl": null
-            },
-            {
-              "id": "guide-step-3",
-              "heading": "3. Choose Your AI Brain (Local Ollama or Cloud API)",
-              "content": "Open Settings in Rolvio and select your AI provider:\n• Local AI (Recommended & Free): Ensure Ollama is installed (ollama.com) and run \"ollama run gemma2\" or \"llama3\". Select \"Ollama\" in Rolvio for 100% offline execution with zero API costs.\n• Cloud AI: Select \"Gemini\" or \"OpenAI\" and paste your personal API key for high-speed cloud intelligence.",
-              "imageUrl": null
-            },
-            {
-              "id": "guide-step-4",
-              "heading": "4. Upload Resume & Build Your Master Profile",
-              "content": "Go to the Profile tab. Click \"Upload Resume\" (PDF or DOCX). Rolvio's AI will parse your technical skills, work history, and contact details. Fill in your compensation parameters (Current CTC, Expected CTC), notice period, and preferred work arrangements (Remote, Hybrid, On-site). This profile serves as the single source of truth for screening questions.",
-              "imageUrl": null
-            },
-            {
-              "id": "guide-step-5",
-              "heading": "5. Connect Your Job Platform Sessions",
-              "content": "Go to the Platforms tab. Click \"Connect\" next to the platforms you want Rolvio to operate on (LinkedIn, Indeed, Naukri, Internshala, Wellfound). A secure browser window will open—simply log into your account normally. Rolvio captures and encrypts your session cookies locally, allowing it to apply under your verified identity without ever asking for your passwords.",
-              "imageUrl": null
-            },
-            {
-              "id": "guide-step-6",
-              "heading": "6. Configure Job Discovery Radar & ATS Match Threshold",
-              "content": "Go to the Radar tab. Add your target job titles (e.g., \"Full Stack Developer\", \"Data Engineer\", \"Product Designer\") and locations. Set your minimum ATS Match Threshold (e.g., 75%). When Discovery runs, Rolvio scrapes matching postings, evaluates each description against your resume, and only approves jobs that meet your criteria.",
-              "imageUrl": null
-            },
-            {
-              "id": "guide-step-7",
-              "heading": "7. Launch Autonomous Stealth Auto-Apply",
-              "content": "Review your matched jobs in the \"Pending Review\" queue or head straight to \"Mission Control\" and click \"Start Autonomous Engine\". Rolvio will launch its stealth Playwright automation, fill application forms with human-like typing and mouse movements, handle screening questions, verify DOM submission confirmation, and log screenshots of every successful application.",
-              "imageUrl": null
-            },
-            {
-              "id": "guide-step-8",
-              "heading": "8. Connect IMAP Email & Track Real-Time Interviews",
-              "content": "In Settings, enter your IMAP email details (such as your Gmail App Password). Rolvio will silently monitor incoming recruiter responses in the background. As interview invites, coding tests, and status updates arrive, Rolvio categorizes them and moves company cards automatically on your Mission Control Kanban board.",
-              "imageUrl": null
-            }
-          ]
-        }
+        "platformBadges": [
+          "LinkedIn",
+          "Indeed",
+          "Wellfound",
+          "Glassdoor",
+          "ZipRecruiter"
+        ]
       },
-      "icon": "sparkles",
-      "color": "purple",
-      "price1m": "499",
-      "price3m": "999",
-      "price_lifetime": "1999",
-      "aiUsage": "Unlimited local offline execution via Ollama (Llama 3, Gemma 2), or Bring-Your-Own Gemini/OpenAI API keys.",
-      "deviceAllowance": "1 active desktop device per license. Manage and release devices instantly in your NORVI dashboard."
+      "category": {
+        "id": "944ab0ea-e72b-49dd-9886-6816094c48de",
+        "slug": "launching",
+        "name": "Launching On 25 October .  You Can Get Voro Now !",
+        "createdAt": "2026-10-14T19:19:23.601167+00:00"
+      }
     },
     {
-      "id": "61ed8d2f-ba3b-40d0-95dc-94f81ff22c95",
-      "name": "Preview verification agent",
-      "slug": "preview-verification",
-      "category": "Preview",
-      "tagline": "Temporary agent for checking the product editor.",
-      "description": "Synthetic verification product.",
-      "price": "price_Preview",
-      "status": "archived",
+      "id": "00000000-0000-4000-8000-000000000002",
+      "slug": "voro",
+      "name": "Voro",
+      "categoryId": "430a669a-1b36-418f-9dd9-76b41fc91ddb",
+      "tagline": "Real-time AI interview assistant, screen-aware copilot & live coding companion.",
+      "description": "Voro is a discreet, ultra-low latency desktop assistant engineered to give you real-time contextual support during live interviews, technical screens, and coding challenges. Utilizing hardware-level overlay layering and isolated audio routing, Voro reads questions off your screen and whispers instant, tailored answers into your private earpiece without being detected by Zoom, Teams, Google Meet, or browser proctoring tools.",
+      "price": "Pick Your Plan",
+      "price1m": 599,
+      "price3m": 1499,
+      "price_lifetime": 4999,
+      "status": "published",
+      "logoUrl": "https://lpzqvziejdpzykwrhkmn.supabase.co/storage/v1/object/public/product-assets/243715ee-81e1-430e-a00b-abb34026556b.jpg",
       "features": [
-        "Preview feature"
+        "Hardware-isolated private audio routing",
+        "Real-time multimodal screen & OCR context",
+        "Live coding & LeetCode algorithm breakdown",
+        "100% undetectable transparent HUD overlay",
+        "Resume & conversational background memory"
       ],
-      "icon": "workflow",
-      "color": "lime",
-      "requirements": "requirements_Agent_4",
-      "version": "version_Agent_4",
-      "updatedAt": "2026-09-22T15:05:58.910Z"
+      "version": "V - 1.3.8",
+      "requirements": "Windows 10 / Windows 11 (64-bit) & macOS 12+ . Supports Low end PC",
+      "releaseStatus": "live",
+      "workflowHeading": "Engineered for calm, confident interviews.",
+      "workflowDescription": "Voro sits unobtrusively in your system tray until your interview begins. As interviewers speak or display technical questions on screen, Voro extracts the core requirement, cross-references your uploaded resume, and projects bulletproof talking points onto your screen.",
+      "workflowMediaUrl": "https://lpzqvziejdpzykwrhkmn.supabase.co/storage/v1/object/public/product-assets/400e959b-2aa1-424b-9fd2-854720b09969.mp4",
+      "workflowNote": "Windows 10/11 native installer. Includes automatic silent background updater and local model acceleration.",
+      "aiUsage": "Unlimited No Limit ",
+      "deviceAllowance": "3 active device per license. Manage devices in your account.",
+      "is_on_sale": true,
+      "trialActive": true,
+      "extendedContent": {
+        "seo": {
+          "ogImage": "https://nor-vi.in/logo.jpg?v=2",
+          "metaTitle": "Voro - #1 Real-Time AI Interview Assistant & Coding Copilot",
+          "focusKeywords": "interview assistant agent, real time ai interview assistant, ai interview copilot, leetcode ai helper, parakeet ai alternative, voro ai",
+          "metaDescription": "Ace your live technical & behavioral interviews with Voro: undetectable screen-aware AI assistant, private audio routing, and live coding copilot. Try free."
+        },
+        "faqs": [
+          {
+            "answer": "No. Voro utilizes Windows native hardware display exclusion. It renders in a private graphics pipeline completely omitted from video capture streams and screenshot APIs.",
+            "question": "Will Zoom, Microsoft Teams, or Google Meet detect Voro during screen sharing?"
+          },
+          {
+            "answer": "No. Voro's audio routing outputs exclusively to your selected headphone/earpiece device, bypassing the virtual microphone loopback so no call participants ever hear it.",
+            "question": "Can interviewers hear Voro speaking the answers?"
+          },
+          {
+            "answer": "Yes. Voro’s multimodal screen vision reads code editors, LeetCode, and HackerRank in real-time, instantly delivering the optimal algorithmic approach, time/space complexity analysis, and clean code.",
+            "question": "Does Voro solve live LeetCode and coding problems?"
+          },
+          {
+            "answer": "Absolutely not. Norvi Agency enforces a strict zero-data-logging architecture. Everything runs locally on your PC with zero cloud tracking or audio storage.",
+            "question": "Does Norvi Agency record or store my interview sessions?"
+          },
+          {
+            "answer": "You are 100% safe. Even if you choose \"Share Entire Screen\" instead of just a browser tab, Voro remains completely invisible to the interviewer and the recording. You can clearly see Voro's answers floating on your monitor, but anyone watching the stream or recording only sees your clean desktop.",
+            "question": "What happens if the interviewer asks me to share my entire desktop screen?"
+          },
+          {
+            "answer": "Yes, absolutely! Voro is designed for everyday job seekers and students. There is no coding required. Setup takes only 2 minutes with simple buttons, and you can control everything during the interview with easy keyboard shortcuts like Ctrl+Enter to answer and Ctrl+Shift+G for stealth mode.",
+            "question": "I’m not very tech-savvy. Is Voro easy for beginners to set up and use?"
+          }
+        ],
+        "guide": {
+          "sections": [
+            {
+              "id": "section-1792823152875-fq54",
+              "content": "1. Click the \"Download\" button next to Voro in your NORVI dashboard to get the latest official installer (Voro_Setup.exe).\n2. Run the installer and follow the quick on-screen instructions.\n3. Once installation completes, launch Voro from your desktop shortcut or Windows Start Menu.\n4. Voro will display the activation prompt upon first launch.",
+              "heading": "Download & Run Voro Installer",
+              "imageUrl": null
+            },
+            {
+              "id": "section-1792823160938-sr2j",
+              "content": "1. In your NORVI dashboard (https://nor-vi.in/account/agents), locate Voro in your active collection.\n2. Click the \"View License\" button and copy your unique activation key (Format: NORVI-XXXX-XXXX-XXXX-...).\n3. Paste your key into the Voro activation window and click \"Activate & Launch\".\n4. Once activated, Voro unlocks 100% unlimited, lifetime access with no recurring subscription fees or question caps.",
+              "heading": "Activate Your License Key",
+              "imageUrl": null
+            },
+            {
+              "id": "section-1792823177395-xqah",
+              "content": "Voro runs high-speed AI models locally on your PC for maximum privacy and zero data leaks:\n1. In Voro, open Settings (gear icon) and go to the \"Help\" tab -> \"Quick Setup Guide\".\n2. Click \"Download Ollama (Windows)\" to download the official OllamaSetup.exe.\n3. Run the installer to finish installing Ollama on your PC.\n4. Launch Ollama once from your Start Menu (you can log in or simply skip).\n5. Close or minimize Ollama — it will run quietly in your Windows system tray, and Voro will automatically connect to it!",
+              "heading": "Setup AI Brain",
+              "imageUrl": null
+            },
+            {
+              "id": "section-1792823180946-w9gf",
+              "content": "For near-instant voice transcription during live interviews, Groq provides lightning-fast Whisper processing for free:\n1. In Voro Settings -> Help tab -> Quick Setup Guide, click \"Get Free Groq API Key\".\n2. Sign up or log in to the Groq Console (100% free with Google or GitHub).\n3. Click \"Create API Key\", set the Key Name to \"VORO\", and select \"No Expiration\".\n4. Copy your generated key (starts with \"gsk_...\").\n5. In Voro, go to the \"Audio\" tab, paste your key into the \"Groq API Key\" field, and click \"Save & Restart\".",
+              "heading": "Connect Groq Speech Recognition (<200ms)",
+              "imageUrl": null
+            },
+            {
+              "id": "section-1792823181195-c6dk",
+              "content": "Make Voro answer live interview questions using your real experience and projects:\n1. In Voro Settings, open the \"Profile\" tab and paste your résumé, tech stack, and notable project achievements.\n2. Open the \"Company Info\" tab and enter the company name and job description you are interviewing for.\n3. Choose your preferred AI Tone in the \"General\" settings (e.g., \"Conversational Script\" or \"Direct & Technical\").\n4. Click \"Save & Restart\" — Voro will now ground every answer in your real background!",
+              "heading": "Load Your Resume & Target Company Context",
+              "imageUrl": null
+            },
+            {
+              "id": "section-1792823181616-w07d",
+              "content": "Follow these 4 essential rules before joining your live interview call:\n• Rule 1 (Stealth Mode): Press Ctrl+Shift+G to enable Stealth Mode before sharing your screen. Voro will be 100% invisible to Zoom, Teams, Meet, and OBS!\n• Rule 2 (System Audio Capture): Ensure the Headset icon (🎧) is green so Voro can hear the interviewer through your headphones.\n• Rule 3 (Manual vs Auto Answering): Use Ctrl+Shift+U to toggle between Auto (⚡ Auto) and Manual (⏸️ Manual). In manual mode, press Ctrl+Enter to distill and answer the interviewer's question while filtering out small talk.\n• Rule 4 (Occupancy Slider): Use the Occupancy slider on Voro's top bar to adjust window transparency to your preference.",
+              "heading": "Interview Day Golden Rules & Controls",
+              "imageUrl": null
+            }
+          ],
+          "videoUrl": null
+        },
+        "badgeText": "⚡ Ultra-Low Latency | 100% Undetectable | Local & Cloud AI",
+        "comparison": {
+          "rows": [
+            {
+              "us": "100% Invisible",
+              "comp1": "Partial",
+              "comp2": "Detectable (Visible)",
+              "feature": "Invisible on Screen Share    "
+            },
+            {
+              "us": "Included",
+              "comp1": "Add-on Needed",
+              "comp2": "None",
+              "feature": "Hardware Earpiece Audio Bypass"
+            },
+            {
+              "us": "Unlimite",
+              "comp1": "100 Qs / Month",
+              "comp2": "Rate Limited (40 msgs/3hr)",
+              "feature": "Usage (No Caps)"
+            },
+            {
+              "us": "Native",
+              "comp1": "None",
+              "comp2": "None",
+              "feature": "Question Distillation (Filters Chit-Chat)"
+            },
+            {
+              "us": "Yes (Live Syntax & Complexity)",
+              "comp1": "Limited",
+              "comp2": "Manual Copy-Paste Only",
+              "feature": "LeetCode & Coding Copilot Mode"
+            },
+            {
+              "us": "Optimized for Indian & Global Accents",
+              "comp1": "US / UK English Only",
+              "comp2": "Text Only",
+              "feature": "Hinglish & Multi-Accent Recognition"
+            },
+            {
+              "us": "From ₹599 / Lifetime Available",
+              "comp1": "₹9,500/month",
+              "comp2": "$20 / month",
+              "feature": "Pricing Model"
+            }
+          ],
+          "headline": "Why Candidates Choose Voro Over Parakeet.ai",
+          "competitor1Name": "Parakeet.ai",
+          "competitor2Name": "ChatGPT / Web AI"
+        },
+        "heroMediaUrl": null,
+        "featurePillars": [
+          {
+            "id": "pillar-1792823248430-upru",
+            "tag": "Completely Undetectable",
+            "icon": "Shield",
+            "title": "100% Invisible Across All of Windows",
+            "description": "Voro is built to be completely invisible on your computer. When you share your screen on Zoom, Microsoft Teams, or Google Meet, the interviewer will never see Voro. Even better, Voro can hide completely from your Windows Taskbar, System Tray, Task Manager, and screen recorders. You get help right in front of you while looking 100% clean."
+          },
+          {
+            "id": "pillar-1792823249412-fv3r",
+            "tag": "Instant Voice AI",
+            "icon": "Zap",
+            "title": "Understands Questions in Less Than a Second",
+            "description": "Voro listens to the interviewer through your headphones and understands what they asked in less than a second. It automatically separates the interviewer’s voice from your voice, so it always knows who is speaking and gives you the exact answer right when you need it."
+          },
+          {
+            "id": "pillar-1792823249968-j4ga",
+            "tag": "No Embarrassing Popups",
+            "icon": "Check",
+            "title": "Smart Push-to-Answer & Auto Answer",
+            "description": "In interviews, interviewers often say casual things like \"Hey, how are you today?\" or \"Can you hear me?\". Voro is smart enough to ignore all the friendly small talk. With simple manual mode (Ctrl+Enter), Voro only answers when you ask it to, giving you the direct technical answer to the real question.\nand if you select auto answer it will give you answers without pressing any key ."
+          },
+          {
+            "id": "pillar-1792823250573-y2l7",
+            "tag": "Sounds Naturally Like You",
+            "icon": "Check",
+            "title": "Uses Your Real Resume & Past Experience",
+            "description": "Just paste your resume and the target company's job description into Voro. When the interviewer asks questions like \"Tell me about a time you handled a difficult project\", Voro crafts answers using your real career projects, tech stack, and background, making your answers sound completely genuine."
+          },
+          {
+            "id": "pillar-1792823251128-bq9d",
+            "tag": "Screen Awareness",
+            "icon": "Eye",
+            "title": "Reads Your Screen & Solves Live Coding",
+            "description": "Doing a live coding round or technical test? Voro reads whatever is on your screen—including LeetCode, HackerRank, code editors, and technical diagrams. It explains the problem, writes clean code, and explains the time and memory complexity step-by-step so you can speak confidently."
+          },
+          {
+            "id": "pillar-1792823251648-xuin",
+            "tag": "Only You Hear It",
+            "icon": "Sparkles",
+            "title": "Private Whisper in Your Ear",
+            "description": "If you prefer hearing the answer instead of reading text, Voro can quietly speak answers directly into your headphones. The interviewer cannot hear it at all. Plus, the second you start speaking, Voro immediately stops talking so you never talk over each other."
+          },
+          {
+            "id": "pillar-1792823252681-ngk9",
+            "tag": "Zero Data Tracking",
+            "icon": "Cpu",
+            "title": "100% Private — Runs on Your Computer",
+            "description": "Your privacy is 100% guaranteed. Norvi Agency never records, saves, or sees your audio, screen, or interview questions. Everything runs safely right on your own PC, keeping your interviews, resume, and data completely confidential."
+          }
+        ],
+        "platformBadges": [
+          "Microsoft Teams",
+          "Zoom",
+          "Google Meet",
+          "HackerRank",
+          "LeetCode",
+          "CoderPad",
+          "Windows",
+          "macOS",
+          "All Others Apps"
+        ]
+      },
+      "category": {
+        "id": "430a669a-1b36-418f-9dd9-76b41fc91ddb",
+        "slug": "interview-assistance",
+        "name": "Interview Assistance",
+        "createdAt": "2026-09-24T08:42:17.673253+00:00"
+      }
+    },
+    {
+      "id": "95f45701-8083-4336-bd42-e7d28a2bce47",
+      "slug": "nexus",
+      "name": "Nexus",
+      "categoryId": "73ce8f2d-6749-4861-bd6c-97c675ca3566",
+      "tagline": "Turn 1 Long Video into 10 Viral Shorts & Auto-Publish Everywhere 24/7.",
+      "description": "Nexus is a native, privacy-first desktop AI agent designed to replace expensive social media agencies and cloud video clipper subscriptions. Operating directly from your Windows PC, Nexus autonomously discovers high-potential videos, detects viral hooks, generates kinetic animated captions, reframes footage to 9:16 vertical video using smart facial tracking, and schedules multi-platform publishing to YouTube Shorts, TikTok, Instagram Reels, Facebook Reels, and X (Twitter) on complete autopilot.",
+      "price": " Select Your Plan ",
+      "price1m": 499,
+      "price3m": 1299,
+      "price_lifetime": 4999,
+      "status": "archived",
+      "logoUrl": "https://lpzqvziejdpzykwrhkmn.supabase.co/storage/v1/object/public/product-assets/af8f7d1a-ef49-4214-a79f-79ed2c75323a.jpg",
+      "features": [],
+      "version": "version_1.0.0",
+      "requirements": "Windows 10/11 , Supports Low end Pc ",
+      "releaseStatus": "prelaunch",
+      "workflowHeading": "Automate Your Empire in 3 Simple Steps",
+      "workflowDescription": "Setting up your automated content pipeline with Nexus is effortless. First, use the 'Discover' tab to search for viral long-form videos by niche, duration, or direct URL. Second, let the 'Clip Lab' use local AI to instantly identify engaging highlights, auto-crop them for vertical viewing, and generate precise captions. Finally, head to the 'Publishing Queue' to let the AI write your titles and hashtags, pick your platforms, and set a schedule. The Nexus background daemon will handle the rest, silently publishing your content at the exact right time while and works if you close Nexus app.",
+      "workflowMediaUrl": null,
+      "workflowNote": "Nexus has no limit for usages your data and activation  keys are heavily encrypted and never leave your machine!",
+      "aiUsage": "Unlimited No Limit ",
+      "deviceAllowance": "3 active device per license. Manage devices in your account.",
+      "is_on_sale": true,
+      "trialActive": true,
+      "extendedContent": {
+        "badgeText": "⚡ 100% Local Execution | Autonomous 24/7 Publishing Daemon | Zero Cloud Subscriptions",
+        "heroMediaUrl": null,
+        "featurePillars": [
+          {
+            "id": "pillar-1793032250131-947h",
+            "tag": "AI Virality Engine",
+            "icon": "Sparkles",
+            "title": "Discovers High-Engagement Moments Without Manual Scrubbing",
+            "description": "Nexus eliminates hours of manual timeline scrubbing. Its local AI engine parses full video transcripts, analyzes emotional momentum, detects high-retention narrative hooks, and scores clip virality from 0 to 100. It segments content into optimal short-form targets (30s, 60s, 90s, or 180s) while ensuring full compliance with Fair Use curation standards."
+          },
+          {
+            "id": "pillar-1793032256601-hxtz",
+            "tag": "9:16 Smart Reframing",
+            "icon": "Eye",
+            "title": "Active Speaker Centering with Styled Kinetic Word-by-Word Captions",
+            "description": "Horizontal landscape footage is automatically converted into high-converting 9:16 vertical video. Nexus utilizes OpenCV computer vision to continuously track active speakers and eliminate awkward edge crops. Integrated subtitle synthesis generates word-level animated .ass kinetic captions styled with custom accent colors, outlines, and shadow depth for maximum viewer watch-time."
+          },
+          {
+            "id": "pillar-1793032256980-tqhe",
+            "tag": "Hands-Free Posting    ",
+            "icon": "Bot",
+            "title": "Background Scheduling & Publishing with Zero Cloud API Markups",
+            "description": "Never log into 5 different social media dashboards again. Nexus features an autonomous background daemon that sits in your Windows system tray, monitoring your visual content calendar. When a scheduled time arrives, it posts native video files, viral titles, AI-generated captions, and trending hashtags directly to YouTube, TikTok, Instagram, Facebook, and X. With isolated platform task queues, one network hiccup never stops your other uploads."
+          }
+        ]
+      },
+      "category": {
+        "id": "73ce8f2d-6749-4861-bd6c-97c675ca3566",
+        "slug": "nexus",
+        "name": "Social Media Automation / Autonomous Content Studio",
+        "createdAt": "2026-10-26T16:28:39.947586+00:00"
+      }
     }
   ],
   "settings": {
     "name": "NORVI",
-    "headline": "Less busywork.\nMore possibility.",
+    "headline": "Less busywork.\\nMore possibility.",
     "description": "Make room for the work that matters. Discover AI agents built to take everyday tasks off your hands.",
-    "email": "email_Support",
-    "company": "name_Company",
-    "domain": "domain_Website",
+    "email": "norviagency@gmail.com",
+    "company": "Norvi AI Agency",
+    "domain": "nor-vi.in",
     "maintenanceMode": false,
     "permissions": {
       "owner": [
@@ -498,6 +490,13 @@
         "/orders",
         "/announcements"
       ]
-    }
+    },
+    "bannerText": "Get Extra 10% Off On All Agents | Nexus & Rolvio are Launching On 30!",
+    "saleActive": true,
+    "salePercentage": 10,
+    "socialInstagram": "https://www.instagram.com/norviagency/?hl=en",
+    "socialYoutube": "https://www.youtube.com/@NorviAgency",
+    "socialFacebook": "https://www.facebook.com/profile.php?id=61594850554956",
+    "socialTwitter": ""
   }
 }

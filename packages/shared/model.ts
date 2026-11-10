@@ -22,7 +22,7 @@ export type AgentExtendedContent = {
   seo?: AgentSeo;
   guide?: AgentGuide;
 };
-export type Product = { id: string; slug: string; name: string; categoryId: string; category?: Category; tagline: string; description: string; price: string; price1m?: string; price3m?: string; price_lifetime?: string; is_on_sale?: boolean; trialActive?: boolean; aiUsage?: string; deviceAllowance?: string; status: 'draft' | 'published' | 'archived'; releaseStatus: 'development' | 'prelaunch' | 'live'; logoUrl: string | null; features: string[]; version: string; requirements: string; workflowHeading: string; workflowDescription: string; workflowMediaUrl: string | null; workflowNote: string; updatedAt?: string; extendedContent?: AgentExtendedContent; };
+export type Product = { id: string; slug: string; name: string; categoryId: string; category?: Category | null; tagline: string; description: string; price: string; price1m?: string; price3m?: string; price_lifetime?: string; is_on_sale?: boolean; trialActive?: boolean; aiUsage?: string; deviceAllowance?: string; status: 'draft' | 'published' | 'archived'; releaseStatus: 'development' | 'prelaunch' | 'live'; logoUrl: string | null; icon?: string; color?: string; features: string[]; version: string; requirements: string; workflowHeading: string; workflowDescription: string; workflowMediaUrl: string | null; workflowNote: string; updatedAt?: string; extendedContent?: AgentExtendedContent; };
 export type User = { id: string; name: string; email: string; role: Role; status: 'active' | 'suspended'; createdAt: string; lastLogin: string | null };
 export type License = { id: string; userId: string; productId: string; status: 'active' | 'revoked'; keyHash: string; encryptedKey: string; suffix: string; createdAt: string; device: string | null; expiresAt: string | null };
 export type Order = { id: string; userId: string; productId: string; status: 'simulated' | 'refunded' | 'pending' | 'paid' | 'failed'; amount: string; createdAt: string; licenseId: string };
@@ -175,7 +175,7 @@ export const products: Product[] = [
       "slug": "rolvio",
       "name": "Rolvio",
       "categoryId": "cat-3",
-      "category": "Job-search automation",
+      "category": { id: 'cat-3', slug: 'job-search-automation', name: 'Job-search automation' },
       "tagline": "The Autonomous AI Career Agent & Desktop Job-Search Engine",
       "description": "An end-to-end autonomous AI career agent that automates your entire job hunt. Features local AI resume parsing, ATS skill matching, stealth multi-platform auto-applying across LinkedIn, Indeed, Naukri, Internshala, and Wellfound, strict DOM verification, and background IMAP email interview tracking.",
       "price": "₹499",
