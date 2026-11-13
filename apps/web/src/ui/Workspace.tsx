@@ -1,14 +1,14 @@
 import { LiveAdmin } from './Accounts';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Activity, ArrowRight, ChevronDown, ChevronUp, Bot, ArrowUpRight, BookOpen, Box, Check, Copy, CreditCard, Download, Eye, FileText, KeyRound, LayoutDashboard, LifeBuoy, LogOut, Plus, Search, Settings as SettingsIcon, ShieldCheck, Users, X, Monitor, SlidersHorizontal, Mail, Megaphone, Globe, Sparkles, Video, Image as ImageIcon, HelpCircle, Layers, Trash2, Tag, ExternalLink } from 'lucide-react';
+import { Activity, ArrowRight, ChevronDown, ChevronUp, Bot, ArrowUpRight, BookOpen, Box, Check, Copy, CreditCard, Download, Eye, FileText, KeyRound, LayoutDashboard, LifeBuoy, LogOut, Plus, Search, Settings as SettingsIcon, ShieldCheck, Users, X, Monitor, SlidersHorizontal, Mail, Megaphone, Globe, Sparkles, Video, Image as ImageIcon, HelpCircle, Layers, Trash2, Tag, ExternalLink, Printer, Phone, Clock, Share2, MessageSquare } from 'lucide-react';
 import type { Category, Product, Settings, User, AgentExtendedContent, FeaturePillar, MediaGalleryItem, ComparisonRow, AgentFaq, GuideSection, AgentGuide } from '../../../../packages/shared/model';
 import { createDefaultAgentAiPolicy, normalizeAgentAiPolicyPayload, type AgentAiPolicy } from '../../../../packages/shared/agentAi';
 import { AgentAiPolicySection } from './AgentAiPolicySection';
 import { ProductCard, ProductIcon } from './App';
 import { api, Badge, date, Empty, Field, Loading, Notice, PageHeading, uploadFile, useData, SmartVideoPlayer, parseYouTubeVideoId } from './common';
 const customerNav = [['', 'Overview', LayoutDashboard], ['/agents', 'My agents', Box], ['/licenses', 'Keys & devices', KeyRound], ['/billing', 'Billing & orders', CreditCard], ['/support', 'Support', LifeBuoy], ['/partner', 'Partner program', Users], ['/settings', 'Profile & security', SettingsIcon]] as const;
-const staffNav = [['', 'Overview', LayoutDashboard], ['/products', 'Products & Content', Box], ['/releases', 'Agent Releases', SlidersHorizontal], ['/categories', 'Categories', Box], ['/customers', 'Customers', Users], ['/licenses', 'Licenses', KeyRound], ['/orders', 'Orders', CreditCard], ['/promotions', 'Promotions', Activity], ['/affiliates', 'Partners & Payouts', Users], ['/team', 'Team', Users], ['/announcements', 'Announcements', Mail], ['/content', 'Content', FileText], ['/activity', 'Audit & delivery', Activity], ['/ai-agent', 'AI Support Agent', Bot], ['/marketing', 'Broadcasts', Megaphone], ['/settings', 'Settings', SettingsIcon]] as const;
-const allowed: Record<string, string[]> = { owner: ['*'], administrator: ['', '/marketing', '/products', '/releases', '/categories', '/customers', '/licenses', '/orders', '/promotions', '/announcements', '/content', '/activity', '/affiliates', '/ai-agent'], product_manager: ['', '/marketing', '/products', '/releases', '/categories', '/announcements', '/content'], support: ['', '/customers', '/licenses', '/orders', '/announcements'] };
+const staffNav = [['', 'Overview', LayoutDashboard], ['/products', 'Products & Content', Box], ['/releases', 'Agent Releases', SlidersHorizontal], ['/categories', 'Categories', Box], ['/customers', 'Customers', Users], ['/licenses', 'Licenses', KeyRound], ['/orders', 'Orders', CreditCard], ['/inquiries', 'Inquiries & Support', LifeBuoy], ['/promotions', 'Promotions', Activity], ['/affiliates', 'Partners & Payouts', Users], ['/team', 'Team', Users], ['/announcements', 'Announcements', Mail], ['/content', 'Content', FileText], ['/activity', 'Audit & delivery', Activity], ['/ai-agent', 'AI Support Agent', Bot], ['/marketing', 'Broadcasts', Megaphone], ['/settings', 'Settings', SettingsIcon]] as const;
+const allowed: Record<string, string[]> = { owner: ['*'], administrator: ['', '/inquiries', '/marketing', '/products', '/releases', '/categories', '/customers', '/licenses', '/orders', '/promotions', '/announcements', '/content', '/activity', '/affiliates', '/ai-agent'], product_manager: ['', '/marketing', '/products', '/releases', '/categories', '/announcements', '/content'], support: ['', '/inquiries', '/customers', '/licenses', '/orders', '/announcements'] };
 function CommandPalette({ user }: { user: User }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -20,7 +20,7 @@ function CommandPalette({ user }: { user: User }) {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
   if (!open) return null;
-  const adminLinks = [ { name: 'Go to Products', path: '/admin/products' }, { name: 'Go to Agent Releases', path: '/admin/releases' }, { name: 'Go to Customers', path: '/admin/customers' }, { name: 'Go to Licenses', path: '/admin/licenses' }, { name: 'Go to Orders', path: '/admin/orders' }, { name: 'Go to Settings', path: '/admin/settings' } ].filter(l => l.name.toLowerCase().includes(query.toLowerCase()));
+  const adminLinks = [ { name: 'Go to Products', path: '/admin/products' }, { name: 'Go to Agent Releases', path: '/admin/releases' }, { name: 'Go to Customers', path: '/admin/customers' }, { name: 'Go to Licenses', path: '/admin/licenses' }, { name: 'Go to Orders', path: '/admin/orders' }, { name: 'Go to Inquiries & Support', path: '/admin/inquiries' }, { name: 'Go to Settings', path: '/admin/settings' } ].filter(l => l.name.toLowerCase().includes(query.toLowerCase()));
   const customerLinks = [ { name: 'Go to Agents', path: '/account/agents' }, { name: 'Go to Licenses', path: '/account/licenses' }, { name: 'Go to Billing', path: '/account/billing' }, { name: 'Go to Support', path: '/account/support' }, { name: 'Go to Settings', path: '/account/settings' } ].filter(l => l.name.toLowerCase().includes(query.toLowerCase()));
   const links = user.role === 'customer' ? customerLinks : adminLinks;
   return (
@@ -48,50 +48,683 @@ export function Workspace({ path, products, settings, onCatalogChange }: { path:
     const nav = admin ? staffNav.filter(([slug]) => canAccessSlug(slug)) : customerNav;
       console.log('ACTIVE NAV:', nav);
     const sectionAllowed = !admin || canAccessSlug(section);
-    return <div className="workspace"><CommandPalette user={user} /><aside className="sidebar"><div className="workspace-label">{admin ? 'AGENCY WORKSPACE' : 'PERSONAL WORKSPACE'}</div><nav aria-label="Workspace navigation">{nav.map(([slug, label, Icon]) => <a key={slug} href={base + slug} className={section === slug ? 'selected' : ''}><Icon size={18} />{label}{section === slug && <span className="nav-indicator" />}</a>)}</nav><div className="sidebar-bottom"><div className="preview-box"><ShieldCheck size={18} /><b>{identity.preview ? 'Local preview' : 'NORVI account'}</b><p>{identity.preview ? 'Sample data. No live payments or emails.' : 'Verified account. Sales are not open yet.'}</p></div><a href="/" className="text-button">Back to website <ArrowUpRight size={15} /></a><button className="logout" onClick={async () => { try { await api('/auth/logout', { method: 'POST' }); location.href = admin ? '/admin/login' : '/login'; } catch (e: any) { setLogoutError(e.message); } }}><LogOut size={16} />{identity.preview ? 'Sign out of preview' : 'Sign out'}</button>{logoutError && <Notice kind="error">{logoutError}</Notice>}</div></aside><div className="workspace-main">
+    return <div className="workspace"><CommandPalette user={user} /><aside className="sidebar"><div className="workspace-label">{admin ? 'AGENCY WORKSPACE' : 'PERSONAL WORKSPACE'}</div><nav aria-label="Workspace navigation">{nav.map(([slug, label, Icon]) => <a key={slug} href={base + slug} className={section === slug ? 'selected' : ''}><Icon size={18} />{label}{section === slug && <span className="nav-indicator" />}</a>)}</nav><div className="sidebar-bottom"><div className="preview-box"><ShieldCheck size={18} /><b>{identity.preview ? 'Local preview' : 'NORVI account'}</b><p>{identity.preview ? 'Sample data. No live payments or emails.' : 'Verified account. Active customer workspace.'}</p></div><a href="/" className="text-button">Back to website <ArrowUpRight size={15} /></a><button className="logout" onClick={async () => { try { await api('/auth/logout', { method: 'POST' }); location.href = admin ? '/admin/login' : '/login'; } catch (e: any) { setLogoutError(e.message); } }}><LogOut size={16} />{identity.preview ? 'Sign out of preview' : 'Sign out'}</button>{logoutError && <Notice kind="error">{logoutError}</Notice>}</div></aside><div className="workspace-main">
         {(user as any).isImpersonated && <div style={{ background: '#eab308', color: '#1a1a1a', padding: '12px 24px', fontWeight: 600, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', flexWrap: 'wrap', borderBottom: '2px solid #ca8a04', zIndex: 100 }}><div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><ShieldCheck size={18} /><span>You are currently impersonating <b>{user.name}</b> {user.email ? `(${user.email})` : ''} · Role: <b>{user.role}</b></span></div><button type="button" className="button primary small" style={{ background: '#1c2418', color: '#fff', borderColor: '#1c2418', cursor: 'pointer' }} onClick={async () => { try { await api('/admin/impersonate', { method: 'DELETE' }); } catch { try { await api('/admin/impersonate/stop', { method: 'POST' }); } catch {} } document.cookie = 'norvi_impersonate=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT; Max-Age=0;'; window.location.href = '/admin/customers'; }}>Stop Impersonating</button></div>}
         <div className="workspace-topbar"><span>NORVI <span className="slash">/</span> {admin ? 'Agency workspace' : 'My account'}</span><div style={{display: 'flex', alignItems: 'center', gap: 15}}><a href="/" className="text-button" style={{fontSize: 13}}>Back to website <ArrowUpRight size={14} /></a><span className="user-chip"><span className="avatar">{user.name.slice(0, 1).toUpperCase()}</span>{user.name}<Badge>{user.role.replace('_', ' ')}</Badge></span></div></div>{!sectionAllowed ? <Notice kind="error">Your role cannot open this section.</Notice> : admin ? <Admin section={section} user={user} settings={settings} onCatalogChange={onCatalogChange} /> : <Customer section={section} products={products} user={user} />}</div></div>;
 }
+export function CustomerInvoiceModal({ order, user, onClose }: { order: any; user: User; onClose: () => void }) {
+  const isPaid = order.status === 'paid';
+  return (
+    <Modal title="Official Purchase Receipt" onClose={onClose} wide>
+      <div style={{ background: '#12180f', border: '1px solid var(--border)', borderRadius: 10, padding: 24, color: 'var(--text)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid var(--border)', paddingBottom: 16, marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
+          <div>
+            <h2 style={{ margin: '0 0 4px', fontSize: 22, color: 'var(--lime)' }}>NORVI AI AGENCY</h2>
+            <p style={{ margin: 0, fontSize: 12, color: 'var(--text-light)', lineHeight: 1.5 }}>
+              Kunj Vihar, Gole ka mandir<br />
+              Gwalior, Madhya Pradesh, India 474005<br />
+              Support: norviagency@gmail.com · +91-9893534314
+            </p>
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <span className="badge good" style={{ fontSize: 12, padding: '4px 10px', textTransform: 'uppercase' }}>
+              {isPaid ? 'Paid & Verified' : order.status}
+            </span>
+            <div style={{ fontSize: 12, color: 'var(--text-light)', marginTop: 8 }}>
+              <b>Invoice Date:</b> {date(order.createdAt)}
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--text-light)' }}>
+              <b>Order Ref:</b> #{order.id.slice(0, 8)}
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24, background: 'var(--surface)', padding: 14, borderRadius: 8 }}>
+          <div>
+            <div style={{ fontSize: 11, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Billed To</div>
+            <div style={{ fontWeight: 600, fontSize: 14, marginTop: 2 }}>{user.name}</div>
+            <div style={{ fontSize: 12, color: 'var(--text-light)' }}>{user.email}</div>
+          </div>
+          <div>
+            <div style={{ fontSize: 11, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Payment Gateway Reference</div>
+            <div style={{ fontWeight: 600, fontSize: 13, marginTop: 2, fontFamily: 'monospace' }}>
+              {order.providerPaymentId || 'Verified Checkout'}
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--text-light)' }}>Payment processed securely via Razorpay</div>
+          </div>
+        </div>
+
+        <div className="table-wrap" style={{ margin: '0 0 20px', background: 'transparent' }}>
+          <table>
+            <thead>
+              <tr>
+                <th>Item Description</th>
+                <th>Type</th>
+                <th style={{ textAlign: 'right' }}>Total (INR)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>
+                  <b>{order.product || 'AI Agent Software License'}</b>
+                  <small className="block" style={{ color: 'var(--text-light)' }}>Single Customer License · Digital Instant Delivery</small>
+                </td>
+                <td>Software License</td>
+                <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--lime)' }}>{order.amount || '₹0.00'}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div style={{ borderTop: '1px solid var(--border)', paddingTop: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+          <div style={{ fontSize: 12, color: 'var(--text-light)' }}>
+            Digital software delivery complete. License key authorized in your NORVI account.
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <span style={{ fontSize: 13, color: 'var(--text-light)', marginRight: 12 }}>Total Paid:</span>
+            <b style={{ fontSize: 20, color: 'var(--lime)' }}>{order.amount}</b>
+          </div>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 20 }}>
+        <button type="button" className="button secondary" onClick={() => window.print()}>
+          <Printer size={15} style={{ marginRight: 6 }} /> Print / Save as PDF
+        </button>
+        <button type="button" className="button primary" onClick={onClose}>
+          Done
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+export function DeviceReleaseModal({
+  device,
+  onClose,
+  onConfirm
+}: {
+  device: { licenseId: string; deviceId: string; installationId: string };
+  onClose: () => void;
+  onConfirm: () => Promise<void>;
+}) {
+  const [busy, setBusy] = useState(false);
+  return (
+    <Modal title="Release Hardware Slot" onClose={onClose}>
+      <p style={{ margin: '0 0 16px', lineHeight: 1.6 }}>
+        Are you sure you want to release the hardware authorization for this machine?
+      </p>
+      <div style={{ background: 'var(--surface)', padding: 14, borderRadius: 8, border: '1px solid var(--border)', marginBottom: 20 }}>
+        <div style={{ fontSize: 12, color: 'var(--text-light)', marginBottom: 4 }}>Hardware Installation ID</div>
+        <code style={{ fontSize: 13, color: 'var(--lime)', wordBreak: 'break-all' }}>{device.installationId}</code>
+      </div>
+      <p style={{ fontSize: 12, color: 'var(--text-light)', lineHeight: 1.5, margin: '0 0 20px' }}>
+        ⚠️ Releasing this hardware slot deactivates the agent on this specific computer and immediately frees the slot cleanly so you can activate another PC or laptop.
+      </p>
+      <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+        <button type="button" className="button secondary" onClick={onClose} disabled={busy}>Cancel</button>
+        <button
+          type="button"
+          className="button primary"
+          style={{ background: 'var(--red, #ef4444)', borderColor: 'var(--red, #ef4444)' }}
+          disabled={busy}
+          onClick={async () => {
+            setBusy(true);
+            await onConfirm();
+            setBusy(false);
+            onClose();
+          }}
+        >
+          {busy ? 'Releasing...' : 'Release Device Slot'}
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+export function CustomerTicketModal({ ticket, onClose }: { ticket: any; onClose: () => void }) {
+  const isResolved = ticket.status === 'resolved' || ticket.status === 'closed';
+  return (
+    <Modal title={ticket.subject} onClose={onClose}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, borderBottom: '1px solid var(--border)', paddingBottom: 12 }}>
+        <div style={{ fontSize: 12, color: 'var(--text-light)' }}>
+          Submitted on <b>{date(ticket.createdAt)}</b>
+        </div>
+        <Badge kind={isResolved ? 'good' : ''}>{ticket.status || 'open'}</Badge>
+      </div>
+
+      <div style={{ background: 'var(--surface)', padding: 16, borderRadius: 8, border: '1px solid var(--border)', marginBottom: 16 }}>
+        <div style={{ fontSize: 11, color: 'var(--text-light)', textTransform: 'uppercase', marginBottom: 6 }}>Your Inquiry</div>
+        <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{ticket.message}</p>
+      </div>
+
+      <div style={{ background: '#141d11', border: '1px solid #36492b', padding: 16, borderRadius: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--lime)', textTransform: 'uppercase', marginBottom: 6 }}>
+          <ShieldCheck size={14} /> Official Support Resolution & Notes
+        </div>
+        {ticket.admin_notes || ticket.reply ? (
+          <p style={{ margin: 0, fontSize: 13, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{ticket.admin_notes || ticket.reply}</p>
+        ) : isResolved ? (
+          <p style={{ margin: 0, fontSize: 13, color: 'var(--text-light)' }}>This support ticket has been reviewed and marked as resolved by our technical team. If you need further assistance, please open a new request.</p>
+        ) : (
+          <p style={{ margin: 0, fontSize: 13, color: 'var(--text-light)' }}>Our technical support team is currently reviewing your ticket. Typical response time is 2–4 hours during operating hours (Mon–Sat, 10am–6pm IST). Updates will also be sent to your email.</p>
+        )}
+      </div>
+
+      <div style={{ marginTop: 20, textAlign: 'right' }}>
+        <button type="button" className="button primary" onClick={onClose}>Close</button>
+      </div>
+    </Modal>
+  );
+}
+
 function Customer({ section, products, user }: { section: string; products: Product[]; user: User }) {
-    const { data, error, reload } = useData('/account'); const [feedback, setFeedback] = useState(''), [keyModal, setKeyModal] = useState<{ key: string; name: string } | null>(null); const [announcement, setAnnouncement] = useState<any>(null);
-    const [guideModal, setGuideModal] = useState<{ product: Product; license?: any } | null>(null);
-    useEffect(() => { const latest = data?.announcements?.[0]; if (latest && localStorage.getItem('dismissed_announcement') !== latest.id) setAnnouncement(latest); }, [data]);
-    if (error) return <Notice kind="error">{error}</Notice>; if (!data) return <Loading />; const licenses = data.licenses as any[], orders = data.orders as any[]; const owned = products.filter(p => licenses.some(l => l.productId === p.id)); const product = (id: string) => products.find(p => p.id === id); async function action(path: string) { try { const result = await api(path, { method: 'POST' }); if (result?.url) { window.location.href = result.url; return; } reload(); return result; } catch (e: any) { setFeedback(e.message); } }
-    return <><PageHeading eyebrow="YOUR PERSONAL WORKSPACE" title={section === '' ? 'A little more possibility.' : section === '/agents' ? 'Your agent collection.' : section === '/licenses' ? 'Your keys. Your access.' : section === '/billing' ? 'Everything accounted for.' : section === '/settings' ? 'Make yourself at home.' : 'How can we help?'} description={section === '' ? 'Welcome back, ' + user.name + '. Find everything you need for your next workflow.' : section === '/licenses' ? 'Your product-specific keys, access status, and active devices.' : undefined} />{feedback && <Notice>{feedback}</Notice>}{section === '' && <><div className="stat-grid"><Stat label="Your agents" value={licenses.length} icon={<Box />} /><Stat label="Active licenses" value={licenses.filter(l => l.status === 'active').length} icon={<KeyRound />} /><Stat label="Sample orders" value={orders.length} icon={<CreditCard />} /></div><div className="panel-heading"><h3>Ready for your next workflow</h3><a href="/agents" className="text-button">Explore agents <ArrowUpRight size={16} /></a></div>{!owned.length ? <Empty title="Your collection starts here." description="Explore the agents and simulate your first purchase to see licenses and orders appear here." href="/agents" /> : <div className="product-grid">{owned.map(p => <ProductCard key={p.id} product={p} />)}</div>}<div className="two-column"><div className="panel"><KeyRound className="accent" /><h3>One key. One product.</h3><p>Keep your activation keys private. Your account is always the place to find them.</p><a href="/account/licenses" className="text-button">Manage your keys <ArrowRight size={16} /></a></div><div className="panel"><LifeBuoy className="accent" /><h3>A little help, when you need it.</h3><p>Find the steps for installation, activation, and managing your device.</p><a href="/help" className="text-button">Visit the help center <ArrowRight size={16} /></a></div></div></>}
-        {section === '/agents' && (!licenses.length ? <Empty title="No agents in your collection yet." description="Your purchased products and downloads will appear here." href="/agents" /> : <div className="owned-grid">{licenses.map(l => <div className="panel owned-card" key={l.id}>{product(l.productId) && <ProductIcon product={product(l.productId)!} />}<div><h3>{product(l.productId)?.name || 'Archived agent'}</h3><p>Added {date(l.createdAt)}</p></div><Badge>{l.status}</Badge><div className="owned-actions"><a className="button secondary" href="/account/licenses">View license <KeyRound size={16} /></a><button className="button secondary" onClick={() => { const p = product(l.productId); if (p) setGuideModal({ product: p, license: l }); }}>Guide <BookOpen size={16} /></button><button className="button primary" onClick={() => action('/licenses/' + l.id + '/download')}>Download <Download size={16} /></button></div></div>)}</div>)}
-        {section === '/licenses' && (!licenses.length ? <Empty title="No activation keys yet." description="Your product-specific keys will appear here after purchases become available." href="/agents" /> : <div className="license-list">{licenses.map(l => <div className="panel" key={l.id}><div className="panel-heading"><h3>{product(l.productId)?.name || 'Archived agent'}</h3><Badge>{l.status}</Badge></div><div className="key-line"><code>NORVI-XXXX-XXXX-XXXX-{l.suffix}</code><button className="button secondary" onClick={async () => { const result = await action('/licenses/' + l.id + '/reveal'); if (result) setKeyModal({ key: result.key, name: product(l.productId)?.name || 'Agent' }); }}><Eye size={16} /> Reveal key</button></div><div className="license-meta" style={{display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1rem'}}><div style={{display:'flex', justifyContent:'space-between', alignItems:'center', background:'var(--surface)', padding:'1rem', borderRadius:'8px', marginTop:'0.5rem'}}>
-                    <div style={{flex:1}}>
-                      <div style={{fontSize:'12px', color:'var(--text-light)', marginBottom:'4px'}}>Issued</div>
-                      <div style={{fontWeight:500}}>{date(l.createdAt)}</div>
+  const { data, error, reload } = useData('/account');
+  const [feedback, setFeedback] = useState('');
+  const [keyModal, setKeyModal] = useState<{ key: string; name: string } | null>(null);
+  const [announcement, setAnnouncement] = useState<any>(null);
+  const [guideModal, setGuideModal] = useState<{ product: Product; license?: any } | null>(null);
+  const [invoiceOrder, setInvoiceOrder] = useState<any | null>(null);
+  const [deviceToRelease, setDeviceToRelease] = useState<{ licenseId: string; deviceId: string; installationId: string } | null>(null);
+  const [viewingTicket, setViewingTicket] = useState<any | null>(null);
+
+  useEffect(() => {
+    const latest = data?.announcements?.[0];
+    if (latest && localStorage.getItem('dismissed_announcement') !== latest.id) setAnnouncement(latest);
+  }, [data]);
+
+  if (error) return <Notice kind="error">{error}</Notice>;
+  if (!data) return <Loading />;
+
+  const licenses = data.licenses as any[], orders = data.orders as any[];
+  const owned = products.filter(p => licenses.some(l => l.productId === p.id));
+  const product = (id: string) => products.find(p => p.id === id);
+
+  async function action(path: string) {
+    try {
+      const result = await api(path, { method: 'POST' });
+      if (result?.url) {
+        window.location.href = result.url;
+        return;
+      }
+      reload();
+      return result;
+    } catch (e: any) {
+      setFeedback(e.message);
+    }
+  }
+
+  async function copyLicenseKey(licenseId: string, agentName: string) {
+    try {
+      const result = await action('/licenses/' + licenseId + '/reveal');
+      if (result?.key) {
+        await navigator.clipboard.writeText(result.key);
+        setFeedback(`Copied activation key for ${agentName} to clipboard!`);
+      }
+    } catch (err: any) {
+      setFeedback(err.message || 'Could not copy key');
+    }
+  }
+
+  return (
+    <>
+      <PageHeading
+        eyebrow="YOUR PERSONAL WORKSPACE"
+        title={
+          section === '' ? 'A little more possibility.' :
+          section === '/agents' ? 'Your agent collection.' :
+          section === '/licenses' ? 'Your keys. Your access.' :
+          section === '/billing' ? 'Everything accounted for.' :
+          section === '/settings' ? 'Make yourself at home.' :
+          'How can we help?'
+        }
+        description={
+          section === '' ? 'Welcome back, ' + user.name + '. Find everything you need for your next workflow.' :
+          section === '/licenses' ? 'Your product-specific keys, access status, and active devices.' :
+          undefined
+        }
+      />
+      {feedback && <Notice>{feedback}</Notice>}
+
+      {section === '' && (
+        <>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--surface)', border: '1px solid var(--border)', padding: '16px 20px', borderRadius: 10, marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <span className="avatar" style={{ width: 40, height: 40, fontSize: 16 }}>{user.name.slice(0, 1).toUpperCase()}</span>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <b style={{ fontSize: 16 }}>{user.name}</b>
+                  <Badge kind="good">Verified Customer</Badge>
+                </div>
+                <small style={{ color: 'var(--text-light)', fontSize: 12 }}>{user.email}</small>
+              </div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16, fontSize: 12, color: 'var(--text-light)', flexWrap: 'wrap' }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><ShieldCheck size={14} className="accent" /> Email Verified</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><Clock size={14} /> Member since {user.createdAt ? date(user.createdAt) : 'Recently'}</span>
+            </div>
+          </div>
+
+          <div className="stat-grid">
+            <Stat label="Your agents" value={licenses.length} icon={<Box />} hint="In your collection" />
+            <Stat label="Active licenses" value={licenses.filter(l => l.status === 'active').length} icon={<KeyRound />} hint="Authorized machines" />
+            <Stat label="Your orders" value={orders.length} icon={<CreditCard />} hint="Purchase receipts" />
+          </div>
+
+          {owned.length > 0 && (() => {
+            const primaryLicense = licenses[0];
+            const p = product(primaryLicense?.productId);
+            const activeDevCount = primaryLicense?.devices?.length || 0;
+            const maxDev = primaryLicense?.maxDevices || 3;
+            const hasConnectedDevice = activeDevCount > 0;
+            return (
+              <div className="workspace-welcome" style={{ marginBottom: 30 }}>
+                <div>
+                  <span className="eyebrow" style={{ color: 'var(--lime)', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    <Sparkles size={14} /> QUICK SETUP HUB
+                  </span>
+                  <h2 style={{ margin: '10px 0 12px', fontSize: 28 }}>{p?.name || 'Your Agent'} is ready.</h2>
+                  <p style={{ margin: '0 0 20px', fontSize: 13, color: 'var(--text-light)', lineHeight: 1.6 }}>
+                    Follow these 3 simple steps to start automating your workflows on your desktop machine.
+                  </p>
+                  <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                    <button className="button primary small" onClick={() => action('/licenses/' + primaryLicense.id + '/download')}>
+                      <Download size={14} style={{ marginRight: 5 }} /> Download Installer
+                    </button>
+                    <a href="/account/licenses" className="button secondary small">
+                      <KeyRound size={14} style={{ marginRight: 5 }} /> Keys & Devices
+                    </a>
+                  </div>
+                </div>
+
+                <div className="setup-list">
+                  <div>
+                    <div className="check-circle done"><Check size={14} /></div>
+                    <div>
+                      <b>Step 1: Download & Install</b>
+                      <small>Native Windows 10/11 64-bit installer</small>
                     </div>
-                    
-                    <div style={{flex:1, textAlign:'center'}}>
+                  </div>
+                  <div>
+                    <div className="check-circle done"><Check size={14} /></div>
+                    <div style={{ flex: 1 }}>
+                      <b>Step 2: Copy Activation Key</b>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                        <code style={{ fontSize: 12, color: 'var(--lime)' }}>NORVI-••••-••••-{primaryLicense?.suffix}</code>
+                        <button
+                          type="button"
+                          className="button secondary small"
+                          style={{ padding: '2px 8px', fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                          onClick={() => copyLicenseKey(primaryLicense.id, p?.name || 'Agent')}
+                        >
+                          <Copy size={11} /> Copy Key
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <div className={`check-circle ${hasConnectedDevice ? 'done' : ''}`}>
+                      {hasConnectedDevice ? <Check size={14} /> : <span style={{ fontSize: 11, fontWeight: 700 }}>3</span>}
+                    </div>
+                    <div>
+                      <b>Step 3: Connect Machine ({activeDevCount}/{maxDev} devices)</b>
+                      <small>{hasConnectedDevice ? 'Machine linked and authorized for daily operation' : 'Launch the app and enter your key to link this computer'}</small>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+
+          <div className="panel-heading">
+            <h3>Ready for your next workflow</h3>
+            <a href="/agents" className="text-button">Explore agents <ArrowUpRight size={16} /></a>
+          </div>
+
+          {!owned.length ? (
+            <Empty title="Your collection starts here." description="Explore our collection of AI agents and activate your first workflow." href="/agents" label="Explore agents" />
+          ) : (
+            <div className="product-grid">{owned.map(p => <ProductCard key={p.id} product={p} />)}</div>
+          )}
+
+          <div className="two-column">
+            <div className="panel">
+              <KeyRound className="accent" />
+              <h3>One key. One product.</h3>
+              <p>Keep your activation keys private. Your account is always the place to find them.</p>
+              <a href="/account/licenses" className="text-button">Manage your keys <ArrowRight size={16} /></a>
+            </div>
+            <div className="panel">
+              <LifeBuoy className="accent" />
+              <h3>A little help, when you need it.</h3>
+              <p>Find the steps for installation, activation, and managing your device.</p>
+              <a href="/help" className="text-button">Visit the help center <ArrowRight size={16} /></a>
+            </div>
+          </div>
+        </>
+      )}
+
+      {section === '/agents' && (!licenses.length ? (
+        <Empty title="No agents in your collection yet." description="Your purchased products and downloads will appear here." href="/agents" label="Explore agents" />
+      ) : (
+        <div className="owned-grid">
+          {licenses.map(l => {
+            const p = product(l.productId);
+            return (
+              <div className="panel owned-card" key={l.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 16 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16 }}>
+                  <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
+                    {p && <ProductIcon product={p} size={48} />}
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <h3 style={{ margin: 0, fontSize: 18 }}>{p?.name || 'Archived agent'}</h3>
+                        {p?.version && <span className="badge" style={{ fontSize: 10 }}>{p.version}</span>}
+                      </div>
+                      <p style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--text-light)' }}>
+                        {p?.tagline || `Added ${date(l.createdAt)}`}
+                      </p>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
+                    <Badge kind={l.status === 'active' ? 'good' : ''}>{l.status}</Badge>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: l.expiresAt ? 'var(--text-light)' : 'var(--lime)' }}>
+                      {l.expiresAt ? `Valid until ${date(l.expiresAt)}` : 'Lifetime Access'}
+                    </span>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--surface)', padding: '10px 14px', borderRadius: 6, border: '1px solid var(--border)', flexWrap: 'wrap', gap: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <KeyRound size={14} className="accent" />
+                    <code style={{ fontSize: 12, color: 'var(--lime)' }}>NORVI-••••-••••-{l.suffix}</code>
+                  </div>
+                  <button
+                    type="button"
+                    className="button secondary small"
+                    style={{ padding: '2px 8px', fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                    onClick={() => copyLicenseKey(l.id, p?.name || 'Agent')}
+                  >
+                    <Copy size={11} /> Copy Key
+                  </button>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 11, color: 'var(--text-light)', borderTop: '1px solid var(--border)', paddingTop: 12 }}>
+                  <span><Monitor size={12} style={{ verticalAlign: 'middle', marginRight: 4 }} /> {p?.requirements || 'Windows 10/11 (64-bit)'}</span>
+                  <span>{l.devices?.length || 0} of {l.maxDevices || 3} device slots linked</span>
+                </div>
+
+                <div className="owned-actions" style={{ display: 'flex', gap: 10, borderTop: 'none', paddingTop: 0 }}>
+                  <a className="button secondary small" href="/account/licenses" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                    <KeyRound size={14} /> Keys & Devices
+                  </a>
+                  <button className="button secondary small" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }} onClick={() => { if (p) setGuideModal({ product: p, license: l }); }}>
+                    <BookOpen size={14} /> Setup Guide
+                  </button>
+                  <button className="button primary small" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginLeft: 'auto' }} onClick={() => action('/licenses/' + l.id + '/download')}>
+                    <Download size={14} /> Download Installer
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ))}
+
+      {section === '/licenses' && (!licenses.length ? (
+        <Empty title="No activation keys yet." description="Your product-specific keys will appear here immediately after purchasing an agent or starting a trial." href="/agents" label="Explore agents" />
+      ) : (
+        <div className="license-list">
+          {licenses.map(l => {
+            const p = product(l.productId);
+            const activeCount = l.devices?.length || 0;
+            const maxCount = l.maxDevices || 3;
+            return (
+              <div className="panel" key={l.id}>
+                <div className="panel-heading">
+                  <div>
+                    <h3 style={{ margin: 0 }}>{p?.name || 'Archived agent'}</h3>
+                    <small style={{ color: 'var(--text-light)', fontSize: 12 }}>Issued {date(l.createdAt)}</small>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Badge kind={l.status === 'active' ? 'good' : ''}>{l.status}</Badge>
+                    <span className="badge good" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11 }}>
+                      <Monitor size={12} /> {activeCount} / {maxCount} Slots Active
+                    </span>
+                  </div>
+                </div>
+
+                <div className="key-line">
+                  <code>NORVI-XXXX-XXXX-XXXX-{l.suffix}</code>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button
+                      type="button"
+                      className="button primary"
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}
+                      onClick={() => copyLicenseKey(l.id, p?.name || 'Agent')}
+                    >
+                      <Copy size={15} /> Copy Key
+                    </button>
+                    <button
+                      type="button"
+                      className="button secondary"
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}
+                      onClick={async () => {
+                        const result = await action('/licenses/' + l.id + '/reveal');
+                        if (result) setKeyModal({ key: result.key, name: p?.name || 'Agent' });
+                      }}
+                    >
+                      <Eye size={15} /> Reveal key
+                    </button>
+                  </div>
+                </div>
+
+                <div className="license-meta" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--surface)', padding: '1rem', borderRadius: '8px', marginTop: '0.5rem' }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: '12px', color: 'var(--text-light)', marginBottom: '4px' }}>Issued Date</div>
+                      <div style={{ fontWeight: 500 }}>{date(l.createdAt)}</div>
+                    </div>
+
+                    <div style={{ flex: 1, textAlign: 'center' }}>
                       {l.expiresAt ? (
                         <>
-                          <div style={{fontSize:'12px', color: new Date(l.expiresAt).getTime() < Date.now() + 1000 * 60 * 60 * 24 * 7 ? 'var(--error)' : 'var(--text-light)', marginBottom:'4px'}}>Expires</div>
-                          <div style={{fontWeight:500, color: new Date(l.expiresAt).getTime() < Date.now() + 1000 * 60 * 60 * 24 * 7 ? 'var(--error)' : 'inherit'}}>{date(l.expiresAt)}</div>
+                          <div style={{ fontSize: '12px', color: new Date(l.expiresAt).getTime() < Date.now() + 1000 * 60 * 60 * 24 * 7 ? 'var(--error)' : 'var(--text-light)', marginBottom: '4px' }}>Expires</div>
+                          <div style={{ fontWeight: 500, color: new Date(l.expiresAt).getTime() < Date.now() + 1000 * 60 * 60 * 24 * 7 ? 'var(--error)' : 'inherit' }}>{date(l.expiresAt)}</div>
                         </>
                       ) : (
                         <>
-                          <div style={{fontSize:'12px', color:'var(--text-light)', marginBottom:'4px'}}>Access Level</div>
-                          <div style={{fontWeight:600, color:'var(--accent)'}}>Lifetime</div>
+                          <div style={{ fontSize: '12px', color: 'var(--text-light)', marginBottom: '4px' }}>Access Level</div>
+                          <div style={{ fontWeight: 600, color: 'var(--accent)' }}>Lifetime Access</div>
                         </>
                       )}
                     </div>
 
-                    <div style={{flex:1, display:'flex', justifyContent:'flex-end'}}>
-                      {l.expiresAt && Number(product(l.productId)?.price1m || 0) > 0 &&
-                       <a href={`/checkout/${product(l.productId)?.slug}?renew=${l.id}`} className="button primary small">Renew License</a>}
+                    <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end' }}>
+                      {l.expiresAt && Number(p?.price1m || 0) > 0 && (
+                        <a href={`/checkout/${p?.slug}?renew=${l.id}`} className="button primary small">Renew License</a>
+                      )}
                     </div>
-                  </div>{l.devices && l.devices.length > 0 ? l.devices.map((d: any) => <div key={d.id} style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem', background: 'var(--surface)', borderRadius: '4px'}}><span><Monitor size={15} /> {d.installation_id}</span><button className="text-button bare" onClick={() => action(`/licenses/${l.id}/device-reset?deviceId=${d.id}`)}>Release device <ArrowRight size={15} /></button></div>) : <span><Monitor size={15} /> No devices activated</span>}</div></div>)}</div>)}
-        {section === '/billing' && <><Notice>All orders here are simulations. No money has been charged and no recurring billing agreement exists.</Notice><OrderTable items={orders.map(o => ({ ...o, product: product(o.productId)?.name }))} /><div className="panel"><h3>Subscriptions</h3><p>No live subscriptions. Real renewal and cancellation controls require the payment integration.</p></div></>}
-        {section === '/partner' && <PartnerProgram />}
-          {section === '/settings' && <div className="two-column"><ProfileForm user={user} /><div className="panel"><ShieldCheck className="accent" /><h3>Account security</h3><p>Manage your authenticator and account access.</p><a className="button secondary" href="/account/security">Account security</a></div><AccountDeletion /></div>}
-        {section === '/support' && <div className="two-column"><SupportForm user={user} onSave={reload} /><div className="panel"><h3>Your requests</h3>{!data.tickets.length ? <p>No requests yet.</p> : data.tickets.map((t: any) => <div className="list-row" key={t.id}><div><b>{t.subject}</b><p>{date(t.createdAt)}</p></div><Badge>{t.status}</Badge></div>)}</div></div>}
-        {keyModal && <Modal title={keyModal.name + ' activation key'} onClose={() => setKeyModal(null)}><Notice>This key is synthetic and works only against the local preview API. Keep real activation keys private when live services are connected.</Notice><code className="full-key">{keyModal.key}</code><CopyButton text={keyModal.key} /></Modal>}
-        {announcement && <Modal title="Important Announcement" onClose={() => { localStorage.setItem('dismissed_announcement', announcement.id); setAnnouncement(null); }}><div style={{ padding: '20px 0', fontSize: '16px', lineHeight: 1.6 }}>{announcement.message}</div><button className="button primary" style={{ width: '100%', marginTop: '20px' }} onClick={() => { localStorage.setItem('dismissed_announcement', announcement.id); setAnnouncement(null); }}>I understand</button></Modal>}
-        {guideModal && <AgentGuideModal product={guideModal.product} license={guideModal.license} onClose={() => setGuideModal(null)} onDownload={() => guideModal.license && action('/licenses/' + guideModal.license.id + '/download')} />}
-    </>;
+                  </div>
+
+                  <div style={{ marginTop: 12 }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-light)', marginBottom: 8, display: 'flex', justifyContent: 'space-between' }}>
+                      <span>Authorized Machines</span>
+                      <span>{activeCount} of {maxCount} slots linked</span>
+                    </div>
+                    {l.devices && l.devices.length > 0 ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        {l.devices.map((d: any) => (
+                          <div key={d.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: 'var(--surface)', borderRadius: 6, border: '1px solid var(--border)' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                              <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--lime)', display: 'inline-block' }} title="Authorized" />
+                              <div>
+                                <b style={{ fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}><Monitor size={14} /> Linked Computer</b>
+                                <code style={{ fontSize: 11, color: 'var(--text-light)' }}>{d.installation_id}</code>
+                              </div>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                              <small style={{ color: 'var(--text-light)', fontSize: 11 }}>
+                                {d.last_seen_at ? `Active ${date(d.last_seen_at)}` : 'Authorized'}
+                              </small>
+                              <button
+                                type="button"
+                                className="text-button bare"
+                                style={{ color: 'var(--red, #ef4444)', fontSize: 12 }}
+                                onClick={() => setDeviceToRelease({ licenseId: l.id, deviceId: d.id, installationId: d.installation_id })}
+                              >
+                                Release slot <ArrowRight size={14} style={{ verticalAlign: 'middle' }} />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div style={{ padding: '14px 16px', background: 'var(--surface)', borderRadius: 6, color: 'var(--text-light)', fontSize: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <Monitor size={15} /> No machines connected yet. Launch your desktop agent and enter your key to link your first computer.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ))}
+
+      {section === '/billing' && (
+        <>
+          <OrderTable
+            items={orders.map(o => ({ ...o, product: product(o.productId)?.name }))}
+            onViewInvoice={order => setInvoiceOrder(order)}
+            onCopied={msg => setFeedback(msg)}
+          />
+          <div className="panel">
+            <h3>Subscriptions & Renewals</h3>
+            <p>Active license plans and renewal controls are managed directly under your license cards in Keys & devices.</p>
+          </div>
+        </>
+      )}
+
+      {section === '/partner' && <PartnerProgram />}
+
+      {section === '/settings' && (
+        <div className="two-column">
+          <ProfileForm user={user} />
+          <div className="panel">
+            <ShieldCheck className="accent" />
+            <h3>Account security</h3>
+            <p>Manage your authenticator and account access.</p>
+            <a className="button secondary" href="/account/security">Account security</a>
+          </div>
+          <AccountDeletion />
+        </div>
+      )}
+
+      {section === '/support' && (
+        <div className="two-column">
+          <SupportForm user={user} onSave={reload} />
+          <div>
+            <div className="panel" style={{ marginBottom: 20 }}>
+              <h3>Your requests</h3>
+              {!data.tickets.length ? (
+                <p style={{ color: 'var(--text-light)', fontSize: 13 }}>No requests yet.</p>
+              ) : (
+                data.tickets.map((t: any) => (
+                  <div
+                    className="list-row"
+                    key={t.id}
+                    style={{ cursor: 'pointer', padding: '12px 10px', borderRadius: 6, transition: 'background 0.15s ease' }}
+                    onClick={() => setViewingTicket(t)}
+                    title="Click to view full ticket details and response"
+                  >
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <b style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14 }}>
+                        <MessageSquare size={14} className="accent" /> {t.subject}
+                      </b>
+                      <p style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--text-light)' }}>{date(t.createdAt)}</p>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <Badge kind={t.status === 'resolved' || t.status === 'closed' ? 'good' : ''}>{t.status || 'open'}</Badge>
+                      <ArrowRight size={14} style={{ color: 'var(--text-light)' }} />
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="panel">
+              <ShieldCheck className="accent" size={24} />
+              <h3 style={{ margin: '8px 0 10px' }}>Priority Support Channels</h3>
+              <p style={{ margin: '0 0 16px', fontSize: 13, color: 'var(--text-light)' }}>
+                Need direct assistance with installation or activation? Reach out through our dedicated channels:
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: 13 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'var(--surface)', padding: '10px 14px', borderRadius: 6 }}>
+                  <Mail size={16} className="accent" />
+                  <div>
+                    <span style={{ fontSize: 11, color: 'var(--text-light)', display: 'block' }}>Email Support</span>
+                    <b>norviagency@gmail.com</b>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'var(--surface)', padding: '10px 14px', borderRadius: 6 }}>
+                  <Phone size={16} className="accent" />
+                  <div>
+                    <span style={{ fontSize: 11, color: 'var(--text-light)', display: 'block' }}>Direct Phone / WhatsApp</span>
+                    <b>+91-9893534314</b>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'var(--surface)', padding: '10px 14px', borderRadius: 6 }}>
+                  <Clock size={16} className="accent" />
+                  <div>
+                    <span style={{ fontSize: 11, color: 'var(--text-light)', display: 'block' }}>Operating Hours</span>
+                    <b>Mon–Sat, 10:00 AM – 6:00 PM IST</b>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {keyModal && (
+        <Modal title={keyModal.name + ' activation key'} onClose={() => setKeyModal(null)}>
+          <Notice>Keep your activation key confidential. Enter it into your desktop agent to unlock your license.</Notice>
+          <code className="full-key">{keyModal.key}</code>
+          <CopyButton text={keyModal.key} />
+        </Modal>
+      )}
+
+      {invoiceOrder && (
+        <CustomerInvoiceModal order={invoiceOrder} user={user} onClose={() => setInvoiceOrder(null)} />
+      )}
+
+      {deviceToRelease && (
+        <DeviceReleaseModal
+          device={deviceToRelease}
+          onClose={() => setDeviceToRelease(null)}
+          onConfirm={async () => {
+            await action(`/licenses/${deviceToRelease.licenseId}/device-reset?deviceId=${deviceToRelease.deviceId}`);
+            setFeedback('Hardware slot released successfully.');
+          }}
+        />
+      )}
+
+      {viewingTicket && (
+        <CustomerTicketModal ticket={viewingTicket} onClose={() => setViewingTicket(null)} />
+      )}
+
+      {announcement && (
+        <Modal title="Important Announcement" onClose={() => { localStorage.setItem('dismissed_announcement', announcement.id); setAnnouncement(null); }}>
+          <div style={{ padding: '20px 0', fontSize: '16px', lineHeight: 1.6 }}>{announcement.message}</div>
+          <button className="button primary" style={{ width: '100%', marginTop: '20px' }} onClick={() => { localStorage.setItem('dismissed_announcement', announcement.id); setAnnouncement(null); }}>I understand</button>
+        </Modal>
+      )}
+
+      {guideModal && (
+        <AgentGuideModal product={guideModal.product} license={guideModal.license} onClose={() => setGuideModal(null)} onDownload={() => guideModal.license && action('/licenses/' + guideModal.license.id + '/download')} />
+      )}
+    </>
+  );
 }
 function AgentGuideModal({
   product,
@@ -262,8 +895,8 @@ function AgentGuideModal({
     </Modal>
   );
 }
-function Stat({ label, value, icon, hint }: { label: string; value: string | number; icon: ReactNode; hint?: string }) { return <div className="stat"><div><span>{label}</span>{icon}</div><b>{value}</b><small>{hint ?? 'Local preview data'}</small></div>; }
-function ProfileForm({ user }: { user: User }) { const [name, setName] = useState(user.name), [message, setMessage] = useState(''); return <form className="panel" onSubmit={async e => { e.preventDefault(); try { await api('/me', { method: 'PATCH', body: JSON.stringify({ name }) }); setMessage('Profile saved.'); } catch (e: any) { setMessage(e.message); } }}><h3>Your profile</h3><Field label="Display name"><input required minLength={2} maxLength={80} value={name} onChange={e => setName(e.target.value)} /></Field><Field label="Email address" hint="Email changes are not supported in this phase."><input value={user.email} disabled /></Field><button className="button primary">Save profile <Check size={16} /></button>{message && <Notice>{message}</Notice>}</form>; }
+function Stat({ label, value, icon, hint }: { label: string; value: string | number; icon: ReactNode; hint?: string }) { return <div className="stat"><div><span>{label}</span>{icon}</div><b>{value}</b>{hint ? <small>{hint}</small> : null}</div>; }
+function ProfileForm({ user }: { user: User }) { const [name, setName] = useState(user.name), [message, setMessage] = useState(''); return <form className="panel" onSubmit={async e => { e.preventDefault(); try { await api('/me', { method: 'PATCH', body: JSON.stringify({ name }) }); setMessage('Profile saved.'); } catch (e: any) { setMessage(e.message); } }}><h3>Your profile</h3><Field label="Display name"><input required minLength={2} maxLength={80} value={name} onChange={e => setName(e.target.value)} /></Field><Field label="Email address" hint="Email address is tied to your account security. Contact support to request an email update."><input value={user.email} disabled /></Field><button className="button primary">Save profile <Check size={16} /></button>{message && <Notice>{message}</Notice>}</form>; }
 function SupportForm({ user, onSave }: { user?: User; onSave: () => void }) {
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
@@ -332,7 +965,84 @@ function SupportForm({ user, onSave }: { user?: User; onSave: () => void }) {
     </form>
   );
 }
-function OrderTable({ items }: { items: any[] }) { return !items.length ? <Empty title="No orders just yet." description="Your purchase history will appear here after checkout." /> : <div className="table-wrap"><table><thead><tr><th>Order</th><th>Product</th><th>Date</th><th>Amount</th><th>Status</th></tr></thead><tbody>{items.map(o => <tr key={o.id}><td><code>{o.id.slice(0, 8)}</code>{o.customer && <small className="block">{o.customer}</small>}</td><td>{o.product || o.productId}</td><td>{date(o.createdAt)}</td><td>{o.amount}</td><td><Badge>{o.status}</Badge></td></tr>)}</tbody></table></div>; }
+export function OrderTable({ items, onViewInvoice, onCopied }: { items: any[]; onViewInvoice?: (order: any) => void; onCopied?: (msg: string) => void }) {
+  if (!items.length) {
+    return <Empty title="No orders just yet." description="Your purchase history will appear here after checkout." href="/agents" label="Explore agents" />;
+  }
+  const copy = (text: string, label: string) => {
+    navigator.clipboard.writeText(text);
+    if (onCopied) onCopied(`Copied ${label}: ${text}`);
+  };
+  return (
+    <div className="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Order Ref</th>
+            <th>Agent</th>
+            <th>Payment ID</th>
+            <th>Date</th>
+            <th>Amount</th>
+            <th>Status</th>
+            {onViewInvoice && <th>Receipt</th>}
+          </tr>
+        </thead>
+        <tbody>
+          {items.map(o => (
+            <tr key={o.id}>
+              <td>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <code>#{o.id.slice(0, 8)}</code>
+                  <button
+                    type="button"
+                    title="Copy Order ID"
+                    aria-label="Copy Order ID"
+                    style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--lime, #98e038)' }}
+                    onClick={() => copy(o.id, 'Order ID')}
+                  >
+                    <Copy size={12} />
+                  </button>
+                </div>
+              </td>
+              <td>
+                <b>{o.product || o.productId}</b>
+                <small className="block" style={{ color: 'var(--text-light)' }}>
+                  {o.amountMinor === 0 || String(o.amount || '').includes('₹0') ? 'Promotional Trial' : 'Commercial License'}
+                </small>
+              </td>
+              <td>
+                <code style={{ fontSize: 11, color: 'var(--text-light)' }}>
+                  {o.providerPaymentId ? (o.providerPaymentId.startsWith('pay_') ? o.providerPaymentId.slice(0, 14) + '...' : o.providerPaymentId) : 'Verified Razorpay'}
+                </code>
+              </td>
+              <td>{date(o.createdAt)}</td>
+              <td>
+                <b style={{ color: Number(o.amountMinor || 0) > 0 ? 'var(--lime, #98e038)' : 'inherit' }}>
+                  {o.amount || '₹0.00'}
+                </b>
+              </td>
+              <td>
+                <Badge kind={o.status === 'paid' ? 'good' : ''}>{o.status}</Badge>
+              </td>
+              {onViewInvoice && (
+                <td>
+                  <button
+                    type="button"
+                    className="button secondary small"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '4px 8px', fontSize: 11 }}
+                    onClick={() => onViewInvoice(o)}
+                  >
+                    <FileText size={12} /> View Invoice
+                  </button>
+                </td>
+              )}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
 export function AdminOrderTable({ items, onCopied }: { items: any[]; onCopied?: (msg: string) => void }) {
   if (!items.length) {
     return <Empty title="No matching orders." description="Try adjusting your search query or filters." />;
@@ -514,16 +1224,29 @@ function PartnerProgram() {
   return (
     <>
       <div className="stat-grid">
-        <Stat label="Total Sales" value={data.sales} icon={<Activity />} />
-        <Stat label="Pending Earnings" value={`₹${(data.pendingBalance/100).toFixed(2)}`} icon={<CreditCard />} />
-        <Stat label="Total Earned" value={`₹${(data.totalEarned/100).toFixed(2)}`} icon={<Activity />} />
+        <Stat label="Total Referrals" value={data.sales} icon={<Activity />} hint="Successful orders" />
+        <Stat label="Pending Earnings" value={`₹${(data.pendingBalance/100).toFixed(2)}`} icon={<CreditCard />} hint="Ready for payout" />
+        <Stat label="Total Earned" value={`₹${(data.totalEarned/100).toFixed(2)}`} icon={<Activity />} hint="All-time commissions" />
       </div>
       <div className="two-column">
         <div className="panel">
           <KeyRound className="accent" />
           <h3>Your Referral Code</h3>
           <p>Share this code with your audience. They get 10% off, you get 15% commission.</p>
-          <code className="full-key" style={{textAlign:'center', fontSize:'24px', letterSpacing:'2px'}}>{data.code}</code>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '14px 0' }}>
+            <code className="full-key" style={{ textAlign: 'center', fontSize: '24px', letterSpacing: '2px', flex: 1, margin: 0 }}>{data.code}</code>
+            <button
+              type="button"
+              className="button primary"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: '100%', padding: '14px 18px' }}
+              onClick={() => {
+                navigator.clipboard.writeText(data.code);
+                setFeedback('Copied referral code to clipboard!');
+              }}
+            >
+              <Copy size={16} /> Copy Code
+            </button>
+          </div>
           {data.status === 'suspended' && <Notice kind="error">Your partner account has been suspended.</Notice>}
         </div>
         <div className="panel">
@@ -535,6 +1258,76 @@ function PartnerProgram() {
             <button className="button primary" disabled={busy || !upi || data.pendingBalance < 200000 || data.status === 'suspended'}>Request Payout</button>
             {feedback && <Notice kind={feedback.includes('success') ? 'success' : 'error'}>{feedback}</Notice>}
           </form>
+        </div>
+      </div>
+      <div className="panel" style={{ marginTop: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+          <Share2 className="accent" size={18} />
+          <h3 style={{ margin: 0, fontSize: 18 }}>Ready-to-Share Promotional Templates</h3>
+        </div>
+        <p style={{ margin: '0 0 16px', fontSize: 13, color: 'var(--text-light)' }}>
+          Pre-written promotional messages with your unique code (<code>{data.code}</code>) embedded for quick sharing with your network.
+        </p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
+          <div style={{ background: 'var(--surface)', padding: 16, borderRadius: 8, border: '1px solid var(--border)', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <b>Twitter / X Post</b>
+              <span className="badge">10% Off</span>
+            </div>
+            <p style={{ fontSize: 12, color: 'var(--text-light)', lineHeight: 1.5, flex: 1, margin: '0 0 12px' }}>
+              "Automate your daily workflow with AI agents from @NorviAgency! 🚀 Use my coupon code {data.code} for 10% off at https://nor-vi.in/agents"
+            </p>
+            <button
+              type="button"
+              className="button secondary small"
+              onClick={() => {
+                navigator.clipboard.writeText(`Automate your daily workflow with AI agents from @NorviAgency! 🚀 Use my coupon code ${data.code} for 10% off at https://nor-vi.in/agents`);
+                setFeedback('Copied Twitter post to clipboard!');
+              }}
+            >
+              <Copy size={13} style={{ marginRight: 5 }} /> Copy Post
+            </button>
+          </div>
+
+          <div style={{ background: 'var(--surface)', padding: 16, borderRadius: 8, border: '1px solid var(--border)', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <b>LinkedIn / Professional</b>
+              <span className="badge">Professional</span>
+            </div>
+            <p style={{ fontSize: 12, color: 'var(--text-light)', lineHeight: 1.5, flex: 1, margin: '0 0 12px' }}>
+              "Looking to streamline repetitive tasks and save hours every week? I recommend checking out @NorviAgency's autonomous desktop AI agents. Use my partner code {data.code} for 10% off: https://nor-vi.in/agents"
+            </p>
+            <button
+              type="button"
+              className="button secondary small"
+              onClick={() => {
+                navigator.clipboard.writeText(`Looking to streamline repetitive tasks and save hours every week? I recommend checking out @NorviAgency's autonomous desktop AI agents. Use my partner code ${data.code} for 10% off: https://nor-vi.in/agents`);
+                setFeedback('Copied LinkedIn post to clipboard!');
+              }}
+            >
+              <Copy size={13} style={{ marginRight: 5 }} /> Copy Post
+            </button>
+          </div>
+
+          <div style={{ background: 'var(--surface)', padding: 16, borderRadius: 8, border: '1px solid var(--border)', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <b>WhatsApp / Direct Message</b>
+              <span className="badge">Quick Chat</span>
+            </div>
+            <p style={{ fontSize: 12, color: 'var(--text-light)', lineHeight: 1.5, flex: 1, margin: '0 0 12px' }}>
+              "Hey! Check out Norvi Agency's AI agents. They help automate interview practice, job applications, and desktop workflows. Use code {data.code} for 10% off: https://nor-vi.in"
+            </p>
+            <button
+              type="button"
+              className="button secondary small"
+              onClick={() => {
+                navigator.clipboard.writeText(`Hey! Check out Norvi Agency's AI agents. They help automate interview practice, job applications, and desktop workflows. Use code ${data.code} for 10% off: https://nor-vi.in`);
+                setFeedback('Copied WhatsApp message to clipboard!');
+              }}
+            >
+              <Copy size={13} style={{ marginRight: 5 }} /> Copy Message
+            </button>
+          </div>
         </div>
       </div>
       <CustomerPromotions promotions={promotions} />
@@ -1621,6 +2414,458 @@ export function BanDeviceModal({
   );
 }
 
+export function InquiriesAdmin({ onFeedback }: { onFeedback: (msg: string) => void }) {
+  const { data: rawData, error, reload } = useData('/admin/inquiries');
+  const [query, setQuery] = useState('');
+  const [filter, setFilter] = useState<'all' | 'tickets' | 'contacts' | 'open' | 'resolved'>('all');
+  const [selectedInquiry, setSelectedInquiry] = useState<any>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  const inquiries = Array.isArray(rawData) ? rawData : [];
+
+  const filtered = inquiries.filter((inq: any) => {
+    const text = `${inq.name} ${inq.email} ${inq.subject} ${inq.message}`.toLowerCase();
+    if (query && !text.includes(query.toLowerCase())) return false;
+    if (filter === 'tickets') return inq.source === 'support_ticket';
+    if (filter === 'contacts') return inq.source === 'contact_form';
+    if (filter === 'open') return inq.status === 'open';
+    if (filter === 'resolved') return inq.status === 'resolved';
+    return true;
+  });
+
+  const totalCount = inquiries.length;
+  const openCount = inquiries.filter((i: any) => i.status === 'open').length;
+  const ticketCount = inquiries.filter((i: any) => i.source === 'support_ticket').length;
+  const contactCount = inquiries.filter((i: any) => i.source === 'contact_form').length;
+
+  const handleToggleStatus = async (inq: any) => {
+    setBusyId(inq.id);
+    const nextStatus = inq.status === 'resolved' ? 'open' : 'resolved';
+    try {
+      await api(`/admin/inquiries/${inq.id}/status`, {
+        method: 'POST',
+        body: JSON.stringify({ source: inq.source, status: nextStatus })
+      });
+      onFeedback(`Marked inquiry as ${nextStatus}.`);
+      reload();
+      if (selectedInquiry?.id === inq.id) {
+        setSelectedInquiry({ ...selectedInquiry, status: nextStatus });
+      }
+    } catch (e: any) {
+      alert(e.message || 'Failed to update inquiry status');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const handleDelete = async (inq: any) => {
+    const isCustomer = inq.source === 'support_ticket';
+    const label = isCustomer ? 'Customer Support Ticket' : 'Website Contact Form Message';
+    if (!window.confirm(`⚠️ PERMANENT DELETION\n\nAre you sure you want to permanently delete this ${label}?\n\nFrom: ${inq.name || 'Unnamed'} (${inq.email})\nSubject: ${inq.subject || 'No subject'}\n\nThis cannot be undone.`)) {
+      return;
+    }
+    setBusyId(inq.id);
+    try {
+      await api(`/admin/inquiries/${inq.id}?source=${inq.source}`, {
+        method: 'DELETE',
+        body: JSON.stringify({ source: inq.source })
+      });
+      onFeedback('Inquiry permanently deleted.');
+      reload();
+      if (selectedInquiry?.id === inq.id) {
+        setSelectedInquiry(null);
+      }
+    } catch (e: any) {
+      alert(e.message || 'Failed to delete inquiry');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  return (
+    <div>
+      <div className="stat-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', marginBottom: 20 }}>
+        <Stat label="Total Inquiries" value={totalCount} icon={<Mail />} hint="Customer & visitor messages" />
+        <Stat label="Open / Pending" value={openCount} icon={<LifeBuoy />} hint="Awaiting reply or resolution" />
+        <Stat label="Customer Tickets" value={ticketCount} icon={<Users />} hint="Registered account submissions" />
+        <Stat label="Contact Forms" value={contactCount} icon={<MessageSquare />} hint="Public website inquiries" />
+      </div>
+
+      {/* Prominent Origin & Status Filter Buttons */}
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 16 }}>
+        <button
+          type="button"
+          className={`button small ${filter === 'all' ? 'primary' : 'secondary'}`}
+          onClick={() => setFilter('all')}
+        >
+          All Messages ({totalCount})
+        </button>
+        <button
+          type="button"
+          className={`button small ${filter === 'tickets' ? 'primary' : 'secondary'}`}
+          onClick={() => setFilter('tickets')}
+          style={filter === 'tickets' ? {} : { borderColor: 'rgba(192, 132, 252, 0.4)', color: '#c084fc' }}
+        >
+          <Users size={13} style={{ marginRight: 6 }} /> Customer Support Tickets ({ticketCount})
+        </button>
+        <button
+          type="button"
+          className={`button small ${filter === 'contacts' ? 'primary' : 'secondary'}`}
+          onClick={() => setFilter('contacts')}
+          style={filter === 'contacts' ? {} : { borderColor: 'rgba(251, 191, 36, 0.4)', color: '#fbbf24' }}
+        >
+          <Globe size={13} style={{ marginRight: 6 }} /> Website Contact Forms ({contactCount})
+        </button>
+        <button
+          type="button"
+          className={`button small ${filter === 'open' ? 'primary' : 'secondary'}`}
+          onClick={() => setFilter('open')}
+        >
+          Open ({openCount})
+        </button>
+        <button
+          type="button"
+          className={`button small ${filter === 'resolved' ? 'primary' : 'secondary'}`}
+          onClick={() => setFilter('resolved')}
+        >
+          Resolved ({totalCount - openCount})
+        </button>
+      </div>
+
+      <div className="catalog-toolbar" style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', marginBottom: 20 }}>
+        <label className="search" style={{ flex: 1, minWidth: 260 }}>
+          <Search size={17} />
+          <input
+            aria-label="Search inquiries"
+            placeholder="Search sender, email, subject, or message..."
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+          />
+        </label>
+        <select
+          aria-label="Filter inquiries"
+          value={filter}
+          onChange={e => setFilter(e.target.value as any)}
+          style={{ width: 'auto', minWidth: 160 }}
+        >
+          <option value="all">All Inquiries ({totalCount})</option>
+          <option value="tickets">Registered Customer Tickets ({ticketCount})</option>
+          <option value="contacts">Website Contact Form ({contactCount})</option>
+          <option value="open">Open / Pending ({openCount})</option>
+          <option value="resolved">Resolved ({totalCount - openCount})</option>
+        </select>
+      </div>
+
+      {error ? (
+        <Notice kind="error">{error}</Notice>
+      ) : !rawData ? (
+        <Loading />
+      ) : !filtered.length ? (
+        <Empty
+          title="No inquiries match."
+          description={query ? "Try clearing your search query." : "Your inbox is clear! Customer support requests and website contact messages will appear here in real-time."}
+        />
+      ) : (
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Customer / Sender</th>
+                <th>Channel / Origin</th>
+                <th>Subject &amp; Message Snippet</th>
+                <th>Submitted</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((inq: any) => (
+                <tr key={inq.id}>
+                  <td>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <b>{inq.name || 'Unnamed'}</b>
+                      {inq.email && (
+                        <button
+                          type="button"
+                          title="Copy email"
+                          aria-label="Copy email"
+                          style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--lime, #98e038)' }}
+                          onClick={() => {
+                            navigator.clipboard.writeText(inq.email);
+                            onFeedback(`Copied email ${inq.email}`);
+                          }}
+                        >
+                          <Copy size={12} />
+                        </button>
+                      )}
+                    </div>
+                    <small className="block" style={{ color: 'var(--muted)' }}>{inq.email}</small>
+                  </td>
+                  <td>
+                    {inq.source === 'support_ticket' ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        <span
+                          className="badge"
+                          style={{
+                            background: 'rgba(192, 132, 252, 0.14)',
+                            color: '#c084fc',
+                            borderColor: 'rgba(192, 132, 252, 0.4)',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 5,
+                            width: 'fit-content',
+                            fontWeight: 600
+                          }}
+                        >
+                          <Users size={12} /> Support Ticket
+                        </span>
+                        <small style={{ color: 'var(--muted)', fontSize: 11 }}>Registered Customer</small>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        <span
+                          className="badge"
+                          style={{
+                            background: 'rgba(251, 191, 36, 0.14)',
+                            color: '#fbbf24',
+                            borderColor: 'rgba(251, 191, 36, 0.4)',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 5,
+                            width: 'fit-content',
+                            fontWeight: 600
+                          }}
+                        >
+                          <Globe size={12} /> Contact Form
+                        </span>
+                        <small style={{ color: 'var(--muted)', fontSize: 11 }}>Website Visitor (Public)</small>
+                      </div>
+                    )}
+                  </td>
+                  <td style={{ maxWidth: 360, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <b style={{ display: 'block', color: 'var(--text)' }}>{inq.subject || 'No subject'}</b>
+                    <small style={{ color: 'var(--muted)', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {inq.message}
+                    </small>
+                  </td>
+                  <td>{date(inq.createdAt)}</td>
+                  <td>
+                    <span
+                      className="badge"
+                      style={{
+                        background: inq.status === 'resolved' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(152, 224, 56, 0.12)',
+                        color: inq.status === 'resolved' ? 'var(--muted)' : 'var(--lime, #98e038)',
+                        borderColor: inq.status === 'resolved' ? 'var(--border)' : 'rgba(152, 224, 56, 0.3)'
+                      }}
+                    >
+                      {inq.status || 'open'}
+                    </span>
+                  </td>
+                  <td>
+                    <div className="row-actions" style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                      <button
+                        type="button"
+                        className="button secondary small"
+                        style={{ padding: '4px 10px', fontSize: 12 }}
+                        onClick={() => setSelectedInquiry(inq)}
+                      >
+                        View &amp; Reply
+                      </button>
+                      <button
+                        type="button"
+                        className="button secondary small"
+                        style={{ padding: '4px 10px', fontSize: 12 }}
+                        disabled={busyId === inq.id}
+                        onClick={() => handleToggleStatus(inq)}
+                      >
+                        {inq.status === 'resolved' ? 'Reopen' : 'Resolve'}
+                      </button>
+                      <button
+                        type="button"
+                        className="button secondary small"
+                        style={{ padding: '4px 8px', fontSize: 12, color: 'var(--red, #ef4444)', borderColor: 'rgba(239, 68, 68, 0.4)' }}
+                        disabled={busyId === inq.id}
+                        title="Permanently delete inquiry"
+                        onClick={() => handleDelete(inq)}
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {selectedInquiry && (
+        <InquiryDetailModal
+          inquiry={selectedInquiry}
+          onClose={() => setSelectedInquiry(null)}
+          onToggleStatus={() => handleToggleStatus(selectedInquiry)}
+          onDelete={() => handleDelete(selectedInquiry)}
+          onFeedback={onFeedback}
+        />
+      )}
+    </div>
+  );
+}
+
+export function InquiryDetailModal({
+  inquiry,
+  onClose,
+  onToggleStatus,
+  onDelete,
+  onFeedback
+}: {
+  inquiry: any;
+  onClose: () => void;
+  onToggleStatus: () => void;
+  onDelete: () => void;
+  onFeedback: (msg: string) => void;
+}) {
+  const isCustomerTicket = inquiry.source === 'support_ticket';
+  const subjectLine = inquiry.subject ? `Re: ${inquiry.subject}` : 'Re: Your Inquiry to NORVI Agency';
+  const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(inquiry.email)}&su=${encodeURIComponent(subjectLine)}`;
+  const mailtoUrl = `mailto:${inquiry.email}?subject=${encodeURIComponent(subjectLine)}`;
+
+  return (
+    <Modal title={inquiry.subject || 'Customer Inquiry'} onClose={onClose} wide>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        {/* Origin Banner */}
+        <div style={{
+          padding: '10px 14px',
+          borderRadius: 8,
+          background: isCustomerTicket ? 'rgba(192, 132, 252, 0.08)' : 'rgba(251, 191, 36, 0.08)',
+          border: `1px solid ${isCustomerTicket ? 'rgba(192, 132, 252, 0.25)' : 'rgba(251, 191, 36, 0.25)'}`,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: 8
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {isCustomerTicket ? (
+              <>
+                <Users size={16} style={{ color: '#c084fc' }} />
+                <span style={{ fontSize: 13, color: '#e9d5ff', fontWeight: 500 }}>
+                  Origin: <b>Customer Account Support Hub</b> (Submitted from <code>/account/support</code>)
+                </span>
+              </>
+            ) : (
+              <>
+                <Globe size={16} style={{ color: '#fbbf24' }} />
+                <span style={{ fontSize: 13, color: '#fef08a', fontWeight: 500 }}>
+                  Origin: <b>Public Website Contact Form</b> (Submitted from <code>/contact</code>)
+                </span>
+              </>
+            )}
+          </div>
+          <span className="badge" style={{ fontSize: 11 }}>
+            {isCustomerTicket ? 'Registered Customer' : 'Public Visitor'}
+          </span>
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, paddingBottom: 14, borderBottom: '1px solid var(--border)' }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+              <h3 style={{ margin: 0, fontSize: 18 }}>{inquiry.name || 'Anonymous Customer'}</h3>
+              <span
+                className="badge"
+                style={{
+                  background: inquiry.status === 'resolved' ? 'rgba(255,255,255,0.05)' : 'rgba(152, 224, 56, 0.15)',
+                  color: inquiry.status === 'resolved' ? 'var(--muted)' : 'var(--lime)',
+                  fontSize: 11
+                }}
+              >
+                {inquiry.status || 'open'}
+              </span>
+            </div>
+            <p style={{ margin: 0, fontSize: 13, color: 'var(--text-light)' }}>
+              <b>Email:</b> {inquiry.email} &middot; <b>Submitted:</b> {date(inquiry.createdAt)}
+            </p>
+          </div>
+        </div>
+
+        <div>
+          <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.8, display: 'block', marginBottom: 8 }}>
+            Message Content
+          </span>
+          <div style={{
+            background: 'var(--surface, #1e261a)',
+            border: '1px solid var(--border)',
+            borderRadius: 8,
+            padding: 16,
+            fontSize: 14,
+            lineHeight: 1.6,
+            color: 'var(--text)',
+            whiteSpace: 'pre-wrap',
+            maxHeight: 280,
+            overflowY: 'auto'
+          }}>
+            {inquiry.message}
+          </div>
+        </div>
+
+        {/* Action Buttons: Reply Options + Status / Delete */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, paddingTop: 14, borderTop: '1px solid var(--border)' }}>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+            <a
+              href={gmailUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="button primary small"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, textDecoration: 'none' }}
+              title="Open directly in Gmail in a new browser tab"
+            >
+              <Mail size={14} /> Reply via Gmail <ExternalLink size={12} />
+            </a>
+            <a
+              href={mailtoUrl}
+              className="button secondary small"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, textDecoration: 'none' }}
+              title="Open your desktop email client (Outlook, Apple Mail, etc.)"
+            >
+              Desktop Mail <ArrowUpRight size={12} />
+            </a>
+            <button
+              type="button"
+              className="button secondary small"
+              onClick={() => {
+                navigator.clipboard.writeText(inquiry.email);
+                onFeedback(`Copied email ${inquiry.email}`);
+              }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+            >
+              <Copy size={14} /> Copy Email
+            </button>
+          </div>
+
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <button
+              type="button"
+              className="button secondary small"
+              onClick={onToggleStatus}
+            >
+              {inquiry.status === 'resolved' ? 'Reopen Inquiry' : 'Mark as Resolved'}
+            </button>
+            <button
+              type="button"
+              className="button secondary small"
+              style={{ color: 'var(--red, #ef4444)', borderColor: 'rgba(239, 68, 68, 0.4)', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+              onClick={onDelete}
+              title="Permanently remove this inquiry"
+            >
+              <Trash2 size={13} /> Delete
+            </button>
+          </div>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
 export function LicenseTelemetryModal({
   license,
   initialData,
@@ -1889,8 +3134,8 @@ export function CustomerOrdersModal({
 }
 
 function Admin({ section, user, settings, onCatalogChange }: { section: string; user: User; settings: Settings; onCatalogChange: () => void }) {
-    const map: Record<string, string> = { '': 'analytics', '/products': 'products', '/releases': 'products', '/categories': 'categories', '/customers': 'customers', '/licenses': 'licenses', '/orders': 'orders', '/promotions': 'settings', '/team': 'team', '/announcements': 'announcements/team', '/content': 'content', '/activity': 'activity', '/settings': 'settings' }; const endpoint = section === '' && user.role === 'support' ? 'customers' : map[section] || 'products'; const { data, error, reload } = useData('/admin/' + endpoint); const [query, setQuery] = useState(''), [filter, setFilter] = useState('all'), [editing, setEditing] = useState<Product | null | undefined>(undefined), [feedback, setFeedback] = useState(''), [licenseAction, setLicenseAction] = useState<{ id: string; action: string } | null>(null), [giftModal, setGiftModal] = useState(false), [banningDevice, setBanningDevice] = useState<{ id: string; installationId: string } | null>(null), [telemetryLicense, setTelemetryLicense] = useState<{ id: string; product: string; customer: string; email?: string } | null>(null), [viewingOrdersCustomer, setViewingOrdersCustomer] = useState<{ id: string; name: string; email?: string } | null>(null);
-    const titles: Record<string, string> = { '': 'Your agency, at a glance.', '/products': 'Agent Collection & Content.', '/releases': 'Agent Releases & Commercial Deployment.', '/customers': 'The people behind the accounts.', '/licenses': 'Access, under your control.', '/orders': 'Every order, in one place.', '/promotions': 'Run sales and global announcements.', '/team': 'Good work takes a team.', '/announcements': 'Internal directives.', '/content': 'Make it sound like you.', '/activity': 'A clear record of every change.', '/settings': 'The details that make it yours.' };
+    const map: Record<string, string> = { '': 'analytics', '/products': 'products', '/releases': 'products', '/categories': 'categories', '/customers': 'customers', '/licenses': 'licenses', '/orders': 'orders', '/inquiries': 'inquiries', '/promotions': 'settings', '/team': 'team', '/announcements': 'announcements/team', '/content': 'content', '/activity': 'activity', '/settings': 'settings' }; const endpoint = section === '' && user.role === 'support' ? 'customers' : map[section] || 'products'; const { data, error, reload } = useData('/admin/' + endpoint); const [query, setQuery] = useState(''), [filter, setFilter] = useState('all'), [editing, setEditing] = useState<Product | null | undefined>(undefined), [feedback, setFeedback] = useState(''), [licenseAction, setLicenseAction] = useState<{ id: string; action: string } | null>(null), [giftModal, setGiftModal] = useState(false), [banningDevice, setBanningDevice] = useState<{ id: string; installationId: string } | null>(null), [telemetryLicense, setTelemetryLicense] = useState<{ id: string; product: string; customer: string; email?: string } | null>(null), [viewingOrdersCustomer, setViewingOrdersCustomer] = useState<{ id: string; name: string; email?: string } | null>(null);
+    const titles: Record<string, string> = { '': 'Your agency, at a glance.', '/products': 'Agent Collection & Content.', '/releases': 'Agent Releases & Commercial Deployment.', '/customers': 'The people behind the accounts.', '/licenses': 'Access, under your control.', '/orders': 'Every order, in one place.', '/inquiries': 'Customer Inquiries & Support Messages.', '/promotions': 'Run sales and global announcements.', '/team': 'Good work takes a team.', '/announcements': 'Internal directives.', '/content': 'Make it sound like you.', '/activity': 'A clear record of every change.', '/settings': 'The details that make it yours.' };
     const items = (data?.items || []) as any[];
     const filtered = items.filter(item => {
       const matchesQuery = JSON.stringify(item).toLowerCase().includes(query.toLowerCase());
@@ -2001,8 +3246,9 @@ function Admin({ section, user, settings, onCatalogChange }: { section: string; 
         {section === '/products' && <><CatalogNoticeEditor settings={settings} onSave={onCatalogChange} /><div className="admin-products">{filtered.map((p: Product) => <div className="panel admin-product" key={p.id}><ProductIcon product={p} /><div className="grow" style={{ flex: 1, minWidth: 0 }}><div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}><h3>{p.name}</h3><select aria-label="Change agent status" value={p.status} style={{ width: 'auto', padding: '2px 8px', fontSize: '12px', borderRadius: '4px', background: 'var(--surface, #1e261a)', color: p.status === 'published' ? 'var(--lime, #98e038)' : 'var(--text-light)', border: '1px solid var(--border)' }} onChange={async e => { await action('/admin/products/' + p.id + '/status', { status: e.target.value }); onCatalogChange(); }}><option value="published">Published</option><option value="draft">Draft</option><option value="archived">Archived</option></select></div><p>{p.tagline}</p><span className="small-note">/{p.slug} · {p.price}</span></div><div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}><a href={`/agents/${p.slug}`} target="_blank" rel="noopener noreferrer" className="button secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '6px 12px', fontSize: '13px' }}>View Page <ExternalLink size={14} /></a><button className="button secondary" onClick={() => setEditing(p)}>Edit Content & SEO <ArrowUpRight size={15} /></button><button className="button secondary" style={{color: "var(--red)", borderColor: "var(--red)"}} onClick={() => { if(window.confirm("Are you sure you want to permanently delete this agent?")) { action("/admin/products/" + p.id, {}, "DELETE"); } }}>Delete</button></div></div>)}</div>{!filtered.length && <Empty title="No products match." description="Change your filters or add your first agent." />}</>}
         {section === '/releases' && <AgentReleasesAdmin products={filtered} onSave={() => { reload(); onCatalogChange(); }} />}
         {section === '/customers' && <><div className="table-wrap"><table><thead><tr><th>Customer</th><th>Registered</th><th>Purchases & Spend</th><th>Licenses</th><th>Status</th><th>Actions</th></tr></thead><tbody>{filtered.map(u => <tr key={u.id}><td><div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><b>{u.name || 'Unnamed'}</b>{u.email && <button type="button" title="Copy email" aria-label="Copy customer email" style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--lime, #98e038)' }} onClick={() => { navigator.clipboard.writeText(u.email); setFeedback(`Copied email ${u.email}`); }}><Copy size={12} /></button>}</div><small className="block">{u.email}</small></td><td>{date(u.createdAt)}</td><td><div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}><div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}><b style={{ color: Number(u.totalSpent || 0) > 0 ? 'var(--lime, #98e038)' : 'var(--text-light)' }}>{Number(u.totalSpent || 0) > 0 ? `₹${Number(u.totalSpent).toLocaleString()}` : (u.orderCount > 0 ? 'Free / Trial' : '₹0')}</b><button type="button" className="button secondary small" style={{ padding: '2px 8px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }} onClick={() => setViewingOrdersCustomer({ id: u.id, name: u.name || 'Customer', email: u.email })}><CreditCard size={12} /> {u.orderCount || 0} {u.orderCount === 1 ? 'order' : 'orders'}</button></div>{u.purchasedProducts && u.purchasedProducts.length > 0 ? <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>{u.purchasedProducts.map((p: any) => <span key={p.slug || p.id} className="badge" style={{ fontSize: '10px', padding: '1px 6px' }}>{p.name}</span>)}</div> : <small style={{ color: 'var(--muted)', fontSize: '11px' }}>No purchases</small>}</div></td><td><b>{u.activeLicenses || u.licenseCount || 0}</b></td><td><Badge>{u.suspended ? 'suspended' : u.status || 'active'}</Badge></td><td><div className="row-actions"><button className="button secondary" onClick={() => action('/admin/customers/' + u.id + '/suspend', { suspended: !(u.suspended || u.status === 'suspended') })}>{(u.suspended || u.status === 'suspended') ? 'Restore account' : 'Suspend account'}</button>{(user.role === 'owner' || user.role === 'administrator') && <><button className="button secondary" onClick={async () => { await action('/admin/impersonate', { id: u.id }); window.location.href = u.role === 'customer' ? '/account' : '/admin'; }}>Login As</button><button className="button secondary" style={{ color: 'var(--red, #ef4444)', borderColor: 'var(--red, #ef4444)' }} onClick={() => { if (window.confirm(`⚠️ PERMANENT ACCOUNT DELETION\n\nAre you sure you want to permanently delete the account for "${u.name || u.email}"?\n\nThis will permanently destroy:\n• All licenses and key activations\n• All connected hardware devices\n• All orders and purchase receipts\n• Customer profile and login credentials\n\nThis action cannot be undone.`)) { action('/admin/customers/' + u.id + '/delete'); } }}>Delete account</button></>}</div></td></tr>)}</tbody></table></div>{!filtered.length && <Empty title="No matching customers." description="Try a different search or filter." />}</>}
-        {section === '/licenses' && (!filtered.length ? <Empty title="No licenses issued yet." description="Open a customer preview and simulate a purchase. The resulting license will appear here." href="/login" label="Explore customer flow" /> : <div className="license-list">{filtered.map(l => <AdminLicenseCard key={l.id} license={l} userRole={user.role} onAction={action} onBanDevice={dev => setBanningDevice(dev)} onUnbanDevice={async (deviceId, installationId) => { if (window.confirm(`Lift ban on hardware ID "${installationId}"?`)) { await action(`/admin/devices/${deviceId}/unban`); } }} onRemoveDevice={async (deviceId, installationId) => { if (window.confirm(`Unlink hardware ID "${installationId}" from this license?\n\nThis frees the slot cleanly so the customer can activate another machine.`)) { await action(`/admin/devices/${deviceId}/remove`); } }} onShowTelemetry={lic => setTelemetryLicense(lic)} onLicenseAction={(id, act) => setLicenseAction({ id, action: act })} onCopiedEmail={email => setFeedback(`Copied email ${email}`)} />)}</div>)}
+        {section === '/licenses' && (!filtered.length ? <Empty title="No licenses issued yet." description="Active customer licenses and key activations will appear here as orders are placed." href="/admin/orders" label="View orders" /> : <div className="license-list">{filtered.map(l => <AdminLicenseCard key={l.id} license={l} userRole={user.role} onAction={action} onBanDevice={dev => setBanningDevice(dev)} onUnbanDevice={async (deviceId, installationId) => { if (window.confirm(`Lift ban on hardware ID "${installationId}"?`)) { await action(`/admin/devices/${deviceId}/unban`); } }} onRemoveDevice={async (deviceId, installationId) => { if (window.confirm(`Unlink hardware ID "${installationId}" from this license?\n\nThis frees the slot cleanly so the customer can activate another machine.`)) { await action(`/admin/devices/${deviceId}/remove`); } }} onShowTelemetry={lic => setTelemetryLicense(lic)} onLicenseAction={(id, act) => setLicenseAction({ id, action: act })} onCopiedEmail={email => setFeedback(`Copied email ${email}`)} />)}</div>)}
         {section === '/orders' && <><div className="stat-grid" style={{ marginBottom: 16 }}><Stat label="Total Orders" value={filtered.length} icon={<CreditCard />} /><Stat label="Paid Commercial Volume" value={'₹' + (filtered.filter(o => o.status === 'paid' && Number(o.amountMinor || (parseFloat(String(o.amount || '0').replace(/[^0-9.]/g, '')) * 100) || 0) > 0 && !String(o.providerPaymentId || '').startsWith('trial_') && !String(o.providerPaymentId || '').startsWith('gift_') && !String(o.providerPaymentId || '').startsWith('free_')).reduce((acc, o) => acc + (Number(o.amountMinor || (parseFloat(String(o.amount || '0').replace(/[^0-9.]/g, '')) * 100)) || 0) / 100, 0)).toLocaleString()} icon={<Activity />} /></div><AdminOrderTable items={filtered} onCopied={msg => setFeedback(msg)} /></>}
+        {section === '/inquiries' && <InquiriesAdmin onFeedback={setFeedback} />}
         {section === '/promotions' && <><PromotionsManager /><TrialManager /><CouponsManager /></>}
         {section === '/marketing' && <MarketingManager />}
           {section === '/ai-agent' && <AIAgentManager />}
@@ -2012,14 +3258,14 @@ function Admin({ section, user, settings, onCatalogChange }: { section: string; 
         {section === '/content' && <SettingsForm initial={data.settings} contentOnly onSave={() => { reload(); onCatalogChange(); }} />}
         {section === '/settings' && <><SettingsForm initial={data.settings} onSave={() => { reload(); onCatalogChange(); }} /><div className="panel"><h3>Integration readiness</h3><div className="list-row"><span>Authentication · Supabase</span><Badge>Not connected</Badge></div><div className="list-row"><span>Payments · Razorpay</span><Badge>Not connected</Badge></div><div className="list-row"><span>Email · Resend</span><Badge>Not connected</Badge></div><p className="small-note">Provider secrets belong in protected server configuration, never in this form.</p></div></>}
         {section === '/activity' && <><div className="panel"><div className="panel-heading" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><h3>Activity log ({filtered.length})</h3></div>{!filtered.length ? <p>No changes match your filter.</p> : filtered.map(a => <div className="list-row" key={a.id}><span className="activity-icon"><Activity size={16} /></span><div className="grow" style={{ flex: 1, minWidth: 0 }}><b>{a.action}</b><p>{a.actor} · {a.target}</p></div><span className="small-note">{date(a.createdAt)}</span></div>)}</div><div className="panel"><h3>Email delivery</h3>{!data.emails.length ? <p>No purchase email jobs yet.</p> : data.emails.map((e: any) => <div className="list-row" key={e.id}><Mail size={16} /><span className="grow">Purchase confirmation · {e.orderId.slice(0, 8)}</span><Badge>{e.status}</Badge></div>)}</div></>}
-    </>}{editing !== undefined && <Modal title={editing ? 'Edit agent' : 'Add an agent'} onClose={() => setEditing(undefined)} wide><ProductForm categories={data.categories} product={editing} onSave={() => { setEditing(undefined); reload(); onCatalogChange(); }} /></Modal>}{licenseAction && <Modal title={licenseAction.action === 'revoke' ? 'Revoke product access?' : licenseAction.action === 'rotate' ? 'Replace the activation key?' : licenseAction.action === 'delete' ? 'Permanently delete key?' : 'Restore product access?'} onClose={() => setLicenseAction(null)}><p>{licenseAction.action === 'delete' ? 'WARNING: This permanently deletes the license and device records. This action cannot be undone.' : 'This changes the local preview license. Billing is separate. A reason is recorded in the audit log.'}</p><form onSubmit={async e => { e.preventDefault(); const reason = new FormData(e.currentTarget).get('reason'); await action('/admin/licenses/' + licenseAction.id + '/' + licenseAction.action, { reason }); setLicenseAction(null); }}><Field label="Reason"><textarea name="reason" required minLength={5} maxLength={250} rows={3} /></Field><button className="button primary">Confirm {licenseAction.action}</button></form></Modal>}
+    </>}{editing !== undefined && <Modal title={editing ? 'Edit agent' : 'Add an agent'} onClose={() => setEditing(undefined)} wide><ProductForm categories={data.categories} product={editing} onSave={() => { setEditing(undefined); reload(); onCatalogChange(); }} /></Modal>}{licenseAction && <Modal title={licenseAction.action === 'revoke' ? 'Revoke product access?' : licenseAction.action === 'rotate' ? 'Replace the activation key?' : licenseAction.action === 'delete' ? 'Permanently delete key?' : 'Restore product access?'} onClose={() => setLicenseAction(null)}><p>{licenseAction.action === 'delete' ? 'WARNING: This permanently deletes the license and device records. This action cannot be undone.' : 'This updates the customer license status. A reason will be recorded in the security audit log.'}</p><form onSubmit={async e => { e.preventDefault(); const reason = new FormData(e.currentTarget).get('reason'); await action('/admin/licenses/' + licenseAction.id + '/' + licenseAction.action, { reason }); setLicenseAction(null); }}><Field label="Reason"><textarea name="reason" required minLength={5} maxLength={250} rows={3} /></Field><button className="button primary">Confirm {licenseAction.action}</button></form></Modal>}
     {giftModal && <Modal title="Gift a License" onClose={() => setGiftModal(false)}><p>Manually generate and send an active license to a customer's email address. They must have a registered account.</p><form onSubmit={async e => { e.preventDefault(); const d = new FormData(e.currentTarget); await action('/admin/licenses/gift', { email: d.get('email'), productSlug: d.get('productSlug'), duration: d.get('duration') }); setGiftModal(false); }}><Field label="Customer Email"><input name="email" type="email" required /></Field><Field label="Product Slug (URL)"><input name="productSlug" required placeholder="e.g. omnix-ai" /></Field><Field label="License Duration"><select name="duration" defaultValue="1_month"><option value="1_day">1 Day (Trial Key)</option><option value="1_month">1 Month</option><option value="3_months">3 Months</option><option value="lifetime">Lifetime</option></select></Field><button className="button primary" style={{marginTop: '1rem'}}>Generate and Gift Key</button></form></Modal>}
     {banningDevice && <BanDeviceModal device={banningDevice} onClose={() => setBanningDevice(null)} onConfirmBan={async (duration, reason) => { await action(`/admin/devices/${banningDevice.id}/ban`, { duration, reason }); }} />}
     {telemetryLicense && <LicenseTelemetryModal license={telemetryLicense} onClose={() => setTelemetryLicense(null)} />}
     {viewingOrdersCustomer && <CustomerOrdersModal customer={viewingOrdersCustomer} onClose={() => setViewingOrdersCustomer(null)} />}
     </>;
 }
-function OwnerReveal({ id }: { id: string }) { const [key, setKey] = useState(''), [error, setError] = useState(''); return <><button className="button secondary" onClick={async () => { try { setKey((await api('/licenses/' + id + '/reveal', { method: 'POST' })).key); } catch (e: any) { setError(e.message); } }}>Reveal key</button>{error && <span style={{color: 'var(--red)', fontSize: '13px'}}>{error}</span>}{key && <Modal title="Preview activation key" onClose={() => setKey('')}><code className="full-key">{key}</code><CopyButton text={key} /></Modal>}</>; }
+function OwnerReveal({ id }: { id: string }) { const [key, setKey] = useState(''), [error, setError] = useState(''); return <><button className="button secondary" onClick={async () => { try { setKey((await api('/licenses/' + id + '/reveal', { method: 'POST' })).key); } catch (e: any) { setError(e.message); } }}>Reveal key</button>{error && <span style={{color: 'var(--red)', fontSize: '13px'}}>{error}</span>}{key && <Modal title="Activation key" onClose={() => setKey('')}><code className="full-key">{key}</code><CopyButton text={key} /></Modal>}</>; }
 
 function SocialMediaForm({ settings, onSave }: { settings: Settings; onSave: () => void }) {
   const [busy, setBusy] = useState(false);
@@ -2596,7 +3842,7 @@ export function ProductForm({ product, onSave, categories }: { product: Product 
           </div>
           <Field label="Tagline / Short Introduction"><input value={tagline} onChange={e => setTagline(e.target.value)} required minLength={3} maxLength={140} placeholder="e.g. Real-time AI interview assistant & coding copilot" /></Field>
           <Field label="Full Overview Description"><textarea value={description} onChange={e => setDescription(e.target.value)} required minLength={10} maxLength={2000} rows={4} placeholder="Comprehensive description of what this agent does and who it's for..." /></Field>
-          <Field label="Core Highlights" hint="One feature per line"><textarea value={features} onChange={e => setFeatures(e.target.value)} rows={3} placeholder="Real-time OCR screen context&#10;Private undetectable audio&#10;Coding problem solving" /></Field>
+          <Field label="Core Highlights & Card Pills" hint="One highlight per line. The first 2 lines will automatically appear as the quick feature pills on your storefront catalog cards."><textarea value={features} onChange={e => setFeatures(e.target.value)} rows={4} placeholder="Invisible on Zoom & Meet&#10;Live Coding & LeetCode Helper&#10;Private Earpiece Whisper" /></Field>
         </div>
       )}
 
@@ -3092,7 +4338,7 @@ export function RolePermissionsAdmin({ settings, onSave }: { settings: Settings;
 
 export function SettingsForm({ initial, contentOnly = false, onSave }: { initial: Settings; contentOnly?: boolean; onSave: () => void }) { const [message, setMessage] = useState(''); return <form className="panel settings-form" onSubmit={async e => { e.preventDefault(); const form = new FormData(e.currentTarget); const d = { ...Object.fromEntries(form), maintenanceMode: form.get('maintenanceMode') === 'on' }; try { await api(contentOnly ? '/admin/content' : '/admin/settings', { method: 'PATCH', body: JSON.stringify(contentOnly ? d : { ...initial, ...d }) }); setMessage('Saved. Your website preview has been updated.'); onSave(); } catch (e: any) { setMessage(e.message); } }}><h3>{contentOnly ? 'Homepage copy' : 'Business details'}</h3>{!contentOnly && <div className="form-grid"><Field label="Website name"><input name="name" required defaultValue={initial.name} /></Field><Field label="Company name"><input name="company" defaultValue={initial.company} /></Field><Field label="Support email"><input name="email" defaultValue={initial.email} /></Field><Field label="Website domain"><input name="domain" defaultValue={initial.domain} /></Field></div>}<Field label="Homepage headline" hint="Use a new line to split the headline."><textarea name="headline" required rows={2} defaultValue={initial.headline} /></Field><Field label="Homepage description"><textarea name="description" required rows={3} defaultValue={initial.description} /></Field>{!contentOnly && <label style={{ display: 'flex', gap: 10, alignItems: 'center', margin: '20px 0', background: 'var(--surface)', padding: 15, borderRadius: 8, border: '1px solid var(--border)' }}><input type="checkbox" name="maintenanceMode" defaultChecked={initial.maintenanceMode} style={{ width: 18, height: 18 }} /><div><b>Maintenance Mode</b><p style={{ margin: 0, fontSize: 13, color: 'var(--text-light)' }}>When enabled, checkout and downloads are temporarily disabled for customers.</p></div></label>}<button className="button primary">Save changes <Check size={16} /></button>{message && <Notice>{message}</Notice>}</form>; }
 function Team({ data, onAction, isOwner, settings }: { data: any; onAction: (path: string, body?: object, method?: string) => Promise<void>; isOwner: boolean; settings: Settings }) { return <><div className="panel"><h3>Your team</h3>{(data?.items || []).map((u: User) => <div className="list-row" key={u.id}><span className="avatar">{u?.name?.slice(0, 1) || '?'}</span><div className="grow" style={{ flex: 1, minWidth: 0 }}><b>{u?.name || 'Unnamed'}</b><p>{u?.email}</p></div>{u.role === 'owner' ? <Badge>Owner</Badge> : <select style={{ width: "auto", flex: "0 0 auto" }} value={u.role} onChange={(e) => onAction('/admin/team/' + u.id + '/role', { role: e.target.value })}><option value="support">Support</option><option value="product_manager">Product Manager</option><option value="administrator">Administrator</option></select>}<Badge>{u.status || 'active'}</Badge>{u.role !== 'owner' && <div style={{ display: 'flex', gap: 8 }}><button className="text-button bare" onClick={() => onAction('/admin/team/' + u.id + '/suspend')}>{u.status !== 'suspended' ? 'Suspend' : 'Restore'}</button>{isOwner && <button className="text-button bare" onClick={async () => { await onAction('/admin/impersonate', { id: u.id }); window.location.href = '/admin'; }}>Login As</button>}</div>}</div>)}</div><form className="panel" onSubmit={async e => { e.preventDefault(); const d = Object.fromEntries(new FormData(e.currentTarget)); await onAction('/admin/team/invite', d); }}><h3>Invite a teammate</h3><p>Send an invitation with a secure, expiring acceptance link.</p><div className="form-grid"><Field label="Teammate email"><input name="email" type="email" required /></Field><Field label="Role"><select name="role"><option value="support">Support</option><option value="product_manager">Product manager</option><option value="administrator">Administrator</option></select></Field></div><button className="button primary">Send invitation <Plus size={16} /></button></form><div className="panel"><h3>Pending invitations</h3>{!(data?.invitations || []).length ? <p>No pending invitations.</p> : (data?.invitations || []).map((i: any) => <div className="list-row" key={i.id}><span className="grow">{i.email}</span><Badge>{(i?.role || '').replace('_', ' ')}</Badge><Badge>Pending</Badge><button className="text-button bare" onClick={() => onAction('/admin/team/invite/' + i.id + '/resend')}>Resend</button><button className="text-button bare" onClick={() => onAction('/admin/team/invite/' + i.id, {}, 'DELETE')}>Cancel</button></div>)}</div>{isOwner && <RolePermissionsAdmin settings={settings} onSave={() => onAction('')} />}</>; }
-export function OrderStatus() { const { data, error } = useData('/account'); const [orderId, setOrderId] = useState(''); useEffect(() => { setOrderId(new URLSearchParams(location.search).get('id') || ''); }, []); if (error) return <div className="container page"><Notice kind="error">{error}</Notice><a href="/login" className="button primary">Open account</a></div>; if (!data) return <Loading />; const order = data.orders.find((o: any) => o.id === orderId); return <div className="container page order-success">{order ? <><span className="success-symbol"><Check size={36} /></span><span className="eyebrow">YOUR SAMPLE ORDER IS READY</span><h1>A little more possibility.<br />Now in your account.</h1><p>Your preview license has been created. No payment was taken and no email was sent.</p><div className="panel"><div className="summary-row"><span>Order reference</span><code>{order.id.slice(0, 8)}</code></div><div className="summary-row"><span>Amount charged</span><b>₹0 · Preview</b></div><div className="summary-row"><span>Purchase email</span><Badge>Preview job saved · not sent</Badge></div></div><a href="/account/licenses" className="button primary">View your activation key <KeyRound size={18} /></a><a href="/account" className="text-button">Go to dashboard <ArrowRight size={16} /></a></> : <Empty title="Select an order from your account." description="Order details are private to the customer who placed them." href="/account/billing" label="View billing" />}</div>; }
+export function OrderStatus() { const { data, error } = useData('/account'); const [orderId, setOrderId] = useState(''); useEffect(() => { setOrderId(new URLSearchParams(location.search).get('id') || ''); }, []); if (error) return <div className="container page"><Notice kind="error">{error}</Notice><a href="/login" className="button primary">Open account</a></div>; if (!data) return <Loading />; const order = data.orders.find((o: any) => o.id === orderId); return <div className="container page order-success">{order ? <><span className="success-symbol"><Check size={36} /></span><span className="eyebrow">ORDER CONFIRMED</span><h1>A little more possibility.<br />Now in your account.</h1><p>Your license key has been generated and dispatched to your account.</p><div className="panel"><div className="summary-row"><span>Order reference</span><code>#{order.id.slice(0, 8)}</code></div><div className="summary-row"><span>Amount charged</span><b>{order.amount || 'Verified Payment'}</b></div><div className="summary-row"><span>Order status</span><Badge>{order.status || 'paid'}</Badge></div></div><a href="/account/licenses" className="button primary">View your activation key <KeyRound size={18} /></a><a href="/account" className="text-button">Go to dashboard <ArrowRight size={16} /></a></> : <Empty title="Select an order from your account." description="Order details are private to the customer who placed them." href="/account/billing" label="View billing" />}</div>; }
 function CopyButton({ text }: { text: string }) { const [message, setMessage] = useState('Copy key'); return <button className="button primary" onClick={async () => { try { await navigator.clipboard.writeText(text); setMessage('Copied'); } catch { setMessage('Select the key above to copy'); } }}>{message}<Copy size={16} /></button>; }
 function Modal({ title, onClose, children, wide = false }: { title: string; onClose: () => void; children: ReactNode; wide?: boolean }) { const ref = useRef<HTMLDialogElement>(null); useEffect(() => { ref.current?.showModal(); const prior = document.body.style.overflow; document.body.style.overflow = 'hidden'; return () => { document.body.style.overflow = prior; }; }, []); return <dialog ref={ref} className={'modal ' + (wide ? 'wide' : '')} onCancel={e => { e.preventDefault(); onClose(); }} aria-label={title}><div className="modal-heading"><h2>{title}</h2><button onClick={onClose} className="icon-button" aria-label="Close dialog"><X size={22} /></button></div>{children}</dialog>; }
 

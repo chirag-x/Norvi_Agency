@@ -46,10 +46,10 @@ export function AccountAuth({ path }: { path: string }) {
   }
   const connected = config?.mode === 'supabase';
   const title = confirm ? (recovery ? 'Choose a new password.' : 'Confirm your email.') : register ? 'Create your account.' : reset ? 'Reset your password.' : verify ? 'Check your inbox.' : staff ? 'Admin sign in.' : 'Welcome back.';
-  return <div className="auth-page container"><div className="auth-story"><span className="eyebrow">{staff ? 'THE NORVI WORKSPACE' : 'WELCOME TO NORVI'}</span><h1>Your next chapter.<br /><span className="serif">All in one place.</span></h1><p>Explore the agent collection. Keep your profile, future purchases, and product access together.</p><p><ShieldCheck size={18} /> Individual accounts. Administrator MFA.</p></div><div className="auth-card"><h2>{title}</h2>
+  return <div className="auth-page container"><div className="auth-story"><span className="eyebrow">{staff ? 'THE NORVI WORKSPACE' : 'WELCOME TO NORVI'}</span><h1>Your next chapter.<br /><span className="serif">All in one place.</span></h1><p>Explore the agent collection. Keep your profile, purchases, and product access together.</p><p><ShieldCheck size={18} /> Individual accounts. Administrator MFA.</p></div><div className="auth-card"><h2>{title}</h2>
     {!config && !configError && <Loading />}{configError && <Notice kind="error">{configError}</Notice>}
     {config && !connected && <Notice>{config.preview ? 'Local preview uses sample accounts. Real registration is disabled until Supabase is connected.' : 'Account setup is pending. Registration will open once the database and email service are configured.'}</Notice>}
-    {connected && <p>{staff ? 'Use your invited staff account. Authenticator verification is required to access the workspace.' : 'Use your own email address. Purchases are not enabled yet.'}</p>}
+    {connected && <p>{staff ? 'Use your invited staff account. Authenticator verification is required to access the workspace.' : 'Sign in with your email address to access your agents and manage activation keys.'}</p>}
     <form onSubmit={submit}>
       {register && <Field label="Full name"><input required minLength={2} maxLength={80} autoComplete="name" value={name} onChange={e => setName(e.target.value)} disabled={!connected || busy} /></Field>}
       {!confirm && path !== '/update-password' && <Field label="Email address"><input required type="email" maxLength={254} autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} disabled={!connected || busy} /></Field>}

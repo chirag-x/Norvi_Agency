@@ -13,12 +13,6 @@
       "createdAt": "2026-09-24T08:42:17.673253+00:00"
     },
     {
-      "id": "944ab0ea-e72b-49dd-9886-6816094c48de",
-      "slug": "launching",
-      "name": "Launching On 25 October .  You Can Get Voro Now !",
-      "createdAt": "2026-10-14T19:19:23.601167+00:00"
-    },
-    {
       "id": "430a669a-1b36-418f-9dd9-76b41fc91ddb",
       "slug": "interview-assistance",
       "name": "Interview Assistance",
@@ -29,6 +23,12 @@
       "slug": "nexus",
       "name": "Social Media Automation / Autonomous Content Studio",
       "createdAt": "2026-10-26T16:28:39.947586+00:00"
+    },
+    {
+      "id": "944ab0ea-e72b-49dd-9886-6816094c48de",
+      "slug": "career-automation",
+      "name": "Job Search & Career Automation",
+      "createdAt": "2026-10-14T19:19:23.601167+00:00"
     }
   ],
   "products": [
@@ -37,7 +37,7 @@
       "slug": "rolvio",
       "name": "Rolvio",
       "categoryId": "944ab0ea-e72b-49dd-9886-6816094c48de",
-      "tagline": " The Autonomous AI Job Hunter that hunts and give you jobs in mail.",
+      "tagline": "Autonomous AI Job Hunter that hunts and applies to jobs with automated email tracking.",
       "description": "An end-to-end, fully autonomous AI agent designed to automate the entire lifecycle of job hunting. From discovering jobs across multiple platforms to evaluating them with an single click , automatically submitting applications, and tracking invites via email.",
       "price": "Pick Your Plan",
       "price1m": 479,
@@ -46,11 +46,11 @@
       "status": "archived",
       "logoUrl": "https://lpzqvziejdpzykwrhkmn.supabase.co/storage/v1/object/public/product-assets/20648c17-771a-4ccd-9298-fdcad7cdecf9.jpg",
       "features": [
-        "Intelligent Filtering & AI Resume Matching",
-        "Cross-Platform Automation (LinkedIn, Indeed, etc.)",
-        "Application workflow and duplicate detection",
-        "Anti-Bot Resiliency & Captcha Handling",
-        "Total Inbox Automation & Kanban Board"
+        "Auto-Applies to LinkedIn & Indeed",
+        "Matches Your Resume to Jobs",
+        "Tracks Recruiter Replies in Email",
+        "Human-like Typing & Anti-Bot Shield",
+        "Organizes Applications on a Visual Board"
       ],
       "version": "V - 1.1.0",
       "requirements": "Windows 10/11 , Supports Low end Pc ",
@@ -58,7 +58,7 @@
       "workflowHeading": "How It Works (The 5 Phases)",
       "workflowDescription": "Rolvio spins up background workers to scrape job boards. It compares strict requirements against your resume using an its Brain. If approved, it launches autonomous browser sub agents to apply, then tracks email responses natively in a Kanban dashboard.",
       "workflowMediaUrl": "https://lpzqvziejdpzykwrhkmn.supabase.co/storage/v1/object/public/product-assets/8729a216-603e-4fd3-b202-0c2f84d67751.mp4",
-      "workflowNote": "Testing",
+      "workflowNote": "Native Windows background worker with intelligent ATS resume parsing and auto-fill engine.",
       "aiUsage": "Unlimited",
       "deviceAllowance": "3 active device per license. Manage devices in your account.",
       "is_on_sale": true,
@@ -161,8 +161,8 @@
       },
       "category": {
         "id": "944ab0ea-e72b-49dd-9886-6816094c48de",
-        "slug": "launching",
-        "name": "Launching On 25 October .  You Can Get Voro Now !",
+        "slug": "career-automation",
+        "name": "Job Search & Career Automation",
         "createdAt": "2026-10-14T19:19:23.601167+00:00"
       }
     },
@@ -180,11 +180,11 @@
       "status": "published",
       "logoUrl": "https://lpzqvziejdpzykwrhkmn.supabase.co/storage/v1/object/public/product-assets/243715ee-81e1-430e-a00b-abb34026556b.jpg",
       "features": [
-        "Hardware-isolated private audio routing",
-        "Real-time multimodal screen & OCR context",
-        "Live coding & LeetCode algorithm breakdown",
-        "100% undetectable transparent HUD overlay",
-        "Resume & conversational background memory"
+        "Invisible on Zoom & Meet",
+        "Live Coding & LeetCode Helper",
+        "Private Earpiece Whisper",
+        "Reads Screen Context in Real-Time",
+        "Grounds Answers in Your Resume"
       ],
       "version": "V - 1.3.8",
       "requirements": "Windows 10 / Windows 11 (64-bit) & macOS 12+ . Supports Low end PC",
@@ -287,7 +287,7 @@
               "feature": "Hardware Earpiece Audio Bypass"
             },
             {
-              "us": "Unlimite",
+              "us": "Unlimited",
               "comp1": "100 Qs / Month",
               "comp2": "Rate Limited (40 msgs/3hr)",
               "feature": "Usage (No Caps)"
@@ -405,7 +405,13 @@
       "price_lifetime": 4999,
       "status": "archived",
       "logoUrl": "https://lpzqvziejdpzykwrhkmn.supabase.co/storage/v1/object/public/product-assets/af8f7d1a-ef49-4214-a79f-79ed2c75323a.jpg",
-      "features": [],
+      "features": [
+        "Turns Long Videos into Viral Shorts",
+        "Auto-Publishes 24/7 to YouTube & Reels",
+        "Kinetic Animated Subtitles",
+        "Active Speaker Facial Centering",
+        "AI Virality Hook Scoring (0-100)"
+      ],
       "version": "version_1.0.0",
       "requirements": "Windows 10/11 , Supports Low end Pc ",
       "releaseStatus": "prelaunch",

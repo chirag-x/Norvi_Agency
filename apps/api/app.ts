@@ -12,15 +12,27 @@ export function createApp(repo: Repository, encryptionKey: string, { preview = f
     app.use('/api/*', async (c, next) => { c.header('Cache-Control', 'no-store'); c.header('X-Content-Type-Options', 'nosniff'); if (!['GET', 'HEAD', 'OPTIONS'].includes(c.req.method) && !c.req.path.startsWith('/api/agent/') && c.req.header('origin') !== origin) return c.json({ error: 'Request origin is not allowed.' }, 403); if (Number(c.req.header('content-length') || 0) > 32768) return c.json({ error: 'Request is too large.' }, 413); await next(); });
     app.onError((e, c) => c.json({ error: e instanceof z.ZodError ? e.errors.map(e => e.message).join(' ') : 'The request could not be completed.' }, e instanceof z.ZodError ? 400 : 500));
     app.get('/api/health', c => c.json({ mode: preview ? 'local-preview' : 'unconfigured', livePayments: false }));
+    const contactInquiries: Array<{ id: string; name: string; email: string; message: string; status: 'open' | 'resolved'; createdAt: string }> = [
+      { id: 'contact-demo-1', name: 'Aarav Patel', email: 'aarav.patel@gmail.com', message: 'Hi Norvi team, does Voro work with external Bluetooth earphones on Windows 11?', status: 'open', createdAt: new Date(Date.now() - 3600_000 * 5).toISOString() },
+      { id: 'contact-demo-2', name: 'Neha Sharma', email: 'neha.sharma.tech@outlook.com', message: 'Interested in bulk team licenses for Rolvio. Do you offer agency invoicing?', status: 'resolved', createdAt: new Date(Date.now() - 86400_000 * 2).toISOString() }
+    ];
+
     app.get('/api/catalog', async c => { const s = await repo.read(); return c.json({ products: s.products.filter(p => p.status === 'published' || p.status === 'archived'), settings: s.settings, preview }); });
     app.get('/api/auth/config', c => c.json({ mode: 'preview', preview, registration: false }));
-    app.post('/api/contact', async c => c.json({ ok: true }));
+    app.post('/api/contact', async c => {
+      const body = await c.req.json().catch(() => ({}));
+      const name = String(body.name || 'Visitor').trim();
+      const email = String(body.email || 'visitor@example.com').trim();
+      const message = String(body.message || '').trim();
+      contactInquiries.unshift({ id: crypto.randomUUID(), name, email, message, status: 'open', createdAt: new Date().toISOString() });
+      return c.json({ ok: true });
+    });
     app.post('/api/preview/session', async c => { if (!preview) return c.json({ error: 'Preview is disabled.' }, 404); const { role } = z.object({ role: z.enum(['owner', 'customer', 'support', 'product_manager']) }).parse(await c.req.json()); const s = await repo.read(); const user = s.users.find(u => u.role === role && u.status === 'active'); if (!user) return c.json({ error: 'Preview account unavailable.' }, 403); const token = secret(); sessions.set(token, { userId: user.id, expires: Date.now() + 3600_000 }); setCookie(c, 'norvi_preview', token, { httpOnly: true, sameSite: 'Strict', path: '/', maxAge: 3600 }); await repo.change(s => { s.users.find(u => u.id === user.id)!.lastLogin = new Date().toISOString(); }); return c.json({ user }); });
     app.post('/api/auth/logout', c => { sessions.delete(getCookie(c, 'norvi_preview') || ''); deleteCookie(c, 'norvi_preview', { path: '/' }); return c.json({ ok: true }); });
     app.post('/api/auth/:action', c => c.json({ error: 'Account services are not connected yet. Use the clearly labeled local preview to explore the website; do not enter a real password.' }, 503));
     app.use('/api/*', async (c, next) => { if (!preview) return c.json({ error: 'Live services are not configured.' }, 503); if (c.req.path.startsWith('/api/agent/')) return next(); const session = sessions.get(getCookie(c, 'norvi_preview') || ''); const s = await repo.read(); let user = session && session.expires > Date.now() ? s.users.find(u => u.id === session.userId && u.status === 'active') : undefined; if (!user) return c.json({ error: 'Sign in to continue.' }, 401); if (user.role === 'owner') { const imp = getCookie(c, 'norvi_impersonate'); if (imp) { const target = s.users.find(u => u.id === imp); if (target) user = { ...target, isImpersonated: true } as any; } } c.set('user', user!); await next(); });
     app.get('/api/me', c => c.json({ user: c.get('user'), preview: true }));
-    app.get('/api/account', async c => { const s = await repo.read(); const id = c.get('user').id; return c.json({ user: c.get('user'), licenses: s.licenses.filter(l => l.userId === id).map(({ keyHash, encryptedKey, ...l }) => l), orders: s.orders.filter(o => o.userId === id), tickets: s.tickets.filter(t => t.userId === id), emails: s.emails.filter(e => e.userId === id), announcements: s.announcements.filter(a => a.audience === 'customer').sort((a,b) => Date.parse(b.createdAt) - Date.parse(a.createdAt)) }); });
+    app.get('/api/account', async c => { const s = await repo.read(); const id = c.get('user').id; return c.json({ user: c.get('user'), licenses: s.licenses.filter(l => l.userId === id).map(({ keyHash, encryptedKey, ...l }) => ({ ...l, maxDevices: (l as any).maxDevices || 3, devices: (l as any).devices || ((l as any).device ? [{ id: 'dev-1', installation_id: (l as any).device, active: true, last_seen_at: new Date().toISOString() }] : []) })), orders: s.orders.filter(o => o.userId === id).map(o => ({ ...o, amountMinor: (o as any).amountMinor || (parseFloat(String(o.amount || '0').replace(/[^0-9.]/g, '')) * 100) || 0, currency: (o as any).currency || 'INR', providerPaymentId: (o as any).providerPaymentId || (o.status === 'paid' ? 'pay_' + o.id.slice(0, 14) : null) })), tickets: s.tickets.filter(t => t.userId === id), emails: s.emails.filter(e => e.userId === id), announcements: s.announcements.filter(a => a.audience === 'customer').sort((a,b) => Date.parse(b.createdAt) - Date.parse(a.createdAt)) }); });
     app.patch('/api/me', async c => { const { name } = z.object({ name: z.string().trim().min(2).max(80) }).parse(await c.req.json()); await repo.change(s => { s.users.find(u => u.id === c.get('user').id)!.name = name; }); return c.json({ ok: true }); });
     app.post('/api/preview/purchase', async c => { const s = await repo.read(); if (s.settings.maintenanceMode) return c.json({ error: 'Store is temporarily closed for maintenance. Please check back later.' }, 503); const { productId } = z.object({ productId: z.string() }).parse(await c.req.json()); const user = c.get('user'); const result = await repo.change(async s => { const p = s.products.find(p => p.id === productId && p.status === 'published'); if (!p || p.releaseStatus === 'development') return { error: 'Product is unavailable for purchase while in development.' }; const existing = s.orders.find(o => o.userId === user.id && o.productId === productId && o.status === 'simulated'); if (existing) return { order: existing }; const key = 'NORVI_' + secret(); const id = crypto.randomUUID(); s.licenses.push({ id, userId: user.id, productId, status: 'active', keyHash: await hash(key), encryptedKey: await seal(key, encryptionKey), suffix: key.slice(-6), createdAt: new Date().toISOString(), device: null, expiresAt: null }); const order = { id: crypto.randomUUID(), userId: user.id, productId, status: 'simulated' as const, amount: 'Preview — no charge', createdAt: new Date().toISOString(), licenseId: id }; s.orders.push(order); s.emails.push({ id: crypto.randomUUID(), userId: user.id, orderId: order.id, status: 'Preview only · not sent', createdAt: order.createdAt }); audit(s, user, 'Simulated purchase', p.name); return { order }; }); return c.json(result, 'error' in result ? 400 : 200); });
     app.post('/api/licenses/:id/reveal', async c => { const s = await repo.read(); const user = c.get('user'); const license = s.licenses.find(l => l.id === c.req.param('id') && (l.userId === user.id || user.role === 'owner')); if (!license) return c.json({ error: 'License not found.' }, 404); await repo.change(s => audit(s, user, 'Revealed preview key', license.id)); return c.json({ key: await unseal(license.encryptedKey, encryptionKey) }); });
@@ -104,6 +116,36 @@ export function createApp(repo: Repository, encryptionKey: string, { preview = f
         ]);
       }
       if (section === 'customers') return c.json({ items: s.users.filter(u => u.role === 'customer').map(u => ({ ...u, purchases: s.orders.filter(o => o.userId === u.id && o.status === 'simulated').length, licenseCount: s.licenses.filter(l => l.userId === u.id).length })) });
+      if (section === 'inquiries') {
+        const tickets = s.tickets.map(t => {
+          const u = s.users.find(user => user.id === t.userId);
+          return {
+            id: t.id,
+            source: 'support_ticket' as const,
+            userId: t.userId,
+            name: u?.name || 'Registered Customer',
+            email: u?.email || 'Unknown',
+            subject: t.subject || 'Support Request',
+            message: t.message,
+            status: t.status || 'open',
+            createdAt: t.createdAt,
+            activeLicenses: s.licenses.filter(l => l.userId === t.userId && l.status === 'active').length
+          };
+        });
+        const contacts = contactInquiries.map(ci => ({
+          id: ci.id,
+          source: 'contact_form' as const,
+          userId: null,
+          name: ci.name,
+          email: ci.email,
+          subject: 'Website Contact Inquiry',
+          message: ci.message,
+          status: ci.status,
+          createdAt: ci.createdAt,
+          activeLicenses: 0
+        }));
+        return c.json([...tickets, ...contacts].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt)));
+      }
       if (section === 'licenses') return c.json({ items: s.licenses.map(({ keyHash, encryptedKey, ...l }) => ({ ...l, customer: s.users.find(u => u.id === l.userId)?.name, product: s.products.find(p => p.id === l.productId)?.name })) });
       if (section === 'orders' || section === 'billing') return c.json({ items: s.orders.map(o => ({ ...o, customer: s.users.find(u => u.id === o.userId)?.name, product: s.products.find(p => p.id === o.productId)?.name })) });
       if (section === 'products') return c.json({ items: s.products });
@@ -113,6 +155,48 @@ export function createApp(repo: Repository, encryptionKey: string, { preview = f
       return c.json({ error: 'Not found' }, 404);
     });
     app.post('/api/admin/coupons', async c => c.json({ ok: true }));
+    app.post('/api/admin/inquiries/:id/status', async c => {
+      const { source, status } = z.object({
+        source: z.enum(['support_ticket', 'contact_form']),
+        status: z.enum(['open', 'resolved'])
+      }).parse(await c.req.json());
+      const id = c.req.param('id');
+      if (source === 'support_ticket') {
+        await repo.change(s => {
+          const t = s.tickets.find(tick => tick.id === id);
+          if (t) t.status = status as any;
+        });
+      } else {
+        const ci = contactInquiries.find(item => item.id === id);
+        if (ci) ci.status = status;
+      }
+      return c.json({ ok: true });
+    });
+    app.delete('/api/admin/inquiries/:id', async c => {
+      const id = c.req.param('id');
+      let source = c.req.query('source');
+      if (!source) {
+        try {
+          const body = await c.req.json();
+          source = body?.source;
+        } catch {}
+      }
+      if (source === 'support_ticket') {
+        await repo.change(s => {
+          s.tickets = s.tickets.filter(t => t.id !== id);
+        });
+      } else if (source === 'contact_form') {
+        const idx = contactInquiries.findIndex(item => item.id === id);
+        if (idx >= 0) contactInquiries.splice(idx, 1);
+      } else {
+        await repo.change(s => {
+          s.tickets = s.tickets.filter(t => t.id !== id);
+        });
+        const idx = contactInquiries.findIndex(item => item.id === id);
+        if (idx >= 0) contactInquiries.splice(idx, 1);
+      }
+      return c.json({ ok: true });
+    });
     app.delete('/api/admin/coupons/:id', async c => c.json({ ok: true }));
     app.post('/api/admin/products', async c => { const user = c.get('user'); if (!permissions.products.includes(user.role)) return c.json({ error: 'Permission denied.' }, 403); const input = z.object({ id: z.string().optional(), name: z.string().trim().min(2).max(80), slug: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Use lowercase words separated by hyphens.'), categoryId: z.string().min(1), category: z.object({ id: z.string(), slug: z.string(), name: z.string() }).optional(), tagline: z.string().min(3).max(140), description: z.string().min(5).max(2000), price: z.string().min(1).max(50), status: z.enum(['draft', 'published', 'archived']), releaseStatus: z.enum(['development', 'prelaunch', 'live']), logoUrl: z.string().nullable(), features: z.array(z.string().max(120)).max(8), requirements: z.string().max(400), version: z.string().max(40), workflowHeading: z.string().max(150), workflowDescription: z.string().max(2000), workflowMediaUrl: z.string().nullable(), workflowNote: z.string().max(500), extendedContent: z.any().optional(), trialActive: z.boolean().optional() }).parse(await c.req.json()); const result = await repo.change(s => { if (s.products.some(p => p.slug === input.slug && p.id !== input.id)) return { error: 'This URL is already used by another agent.' }; const p = { ...input, id: input.id || crypto.randomUUID(), updatedAt: new Date().toISOString() }; const index = s.products.findIndex(x => x.id === p.id); if (index >= 0) s.products[index] = p; else s.products.push(p); audit(s, user, 'Saved product (' + p.status + ')', p.name); return { product: p }; }); return c.json(result, 'error' in result ? 409 : 200); });
     app.post('/api/admin/products/:id/trial', async c => { const user = c.get('user'); if (!permissions.products.includes(user.role)) return c.json({ error: 'Permission denied.' }, 403); const { trialActive } = z.object({ trialActive: z.boolean() }).parse(await c.req.json()); const ok = await repo.change(s => { const p = s.products.find(p => p.id === c.req.param('id')); if (!p) return false; p.trialActive = trialActive; return true; }); return ok ? c.json({ ok: true }) : c.json({ error: 'Product not found.' }, 404); });

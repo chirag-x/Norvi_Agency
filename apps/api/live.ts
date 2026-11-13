@@ -603,6 +603,20 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
       message: z.string().trim().min(3, 'Message must be at least 3 characters.').max(3000),
     }).parse(await c.req.json());
 
+    if (c.env.SUPABASE_URL && c.env.SUPABASE_SERVICE_ROLE_KEY) {
+      try {
+        const serviceDb = createClient(c.env.SUPABASE_URL, c.env.SUPABASE_SERVICE_ROLE_KEY);
+        await serviceDb.from('contact_inquiries').insert({
+          name: input.name,
+          email: input.email,
+          message: input.message,
+          status: 'open'
+        });
+      } catch (err) {
+        console.warn('[Contact] Could not persist to contact_inquiries table:', err);
+      }
+    }
+
     const discordMsg = `📬 **[New Contact Inquiry]**\n**From:** ${input.name} (<${input.email}>)\n**Time:** <t:${Math.floor(Date.now() / 1000)}:F>\n\n**Message:**\n${input.message}`;
     const targetWebhook = c.env.norvi_contact || c.env.norvi_team_and_security;
     await fireLog(c, targetWebhook, discordMsg);
@@ -722,15 +736,39 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
       ? createClient(c.env.SUPABASE_URL!, c.env.SUPABASE_SERVICE_ROLE_KEY!)
       : c.get('db');
     const results = await Promise.all([
-      db.from('licenses').select('id,product_id,status,key_suffix,created_at,expires_at').eq('user_id', uid),
-      db.from('orders').select('id,product_id,status,amount_minor,currency,created_at').eq('user_id', uid),
+      db.from('licenses').select('id,product_id,status,key_suffix,created_at,expires_at,max_devices').eq('user_id', uid),
+      db.from('orders').select('id,product_id,status,amount_minor,currency,created_at,provider_payment_id').eq('user_id', uid),
       db.from('support_requests').select('id,subject,message,status,created_at').eq('user_id', uid),
       db.from('devices').select('id,license_id,installation_id,active,last_seen_at').eq('active', true),
       db.from('announcements').select('id,message,created_at').eq('audience', 'customer').order('created_at', { ascending: false })
     ]);
     if (results.some(r => r.error)) return c.json({ error: 'Account records could not be loaded.' }, 503);
     const devices = results[3].data || [];
-    return c.json({ user: c.get('user'), licenses: results[0].data!.map(l => ({ ...l, productId: l.product_id, suffix: l.key_suffix, createdAt: l.created_at, expiresAt: l.expires_at, devices: devices.filter(d => d.license_id === l.id) })), orders: results[1].data!.map(o => ({ ...o, productId: o.product_id, createdAt: o.created_at, amount: `${o.currency} ${(o.amount_minor / 100).toFixed(2)}` })), tickets: results[2].data!.map(t => ({ ...t, createdAt: t.created_at })), announcements: (results[4].data || []).map(a => ({ ...a, createdAt: a.created_at })), emails: [], preview: false });
+    return c.json({
+      user: c.get('user'),
+      licenses: results[0].data!.map(l => ({
+        ...l,
+        productId: l.product_id,
+        suffix: l.key_suffix,
+        createdAt: l.created_at,
+        expiresAt: l.expires_at,
+        maxDevices: l.max_devices || 3,
+        devices: devices.filter(d => d.license_id === l.id)
+      })),
+      orders: results[1].data!.map(o => ({
+        ...o,
+        productId: o.product_id,
+        createdAt: o.created_at,
+        amount: `${o.currency || 'INR'} ${(Number(o.amount_minor || 0) / 100).toFixed(2)}`,
+        amountMinor: o.amount_minor,
+        currency: o.currency || 'INR',
+        providerPaymentId: o.provider_payment_id
+      })),
+      tickets: results[2].data!.map(t => ({ ...t, createdAt: t.created_at })),
+      announcements: (results[4].data || []).map(a => ({ ...a, createdAt: a.created_at })),
+      emails: [],
+      preview: false
+    });
   });
 
   app.post('/api/licenses/:id/reveal', async c => {
@@ -822,6 +860,145 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     if (!['owner', 'administrator', 'support'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
     const { data, error } = await c.get('db').rpc('admin_overview_stats');
     return error ? c.json({ error: 'Stats could not be loaded.' }, 503) : c.json(data);
+  });
+
+  app.get('/api/admin/inquiries', async c => {
+    if (!['owner', 'administrator', 'support'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
+    // 1. Try calling the RPC function
+    const { data: rpcData, error: rpcErr } = await c.get('db').rpc('admin_list_inquiries');
+    if (!rpcErr && Array.isArray(rpcData)) {
+      return c.json(rpcData);
+    }
+
+    // 2. Resilient fallback using serviceDb directly from tables
+    try {
+      if (!c.env.SUPABASE_URL || !c.env.SUPABASE_SERVICE_ROLE_KEY) {
+        return c.json([]);
+      }
+      const serviceDb = createClient(c.env.SUPABASE_URL, c.env.SUPABASE_SERVICE_ROLE_KEY);
+      const [ticketsRes, contactRes, profilesRes] = await Promise.all([
+        serviceDb.from('support_requests').select('*').order('created_at', { ascending: false }),
+        Promise.resolve(serviceDb.from('contact_inquiries').select('*').order('created_at', { ascending: false })).catch(() => ({ data: [] as any[] })),
+        serviceDb.from('profiles').select('id, display_name')
+      ]);
+
+      const profileMap = new Map((profilesRes.data || []).map((p: any) => [p.id, p.display_name]));
+
+      let userMap = new Map<string, string>();
+      try {
+        const { data: usersData } = await serviceDb.auth.admin.listUsers({ perPage: 1000 });
+        if (usersData?.users) {
+          usersData.users.forEach((u: any) => userMap.set(u.id, u.email || ''));
+        }
+      } catch {}
+
+      const tickets = (ticketsRes.data || []).map((t: any) => ({
+        id: t.id,
+        source: 'support_ticket',
+        userId: t.user_id,
+        name: profileMap.get(t.user_id) || 'Registered Customer',
+        email: userMap.get(t.user_id) || 'Unknown',
+        subject: t.subject || 'Support Ticket',
+        message: t.message,
+        status: t.status || 'open',
+        createdAt: t.created_at,
+        activeLicenses: 0
+      }));
+
+      const contacts = (((contactRes as any)?.data) || []).map((ci: any) => ({
+        id: ci.id,
+        source: 'contact_form',
+        userId: null,
+        name: ci.name,
+        email: ci.email,
+        subject: 'Website Contact Inquiry',
+        message: ci.message,
+        status: ci.status || 'open',
+        createdAt: ci.created_at,
+        activeLicenses: 0
+      }));
+
+      const combined = [...tickets, ...contacts].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
+      return c.json(combined);
+    } catch (e: any) {
+      return c.json({ error: e.message || 'Failed to load inquiries.' }, 500);
+    }
+  });
+
+  app.post('/api/admin/inquiries/:id/status', async c => {
+    if (!['owner', 'administrator', 'support'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
+    const id = c.req.param('id');
+    const { source, status } = z.object({
+      source: z.enum(['support_ticket', 'contact_form']),
+      status: z.enum(['open', 'resolved'])
+    }).parse(await c.req.json());
+
+    // Try RPC first
+    const { error: rpcErr } = await c.get('db').rpc('admin_set_inquiry_status', {
+      p_id: id,
+      p_source: source,
+      p_status: status
+    });
+    if (!rpcErr) return c.json({ ok: true });
+
+    // Fallback to serviceDb direct update
+    try {
+      if (c.env.SUPABASE_URL && c.env.SUPABASE_SERVICE_ROLE_KEY) {
+        const serviceDb = createClient(c.env.SUPABASE_URL, c.env.SUPABASE_SERVICE_ROLE_KEY);
+        if (source === 'support_ticket') {
+          await serviceDb.from('support_requests').update({ status }).eq('id', id);
+        } else {
+          await serviceDb.from('contact_inquiries').update({
+            status,
+            resolved_at: status === 'resolved' ? new Date().toISOString() : null
+          }).eq('id', id);
+        }
+      }
+      return c.json({ ok: true });
+    } catch (e: any) {
+      return c.json({ error: e.message || 'Failed to update status.' }, 500);
+    }
+  });
+
+  app.delete('/api/admin/inquiries/:id', async c => {
+    if (!['owner', 'administrator', 'support'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
+    const id = c.req.param('id');
+    let source = c.req.query('source');
+    if (!source) {
+      try {
+        const body = await c.req.json();
+        source = body?.source;
+      } catch {}
+    }
+
+    // Try RPC first if source is specified
+    if (source) {
+      const { error: rpcErr } = await c.get('db').rpc('admin_delete_inquiry', {
+        p_id: id,
+        p_source: source
+      });
+      if (!rpcErr) return c.json({ ok: true });
+    }
+
+    // Fallback to serviceDb direct deletion
+    try {
+      if (c.env.SUPABASE_URL && c.env.SUPABASE_SERVICE_ROLE_KEY) {
+        const serviceDb = createClient(c.env.SUPABASE_URL, c.env.SUPABASE_SERVICE_ROLE_KEY);
+        if (source === 'support_ticket') {
+          await serviceDb.from('support_requests').delete().eq('id', id);
+        } else if (source === 'contact_form') {
+          await serviceDb.from('contact_inquiries').delete().eq('id', id);
+        } else {
+          await Promise.all([
+            serviceDb.from('support_requests').delete().eq('id', id),
+            serviceDb.from('contact_inquiries').delete().eq('id', id)
+          ]);
+        }
+      }
+      return c.json({ ok: true });
+    } catch (e: any) {
+      return c.json({ error: e.message || 'Failed to delete inquiry.' }, 500);
+    }
   });
 
   app.get('/api/admin/team', async c => {
@@ -1321,7 +1498,7 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
       }
       
       if (!asset) {
-        throw new Error(`Asset not found. Make sure you uploaded a .zip or .exe file containing '${slug}' in the name.`);
+        throw new Error(`Installer package for ${slug} is currently being prepared for your platform. Please reach out to support at norviagency@gmail.com for instant delivery.`);
       }
 
       // 3. Request the download URL (GitHub responds with 302 to S3)

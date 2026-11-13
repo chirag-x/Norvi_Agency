@@ -1,6 +1,6 @@
 import { useEffect,useState,type ReactNode,type CSSProperties } from 'react';
 import { AlertCircle,ArrowUpRight,CheckCircle2,LoaderCircle,ExternalLink } from 'lucide-react';
-export async function api<T=any>(path:string,options:RequestInit={}):Promise<T>{const response=await fetch('/api'+path,{...options,headers:{'Content-Type':'application/json',...options.headers}});let data;try{data=await response.json();}catch{throw Error('The website service is unavailable. Start the local preview server and try again.');}if(!response.ok)throw Error(data.error||'Please try again.');return data;}
+export async function api<T=any>(path:string,options:RequestInit={}):Promise<T>{const response=await fetch('/api'+path,{...options,headers:{'Content-Type':'application/json',...options.headers}});let data;try{data=await response.json();}catch{throw Error('The service is temporarily unavailable. Please check your internet connection and try again.');}if(!response.ok)throw Error(data.error||'Please try again.');return data;}
 export async function uploadFile(file: File, bucket = 'product-assets'): Promise<string> {
   const ticketRes = await fetch('/api/admin/upload-ticket', {
     method: 'POST',
