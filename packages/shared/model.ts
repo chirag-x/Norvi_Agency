@@ -1,6 +1,6 @@
 export type Role = 'owner' | 'administrator' | 'product_manager' | 'support' | 'customer';
 export type Category = { id: string; slug: string; name: string; createdAt?: string };
-export type FeaturePillar = { id: string; title: string; description: string; icon?: string; tag?: string; mediaUrl?: string | null; };
+export type FeaturePillar = { id: string; title: string; shortDescription?: string; description: string; icon?: string; tag?: string; mediaUrl?: string | null; };
 export type MediaGalleryItem = { id: string; type: 'image' | 'video' | 'gif'; url: string; caption?: string; };
 export type ComparisonRow = { feature: string; us: boolean | string; comp1: boolean | string; comp2: boolean | string; };
 export type CompetitorComparison = { headline?: string; competitor1Name: string; competitor2Name: string; rows: ComparisonRow[]; };

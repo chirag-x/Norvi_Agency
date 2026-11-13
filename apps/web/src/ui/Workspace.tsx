@@ -1,6 +1,6 @@
 import { LiveAdmin } from './Accounts';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Activity, ArrowRight, ChevronDown, ChevronUp, Bot, ArrowUpRight, BookOpen, Box, Check, Copy, CreditCard, Download, Eye, FileText, KeyRound, LayoutDashboard, LifeBuoy, LogOut, Plus, Search, Settings as SettingsIcon, ShieldCheck, Users, X, Monitor, SlidersHorizontal, Mail, Megaphone, Globe, Sparkles, Video, Image as ImageIcon, HelpCircle, Layers, Trash2, Tag, ExternalLink, Printer, Phone, Clock, Share2, MessageSquare } from 'lucide-react';
+import { Activity, ArrowRight, ChevronDown, ChevronUp, Bot, ArrowUpRight, BookOpen, Box, Check, Copy, CreditCard, Download, Eye, FileText, KeyRound, LayoutDashboard, LifeBuoy, LogOut, Plus, Search, Settings as SettingsIcon, ShieldCheck, Users, X, Monitor, SlidersHorizontal, Mail, Megaphone, Globe, Sparkles, Video, Image as ImageIcon, HelpCircle, Layers, Trash2, Tag, ExternalLink, Printer, Phone, Clock, Share2, MessageSquare, Zap } from 'lucide-react';
 import type { Category, Product, Settings, User, AgentExtendedContent, FeaturePillar, MediaGalleryItem, ComparisonRow, AgentFaq, GuideSection, AgentGuide } from '../../../../packages/shared/model';
 import { createDefaultAgentAiPolicy, normalizeAgentAiPolicyPayload, type AgentAiPolicy } from '../../../../packages/shared/agentAi';
 import { AgentAiPolicySection } from './AgentAiPolicySection';
@@ -49,9 +49,9 @@ export function Workspace({ path, products, settings, onCatalogChange }: { path:
     const nav = admin ? staffNav.filter(([slug]) => canAccessSlug(slug)) : customerNav;
       console.log('ACTIVE NAV:', nav);
     const sectionAllowed = !admin || canAccessSlug(section);
-    return <div className="workspace"><CommandPalette user={user} /><aside className="sidebar"><div className="workspace-label">{admin ? 'AGENCY WORKSPACE' : 'PERSONAL WORKSPACE'}</div><nav aria-label="Workspace navigation">{nav.map(([slug, label, Icon]) => <a key={slug} href={base + slug} className={section === slug ? 'selected' : ''}><Icon size={18} />{label}{section === slug && <span className="nav-indicator" />}</a>)}</nav><div className="sidebar-bottom"><div className="preview-box"><ShieldCheck size={18} /><b>{identity.preview ? 'Local preview' : 'NORVI account'}</b><p>{identity.preview ? 'Sample data. No live payments or emails.' : 'Verified account. Active customer workspace.'}</p></div><a href="/" className="text-button">Back to website <ArrowUpRight size={15} /></a><button className="logout" onClick={async () => { try { await api('/auth/logout', { method: 'POST' }); location.href = admin ? '/admin/login' : '/login'; } catch (e: any) { setLogoutError(e.message); } }}><LogOut size={16} />{identity.preview ? 'Sign out of preview' : 'Sign out'}</button>{logoutError && <Notice kind="error">{logoutError}</Notice>}</div></aside><div className="workspace-main">
+    return <div className="workspace"><CommandPalette user={user} /><aside className="sidebar"><a href="/" className="brand sidebar-brand" title="Return to website homepage" style={{ display: 'inline-flex', alignItems: 'center', gap: 10, padding: '4px 0 20px 0', textDecoration: 'none', color: 'var(--text)', fontWeight: 700, fontSize: 18 }}><img src="/logo.jpg?v=2" alt="NORVI Agency" style={{ width: 32, height: 32, borderRadius: 6, objectFit: 'contain' }} /><span>{settings?.name || 'NORVI'}</span></a><div className="workspace-label">{admin ? 'AGENCY WORKSPACE' : 'PERSONAL WORKSPACE'}</div><nav aria-label="Workspace navigation">{nav.map(([slug, label, Icon]) => <a key={slug} href={base + slug} className={section === slug ? 'selected' : ''}><Icon size={18} />{label}{section === slug && <span className="nav-indicator" />}</a>)}</nav><div className="sidebar-bottom"><div className="preview-box"><ShieldCheck size={18} /><b>{identity.preview ? 'Local preview' : 'NORVI account'}</b><p>{identity.preview ? 'Sample data. No live payments or emails.' : 'Verified account. Active customer workspace.'}</p></div><a href="/" className="text-button">Back to website <ArrowUpRight size={15} /></a><button className="logout" onClick={async () => { try { await api('/auth/logout', { method: 'POST' }); location.href = admin ? '/admin/login' : '/login'; } catch (e: any) { setLogoutError(e.message); } }}><LogOut size={16} />{identity.preview ? 'Sign out of preview' : 'Sign out'}</button>{logoutError && <Notice kind="error">{logoutError}</Notice>}</div></aside><div className="workspace-main">
         {(user as any).isImpersonated && <div style={{ background: '#eab308', color: '#1a1a1a', padding: '12px 24px', fontWeight: 600, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', flexWrap: 'wrap', borderBottom: '2px solid #ca8a04', zIndex: 100 }}><div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><ShieldCheck size={18} /><span>You are currently impersonating <b>{user.name}</b> {user.email ? `(${user.email})` : ''} · Role: <b>{user.role}</b></span></div><button type="button" className="button primary small" style={{ background: '#1c2418', color: '#fff', borderColor: '#1c2418', cursor: 'pointer' }} onClick={async () => { try { await api('/admin/impersonate', { method: 'DELETE' }); } catch { try { await api('/admin/impersonate/stop', { method: 'POST' }); } catch {} } document.cookie = 'norvi_impersonate=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT; Max-Age=0;'; window.location.href = '/admin/customers'; }}>Stop Impersonating</button></div>}
-        <div className="workspace-topbar"><span>NORVI <span className="slash">/</span> {admin ? 'Agency workspace' : 'My account'}</span><div style={{display: 'flex', alignItems: 'center', gap: 15}}><a href="/" className="text-button" style={{fontSize: 13}}>Back to website <ArrowUpRight size={14} /></a><span className="user-chip"><span className="avatar">{user.name.slice(0, 1).toUpperCase()}</span>{user.name}<Badge>{user.role.replace('_', ' ')}</Badge></span></div></div>{!sectionAllowed ? <Notice kind="error">Your role cannot open this section.</Notice> : admin ? <Admin section={section} user={user} settings={settings} onCatalogChange={onCatalogChange} /> : <Customer section={section} products={products} user={user} />}</div></div>;
+        <div className="workspace-topbar"><div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}><a href="/" className="brand" title="Return to website homepage" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, textDecoration: 'none', color: 'inherit', fontWeight: 700, fontSize: 16 }}><img src="/logo.jpg?v=2" alt="NORVI Agency" style={{ width: 22, height: 22, borderRadius: 4, objectFit: 'contain' }} /><span>{settings?.name || 'NORVI'}</span></a><span className="slash">/</span><span style={{ color: 'var(--muted)', fontSize: 14 }}>{admin ? 'Agency workspace' : 'My account'}</span></div><div style={{display: 'flex', alignItems: 'center', gap: 15}}><a href="/" className="text-button" style={{fontSize: 13}}>Back to website <ArrowUpRight size={14} /></a><span className="user-chip"><span className="avatar">{user.name.slice(0, 1).toUpperCase()}</span>{user.name}<Badge>{user.role.replace('_', ' ')}</Badge></span></div></div>{!sectionAllowed ? <Notice kind="error">Your role cannot open this section.</Notice> : admin ? <Admin section={section} user={user} settings={settings} onCatalogChange={onCatalogChange} /> : <Customer section={section} products={products} user={user} />}</div></div>;
 }
 export function CustomerInvoiceModal({ order, user, onClose }: { order: any; user: User; onClose: () => void }) {
   const isPaid = order.status === 'paid';
@@ -4020,7 +4020,7 @@ export function ProductForm({ product, onSave, categories }: { product: Product 
             <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-light)' }}>
               Feature pillars display as high-impact cards on the public page with custom category tags and icons.
             </p>
-            <button type="button" className="button primary small" onClick={() => setFeaturePillars([...featurePillars, { id: 'pillar-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6), title: '', tag: '', icon: 'Shield', description: '' }])}>
+            <button type="button" className="button primary small" onClick={() => setFeaturePillars([...featurePillars, { id: 'pillar-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6), title: '', tag: '', icon: 'Shield', shortDescription: '', description: '' }])}>
               <Plus size={14} /> Add Feature Pillar
             </button>
           </div>
@@ -4041,7 +4041,12 @@ export function ProductForm({ product, onSave, categories }: { product: Product 
                     </select>
                   </Field>
                 </div>
-                <Field label="Description"><textarea rows={2} value={p.description} onChange={e => setFeaturePillars(featurePillars.map((item, i) => i === idx ? { ...item, description: e.target.value } : item))} placeholder="Detailed explanation of how this capability works..." required /></Field>
+                <Field label="Short Description (Card Summary)" hint="1-2 punchy lines (~80-120 chars) shown on the public agent card">
+                  <textarea rows={2} value={p.shortDescription || ''} onChange={e => setFeaturePillars(featurePillars.map((item, i) => i === idx ? { ...item, shortDescription: e.target.value } : item))} placeholder="e.g. Invisible overlay bypasses screen share and captures audio via direct hardware routing." />
+                </Field>
+                <Field label="Detailed Description (Modal Deep Dive)" hint="Comprehensive text shown when customer clicks 'Explore capability' popup">
+                  <textarea rows={3} value={p.description} onChange={e => setFeaturePillars(featurePillars.map((item, i) => i === idx ? { ...item, description: e.target.value } : item))} placeholder="Detailed explanation of how this capability works, features, privacy guarantees, etc." required />
+                </Field>
                 <div className="form-grid" style={{ marginTop: '10px' }}>
                   <Field label="Upload Demo Media (Video / GIF / Image)" hint="Upload MP4, WebM, or PNG/JPG">
                     <input
@@ -4458,7 +4463,117 @@ export function RolePermissionsAdmin({ settings, onSave }: { settings: Settings;
 }
 
 export function SettingsForm({ initial, contentOnly = false, onSave }: { initial: Settings; contentOnly?: boolean; onSave: () => void }) { const [message, setMessage] = useState(''); return <form className="panel settings-form" onSubmit={async e => { e.preventDefault(); const form = new FormData(e.currentTarget); const d = { ...Object.fromEntries(form), maintenanceMode: form.get('maintenanceMode') === 'on' }; try { await api(contentOnly ? '/admin/content' : '/admin/settings', { method: 'PATCH', body: JSON.stringify(contentOnly ? d : { ...initial, ...d }) }); setMessage('Saved. Your website preview has been updated.'); onSave(); } catch (e: any) { setMessage(e.message); } }}><h3>{contentOnly ? 'Homepage copy' : 'Business details'}</h3>{!contentOnly && <div className="form-grid"><Field label="Website name"><input name="name" required defaultValue={initial.name} /></Field><Field label="Company name"><input name="company" defaultValue={initial.company} /></Field><Field label="Support email"><input name="email" defaultValue={initial.email} /></Field><Field label="Website domain"><input name="domain" defaultValue={initial.domain} /></Field></div>}<Field label="Homepage headline" hint="Use a new line to split the headline."><textarea name="headline" required rows={2} defaultValue={initial.headline} /></Field><Field label="Homepage description"><textarea name="description" required rows={3} defaultValue={initial.description} /></Field>{!contentOnly && <label style={{ display: 'flex', gap: 10, alignItems: 'center', margin: '20px 0', background: 'var(--surface)', padding: 15, borderRadius: 8, border: '1px solid var(--border)' }}><input type="checkbox" name="maintenanceMode" defaultChecked={initial.maintenanceMode} style={{ width: 18, height: 18 }} /><div><b>Maintenance Mode</b><p style={{ margin: 0, fontSize: 13, color: 'var(--text-light)' }}>When enabled, checkout and downloads are temporarily disabled for customers.</p></div></label>}<button className="button primary">Save changes <Check size={16} /></button>{message && <Notice>{message}</Notice>}</form>; }
-function Team({ data, onAction, isOwner, settings }: { data: any; onAction: (path: string, body?: object, method?: string) => Promise<void>; isOwner: boolean; settings: Settings }) { return <><div className="panel"><h3>Your team</h3>{(data?.items || []).map((u: User) => <div className="list-row" key={u.id}><span className="avatar">{u?.name?.slice(0, 1) || '?'}</span><div className="grow" style={{ flex: 1, minWidth: 0 }}><b>{u?.name || 'Unnamed'}</b><p>{u?.email}</p></div>{u.role === 'owner' ? <Badge>Owner</Badge> : <select style={{ width: "auto", flex: "0 0 auto" }} value={u.role} onChange={(e) => onAction('/admin/team/' + u.id + '/role', { role: e.target.value })}><option value="support">Support</option><option value="product_manager">Product Manager</option><option value="administrator">Administrator</option></select>}<Badge>{u.status || 'active'}</Badge>{u.role !== 'owner' && <div style={{ display: 'flex', gap: 8 }}><button className="text-button bare" onClick={() => onAction('/admin/team/' + u.id + '/suspend')}>{u.status !== 'suspended' ? 'Suspend' : 'Restore'}</button>{isOwner && <button className="text-button bare" onClick={async () => { await onAction('/admin/impersonate', { id: u.id }); window.location.href = '/admin'; }}>Login As</button>}</div>}</div>)}</div><form className="panel" onSubmit={async e => { e.preventDefault(); const d = Object.fromEntries(new FormData(e.currentTarget)); await onAction('/admin/team/invite', d); }}><h3>Invite a teammate</h3><p>Send an invitation with a secure, expiring acceptance link.</p><div className="form-grid"><Field label="Teammate email"><input name="email" type="email" required /></Field><Field label="Role"><select name="role"><option value="support">Support</option><option value="product_manager">Product manager</option><option value="administrator">Administrator</option></select></Field></div><button className="button primary">Send invitation <Plus size={16} /></button></form><div className="panel"><h3>Pending invitations</h3>{!(data?.invitations || []).length ? <p>No pending invitations.</p> : (data?.invitations || []).map((i: any) => <div className="list-row" key={i.id}><span className="grow">{i.email}</span><Badge>{(i?.role || '').replace('_', ' ')}</Badge><Badge>Pending</Badge><button className="text-button bare" onClick={() => onAction('/admin/team/invite/' + i.id + '/resend')}>Resend</button><button className="text-button bare" onClick={() => onAction('/admin/team/invite/' + i.id, {}, 'DELETE')}>Cancel</button></div>)}</div>{isOwner && <RolePermissionsAdmin settings={settings} onSave={() => onAction('')} />}</>; }
+function Team({ data, onAction, isOwner, settings }: { data: any; onAction: (path: string, body?: object, method?: string) => Promise<void>; isOwner: boolean; settings: Settings }) { 
+  const [directEmail, setDirectEmail] = useState('');
+  const [directRole, setDirectRole] = useState<'administrator' | 'product_manager' | 'support'>('administrator');
+  const [recruiting, setRecruiting] = useState(false);
+
+  return <>
+    <div className="panel">
+      <h3>Your team</h3>
+      {(data?.items || []).map((u: User) => (
+        <div className="list-row" key={u.id}>
+          <span className="avatar">{u?.name?.slice(0, 1) || '?'}</span>
+          <div className="grow" style={{ flex: 1, minWidth: 0 }}>
+            <b>{u?.name || 'Unnamed'}</b>
+            <p>{u?.email}</p>
+          </div>
+          {u.role === 'owner' ? <Badge>Owner</Badge> : (
+            <select style={{ width: "auto", flex: "0 0 auto" }} value={u.role} onChange={(e) => onAction('/admin/team/' + u.id + '/role', { role: e.target.value })}>
+              <option value="support">Support</option>
+              <option value="product_manager">Product Manager</option>
+              <option value="administrator">Administrator</option>
+            </select>
+          )}
+          <Badge>{u.status || 'active'}</Badge>
+          {u.role !== 'owner' && (
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button className="text-button bare" onClick={() => onAction('/admin/team/' + u.id + '/suspend')}>{u.status !== 'suspended' ? 'Suspend' : 'Restore'}</button>
+              {isOwner && <button className="text-button bare" onClick={async () => { await onAction('/admin/impersonate', { id: u.id }); window.location.href = '/admin'; }}>Login As</button>}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+
+    {isOwner && (
+      <form className="panel" onSubmit={async e => {
+        e.preventDefault();
+        if (!directEmail.trim()) return;
+        setRecruiting(true);
+        try {
+          await onAction('/admin/team/promote', { email: directEmail.trim(), role: directRole });
+          setDirectEmail('');
+        } finally {
+          setRecruiting(false);
+        }
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+          <Zap size={18} style={{ color: 'var(--lime)' }} />
+          <h3 style={{ margin: 0 }}>Direct Recruit Registered Customer</h3>
+        </div>
+        <p style={{ margin: '0 0 16px', fontSize: 13, color: 'var(--text-light)' }}>
+          Instantly promote any existing registered user directly to your team. No email invitation link or re-registration is required. Mandatory 2FA verification will be enforced before they can access the admin workspace.
+        </p>
+        <div className="form-grid">
+          <Field label="Registered account email">
+            <input 
+              name="email" 
+              type="email" 
+              placeholder="e.g. teammate@gmail.com" 
+              value={directEmail}
+              onChange={e => setDirectEmail(e.target.value)}
+              required 
+            />
+          </Field>
+          <Field label="Assign staff role">
+            <select 
+              name="role" 
+              value={directRole}
+              onChange={e => setDirectRole(e.target.value as any)}
+            >
+              <option value="administrator">Administrator</option>
+              <option value="product_manager">Product manager</option>
+              <option value="support">Support</option>
+            </select>
+          </Field>
+        </div>
+        <button className="button primary" style={{ marginTop: 12 }} disabled={recruiting}>
+          {recruiting ? 'Recruiting...' : 'Direct Recruit to Team'} <Plus size={16} />
+        </button>
+      </form>
+    )}
+
+    <form className="panel" onSubmit={async e => { e.preventDefault(); const d = Object.fromEntries(new FormData(e.currentTarget)); await onAction('/admin/team/invite', d); }}>
+      <h3>Invite a teammate</h3>
+      <p>Send an invitation with a secure, expiring acceptance link.</p>
+      <div className="form-grid">
+        <Field label="Teammate email"><input name="email" type="email" required /></Field>
+        <Field label="Role">
+          <select name="role">
+            <option value="support">Support</option>
+            <option value="product_manager">Product manager</option>
+            <option value="administrator">Administrator</option>
+          </select>
+        </Field>
+      </div>
+      <button className="button primary">Send invitation <Plus size={16} /></button>
+    </form>
+    <div className="panel">
+      <h3>Pending invitations</h3>
+      {!(data?.invitations || []).length ? <p>No pending invitations.</p> : (data?.invitations || []).map((i: any) => (
+        <div className="list-row" key={i.id}>
+          <span className="grow">{i.email}</span>
+          <Badge>{(i?.role || '').replace('_', ' ')}</Badge>
+          <Badge>Pending</Badge>
+          <button className="text-button bare" onClick={() => onAction('/admin/team/invite/' + i.id + '/resend')}>Resend</button>
+          <button className="text-button bare" onClick={() => onAction('/admin/team/invite/' + i.id, {}, 'DELETE')}>Cancel</button>
+        </div>
+      ))}
+    </div>
+    {isOwner && <RolePermissionsAdmin settings={settings} onSave={() => onAction('')} />}
+  </>; 
+}
 export function OrderStatus() { const { data, error } = useData('/account'); const [orderId, setOrderId] = useState(''); useEffect(() => { setOrderId(new URLSearchParams(location.search).get('id') || ''); }, []); if (error) return <div className="container page"><Notice kind="error">{error}</Notice><a href="/login" className="button primary">Open account</a></div>; if (!data) return <Loading />; const order = data.orders.find((o: any) => o.id === orderId); return <div className="container page order-success">{order ? <><span className="success-symbol"><Check size={36} /></span><span className="eyebrow">ORDER CONFIRMED</span><h1>A little more possibility.<br />Now in your account.</h1><p>Your license key has been generated and dispatched to your account.</p><div className="panel"><div className="summary-row"><span>Order reference</span><code>#{order.id.slice(0, 8)}</code></div><div className="summary-row"><span>Amount charged</span><b>{order.amount || 'Verified Payment'}</b></div><div className="summary-row"><span>Order status</span><Badge>{order.status || 'paid'}</Badge></div></div><a href="/account/licenses" className="button primary">View your activation key <KeyRound size={18} /></a><a href="/account" className="text-button">Go to dashboard <ArrowRight size={16} /></a></> : <Empty title="Select an order from your account." description="Order details are private to the customer who placed them." href="/account/billing" label="View billing" />}</div>; }
 function CopyButton({ text }: { text: string }) { const [message, setMessage] = useState('Copy key'); return <button className="button primary" onClick={async () => { try { await navigator.clipboard.writeText(text); setMessage('Copied'); } catch { setMessage('Select the key above to copy'); } }}>{message}<Copy size={16} /></button>; }
 function Modal({ title, onClose, children, wide = false }: { title: string; onClose: () => void; children: ReactNode; wide?: boolean }) { const ref = useRef<HTMLDialogElement>(null); useEffect(() => { ref.current?.showModal(); const prior = document.body.style.overflow; document.body.style.overflow = 'hidden'; return () => { document.body.style.overflow = prior; }; }, []); return <dialog ref={ref} className={'modal ' + (wide ? 'wide' : '')} onCancel={e => { e.preventDefault(); onClose(); }} aria-label={title}><div className="modal-heading"><h2>{title}</h2><button onClick={onClose} className="icon-button" aria-label="Close dialog"><X size={22} /></button></div>{children}</dialog>; }

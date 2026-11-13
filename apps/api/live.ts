@@ -634,6 +634,37 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     ]);
     if (profile.error || membership.error || assurance.error) return c.json({ error: 'Account setup is incomplete or unavailable. Contact the owner.' }, 503);
     if (profile.data.suspended || (membership.data && !membership.data.active)) return c.json({ error: 'Account access is suspended.' }, 403);
+    
+    // Auto-claim pending invitation on login for existing registered accounts
+    if (!membership.data && data.user.email) {
+      try {
+        const adminDb = (c.env.SUPABASE_SERVICE_ROLE_KEY && !c.env.SUPABASE_SERVICE_ROLE_KEY.includes('YOUR_'))
+          ? createClient(c.env.SUPABASE_URL!, c.env.SUPABASE_SERVICE_ROLE_KEY!)
+          : db;
+        const { data: pendingInvites } = await adminDb
+          .from('staff_invitations')
+          .select('*')
+          .eq('status', 'pending');
+
+        const userEmail = data.user.email ? data.user.email.trim().toLowerCase() : '';
+        const pendingInvite = userEmail ? (pendingInvites || []).find(
+          (i: any) => i.email && i.email.toLowerCase() === userEmail
+        ) : null;
+
+        if (pendingInvite) {
+          await adminDb.from('staff_memberships').upsert({
+            user_id: data.user.id,
+            role: pendingInvite.role,
+            active: true
+          });
+          await adminDb.from('staff_invitations').update({ status: 'accepted' }).eq('id', pendingInvite.id);
+          membership.data = { role: pendingInvite.role, active: true };
+        }
+      } catch (err) {
+        console.error('Error auto-claiming staff invitation:', err);
+      }
+    }
+
     const role = membership.data?.role || 'customer';
     let userObj: any = { id: data.user.id, email: data.user.email || '', name: profile.data.display_name, role, status: 'active', createdAt: profile.data.created_at, lastLogin: data.user.last_sign_in_at || null };
 
@@ -1031,6 +1062,47 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     const input = await c.req.json();
     const { error } = await c.get('db').rpc('invite_staff_member', { invite_email: input.email, invite_role: input.role });
     return error ? c.json({ error: 'Failed to send invite: ' + error.message }, 400) : c.json({ ok: true });
+  });
+
+  app.post('/api/admin/team/promote', async c => {
+    if (c.get('user').role !== 'owner') return c.json({ error: 'Only the agency owner can directly promote team members.' }, 403);
+    const { email, role } = z.object({
+      email: z.string().email(),
+      role: z.enum(['administrator', 'product_manager', 'support'])
+    }).parse(await c.req.json());
+
+    const cleanEmail = email.trim().toLowerCase();
+
+    // 1. Try RPC admin_direct_promote_staff
+    const rpcRes = await c.get('db').rpc('admin_direct_promote_staff', { p_email: cleanEmail, p_role: role });
+    if (!rpcRes.error) {
+      return c.json({ ok: true, member: rpcRes.data });
+    }
+
+    // 2. Direct database promotion via service role fallback
+    const adminDb = (c.env.SUPABASE_SERVICE_ROLE_KEY && !c.env.SUPABASE_SERVICE_ROLE_KEY.includes('YOUR_'))
+      ? createClient(c.env.SUPABASE_URL!, c.env.SUPABASE_SERVICE_ROLE_KEY!)
+      : c.get('db');
+
+    // Look up customer in customer list
+    const { data: customerList } = await c.get('db').rpc('admin_list_customers');
+    const target = (customerList?.items || []).find((u: any) => u.email?.toLowerCase() === cleanEmail);
+
+    if (!target) {
+      return c.json({ error: `No registered account found with email "${email}". The customer must register on the website first.` }, 400);
+    }
+
+    const { error: upsertErr } = await adminDb.from('staff_memberships').upsert({
+      user_id: target.id,
+      role,
+      active: true
+    });
+    if (upsertErr) return c.json({ error: 'Failed to promote member: ' + upsertErr.message }, 500);
+
+    // Accept pending invitations for this email
+    await adminDb.from('staff_invitations').update({ status: 'accepted' }).eq('email', cleanEmail);
+
+    return c.json({ ok: true });
   });
 
   app.post('/api/admin/team/:id/suspend', async c => {

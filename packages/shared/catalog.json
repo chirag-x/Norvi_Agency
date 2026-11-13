@@ -311,53 +311,68 @@
         "heroMediaUrl": null,
         "featurePillars": [
           {
-            "id": "pillar-1792823248430-upru",
+            "id": "voro-p1",
             "tag": "Completely Undetectable",
             "icon": "Shield",
             "title": "100% Invisible Across All of Windows",
-            "description": "Voro is built to be completely invisible on your computer. When you share your screen on Zoom, Microsoft Teams, or Google Meet, the interviewer will never see Voro. Even better, Voro can hide completely from your Windows Taskbar, System Tray, Task Manager, and screen recorders. You get help right in front of you while looking 100% clean."
+            "description": "Voro is built to be completely invisible on your computer. When you share your screen on Zoom, Microsoft Teams, or Google Meet, the interviewer will never see Voro. Even better, Voro can hide completely from your Windows Taskbar, System Tray, Task Manager, and screen recorders. You get help right in front of you while looking 100% clean.",
+            "shortDescription": "Completely invisible during Zoom, Teams, and Meet screen sharing, with full Taskbar, Tray, and Task Manager cloaking."
           },
           {
-            "id": "pillar-1792823249412-fv3r",
+            "id": "voro-p2",
             "tag": "Instant Voice AI",
             "icon": "Zap",
             "title": "Understands Questions in Less Than a Second",
-            "description": "Voro listens to the interviewer through your headphones and understands what they asked in less than a second. It automatically separates the interviewer’s voice from your voice, so it always knows who is speaking and gives you the exact answer right when you need it."
+            "description": "Voro listens to the interviewer through your headphones and understands what they asked in less than a second. It automatically separates the interviewer’s voice from your voice, so it always knows who is speaking and gives you the exact answer right when you need it.",
+            "shortDescription": "Listens through your headphones and transcribes interviewer questions in sub-second latency with real-time speaker separation."
           },
           {
-            "id": "pillar-1792823249968-j4ga",
+            "id": "voro-p3",
             "tag": "No Embarrassing Popups",
             "icon": "Check",
             "title": "Smart Push-to-Answer & Auto Answer",
-            "description": "In interviews, interviewers often say casual things like \"Hey, how are you today?\" or \"Can you hear me?\". Voro is smart enough to ignore all the friendly small talk. With simple manual mode (Ctrl+Enter), Voro only answers when you ask it to, giving you the direct technical answer to the real question.\nand if you select auto answer it will give you answers without pressing any key ."
+            "description": "In interviews, interviewers often say casual things like \"Hey, how are you today?\" or \"Can you hear me?\". Voro is smart enough to ignore all the friendly small talk. With simple manual mode (Ctrl+Enter), Voro only answers when you ask it to, giving you the direct technical answer to the real question.\nand if you select auto answer it will give you answers without pressing any key .",
+            "shortDescription": "Filters out casual small talk and only provides technical answers on-demand via Ctrl+Enter or hands-free Auto Answer."
           },
           {
-            "id": "pillar-1792823250573-y2l7",
+            "id": "voro-p4",
             "tag": "Sounds Naturally Like You",
             "icon": "Check",
             "title": "Uses Your Real Resume & Past Experience",
-            "description": "Just paste your resume and the target company's job description into Voro. When the interviewer asks questions like \"Tell me about a time you handled a difficult project\", Voro crafts answers using your real career projects, tech stack, and background, making your answers sound completely genuine."
+            "description": "Just paste your resume and the target company's job description into Voro. When the interviewer asks questions like \"Tell me about a time you handled a difficult project\", Voro crafts answers using your real career projects, tech stack, and background, making your answers sound completely genuine.",
+            "shortDescription": "Ingests your resume and target job description to ground behavioral and technical answers in your genuine past projects."
           },
           {
-            "id": "pillar-1792823251128-bq9d",
+            "id": "voro-p5",
             "tag": "Screen Awareness",
             "icon": "Eye",
             "title": "Reads Your Screen & Solves Live Coding",
-            "description": "Doing a live coding round or technical test? Voro reads whatever is on your screen—including LeetCode, HackerRank, code editors, and technical diagrams. It explains the problem, writes clean code, and explains the time and memory complexity step-by-step so you can speak confidently."
+            "description": "Doing a live coding round or technical test? Voro reads whatever is on your screen—including LeetCode, HackerRank, code editors, and technical diagrams. It explains the problem, writes clean code, and explains the time and memory complexity step-by-step so you can speak confidently.",
+            "shortDescription": "Real-time screen OCR reads LeetCode, HackerRank, and architecture diagrams, producing clean code and Big-O explanations."
           },
           {
-            "id": "pillar-1792823251648-xuin",
+            "id": "voro-p6",
             "tag": "Only You Hear It",
             "icon": "Sparkles",
             "title": "Private Whisper in Your Ear",
-            "description": "If you prefer hearing the answer instead of reading text, Voro can quietly speak answers directly into your headphones. The interviewer cannot hear it at all. Plus, the second you start speaking, Voro immediately stops talking so you never talk over each other."
+            "description": "If you prefer hearing the answer instead of reading text, Voro can quietly speak answers directly into your headphones. The interviewer cannot hear it at all. Plus, the second you start speaking, Voro immediately stops talking so you never talk over each other.",
+            "shortDescription": "Discreet text-to-speech audio piped directly to your earpiece that automatically pauses the moment you start speaking."
           },
           {
-            "id": "pillar-1792823252681-ngk9",
+            "id": "voro-p7",
             "tag": "Zero Data Tracking",
             "icon": "Cpu",
             "title": "100% Private — Runs on Your Computer",
-            "description": "Your privacy is 100% guaranteed. Norvi Agency never records, saves, or sees your audio, screen, or interview questions. Everything runs safely right on your own PC, keeping your interviews, resume, and data completely confidential."
+            "description": "Your privacy is 100% guaranteed. Norvi Agency never records, saves, or sees your audio, screen, or interview questions. Everything runs safely right on your own PC, keeping your interviews, resume, and data completely confidential.",
+            "shortDescription": "Zero audio or screen recording retained. Session data remains strictly on your local machine with end-to-end privacy."
+          },
+          {
+            "id": "voro-p8",
+            "tag": "Instant Panic Cloak",
+            "icon": "Shield",
+            "title": "Emergency Stealth Panic Key & Instant Cloak",
+            "description": "Need to clear your screen instantly? Press your customizable panic hotkey (e.g., Ctrl+Shift+Q or Esc double-tap) to make Voro vanish in less than 50 milliseconds. The overlay immediately terminates display rendering, clears temporary text caches from active memory, and drops background footprint to absolute zero. When you're ready, tap your resume key to restore your session right where you left off.",
+            "shortDescription": "A single customizable hotkey instantly dismisses all HUD overlays and purges active screen traces in under 50 milliseconds."
           }
         ],
         "platformBadges": [
@@ -501,53 +516,68 @@
         "heroMediaUrl": null,
         "featurePillars": [
           {
-            "id": "pillar-1794561733657-zad8",
+            "id": "nexus-p1",
             "tag": "Automatic Clip Finder",
             "icon": "Sparkles",
             "title": "Finds the Most Exciting Moments Automatically",
-            "description": "Say goodbye to scrubbing through 2-hour podcast timelines. Nexus listens to the entire video, detects peak story moments and gripping statements, and extracts only the clips most likely to hold viewers' attention."
+            "description": "Say goodbye to scrubbing through 2-hour podcast timelines. Nexus listens to the entire video, detects peak story moments and gripping statements, and extracts only the clips most likely to hold viewers' attention.",
+            "shortDescription": "AI analyzes full-length audio and video to detect peak emotional hooks, debates, and viral story arcs in seconds."
           },
           {
-            "id": "pillar-1794561734357-dptf",
+            "id": "nexus-p2",
             "tag": "Smart Vertical Framing",
             "icon": "Eye",
             "title": "Keeps the Speaker Perfectly Centered in 9:16",
-            "description": "Horizontal widescreen videos are automatically converted into modern vertical shorts. Nexus tracks who is speaking and keeps their face centered. When the camera angle suddenly switches between host and guest, Nexus instantly cuts to the new speaker without dizzy sliding."
+            "description": "Horizontal widescreen videos are automatically converted into modern vertical shorts. Nexus tracks who is speaking and keeps their face centered. When the camera angle suddenly switches between host and guest, Nexus instantly cuts to the new speaker without dizzy sliding.",
+            "shortDescription": "Dynamic face-tracking converts widescreen video to vertical format with instant, non-dizzy cut transitions between speakers."
           },
           {
-            "id": "pillar-1794561735004-onqe",
+            "id": "nexus-p3",
             "tag": "Eye-Catching Subtitles",
             "icon": "Layers",
             "title": "Viral Animated Captions",
-            "description": "Over 80% of short-form viewers watch with the sound off. Nexus generates bold, animated word-by-word subtitles with vibrant highlight colors. Choose from famous creator styles including Hormozi Viral, MrBeast Explosive, Minimalist Clean, or Neon Cyber."
+            "description": "Over 80% of short-form viewers watch with the sound off. Nexus generates bold, animated word-by-word subtitles with vibrant highlight colors. Choose from famous creator styles including Hormozi Viral, MrBeast Explosive, Minimalist Clean, or Neon Cyber.",
+            "shortDescription": "Word-by-word animated subtitles with dynamic color highlighting in proven Hormozi, MrBeast, and Cyber creator styles."
           },
           {
-            "id": "pillar-1794561735589-f3fp",
+            "id": "nexus-p4",
             "tag": "Virality Predictions",
             "icon": "Globe",
             "title": "Predicts Virality Scores Before You Post",
-            "description": "Nexus gives every extracted clip an AI virality score from 1 to 10 along with a breakdown of why it will hook viewers. It also writes catchy titles, descriptions, and hashtags tailored for the algorithms."
+            "description": "Nexus gives every extracted clip an AI virality score from 1 to 10 along with a breakdown of why it will hook viewers. It also writes catchy titles, descriptions, and hashtags tailored for the algorithms.",
+            "shortDescription": "Evaluates hook strength with an AI score from 1 to 10, accompanied by algorithm-optimized titles, descriptions, and tags."
           },
           {
-            "id": "pillar-1794561736222-54s0",
+            "id": "nexus-p5",
             "tag": "Hands-Free Publishing",
             "icon": "Bot",
-            "title": "Publishes Directly to Your Social Media.",
-            "description": "Never spend your evenings logging into three different social media apps. Add your finished clips to the Publishing Queue, pick your dates and times, and Nexus uploads them directly to your accounts with the right titles and tags."
+            "title": "Publishes Directly to Your Social Media",
+            "description": "Never spend your evenings logging into three different social media apps. Add your finished clips to the Publishing Queue, pick your dates and times, and Nexus uploads them directly to your accounts with the right titles and tags.",
+            "shortDescription": "One-click publishing queue automatically pushes finalized vertical clips directly to YouTube Shorts, TikTok, and Instagram Reels."
           },
           {
-            "id": "pillar-1794561736789-dynr",
+            "id": "nexus-p6",
             "tag": "Quiet Background Helper",
             "icon": "Zap",
             "title": "Works Silently in the Background While You Sleep",
-            "description": "Nexus minimizes neatly into your Windows system tray. It monitors your visual content schedule and automatically publishes your videos at peak audience engagement hours, even when the main window is closed."
+            "description": "Nexus minimizes neatly into your Windows system tray. It monitors your visual content schedule and automatically publishes your videos at peak audience engagement hours, even when the main window is closed.",
+            "shortDescription": "Runs quietly in the Windows system tray to batch render and publish video schedules during peak engagement hours."
           },
           {
-            "id": "pillar-1794561737356-hrpi",
+            "id": "nexus-p7",
             "tag": "Zero Setup Cloud Brain",
             "icon": "Cpu",
             "title": "100% Cloud AI Brain — Zero Complicated Setup",
-            "description": "You do not need an expensive gaming rig, special graphics cards, or confusing software installations. All AI analysis is handled in the cloud by NORVI. Simply log in, and you are ready to produce viral shorts immediately."
+            "description": "You do not need an expensive gaming rig, special graphics cards, or confusing software installations. All AI analysis is handled in the cloud by NORVI. Simply log in, and you are ready to produce viral shorts immediately.",
+            "shortDescription": "No expensive GPUs or complex command lines required. Enterprise cloud rendering handles heavy workloads seamlessly."
+          },
+          {
+            "id": "nexus-p8",
+            "tag": "Retention Booster",
+            "icon": "Sparkles",
+            "title": "AI Hook Enhancer & B-Roll Overlay",
+            "description": "The first 3 seconds determine whether a viewer swipes away or watches to the end. Nexus analyzes your clip's opening sentence and automatically overlays high-impact visual hooks, zoom punch-ins, sound effects, and relevant royalty-free B-roll clips. Retain viewers through the critical introductory drop-off and boost your Shorts and Reels completion rates up to 300%.",
+            "shortDescription": "Injects punchy 3-second hook headlines, dynamic zoom punch-ins, and contextual royalty-free B-roll to 3x viewer retention."
           }
         ],
         "platformBadges": [
@@ -580,18 +610,34 @@
       "owner": [
         "*"
       ],
+      "support": [
+        "",
+        "/customers",
+        "/licenses",
+        "/devices",
+        "/orders",
+        "/payments",
+        "/support",
+        "/announcements"
+      ],
       "administrator": [
         "",
         "/products",
-        "/releases",
         "/categories",
-        "/customers",
-        "/licenses",
-        "/orders",
+        "/devices",
+        "/payments",
+        "/support",
         "/subscriptions",
         "/announcements",
         "/content",
-        "/activity"
+        "/activity",
+        "/inquiries",
+        "/promotions",
+        "/affiliates",
+        "/team",
+        "/ai-agent",
+        "/marketing",
+        "/releases"
       ],
       "product_manager": [
         "",
@@ -600,13 +646,6 @@
         "/categories",
         "/announcements",
         "/content"
-      ],
-      "support": [
-        "",
-        "/customers",
-        "/licenses",
-        "/orders",
-        "/announcements"
       ]
     },
     "bannerText": "Get Extra 10% Off On All Agents | Nexus & Rolvio are Launching On 30!",

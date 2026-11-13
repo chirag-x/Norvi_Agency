@@ -196,19 +196,23 @@ export function Detail({product, settings, isCatalogLoaded = true}:{product:Prod
 
       <div className="detail-hero">
         <div>
-          <ProductIcon product={product} size={48}/>
-          <span className="category block" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-            <span>{product.subHeading || product.extendedContent?.subHeading || (typeof product.category === 'string' ? product.category : product.category?.name) || 'Desktop Agent'}</span>
-            <span>&middot;</span>
-            {product.releaseStatus === 'live' && product.status !== 'archived' ? (
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, color: '#4ade80', fontWeight: 700 }}>
-                <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 8px #22c55e', display: 'inline-block' }} />
-                Live
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 16 }}>
+            <ProductIcon product={product} size={48}/>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <span className="category" style={{ margin: 0, textTransform: 'uppercase', letterSpacing: '0.04em', fontSize: 13, fontWeight: 600, color: 'var(--muted)' }}>
+                {product.subHeading || product.extendedContent?.subHeading || (typeof product.category === 'string' ? product.category : product.category?.name) || 'Desktop Agent'}
               </span>
-            ) : (
-              <span>{product.releaseStatus === 'development' ? 'In development' : product.releaseStatus === 'prelaunch' ? 'Preparing for launch' : 'Sales paused'}</span>
-            )}
-          </span>
+              <span style={{ color: 'var(--border)' }}>&middot;</span>
+              {product.releaseStatus === 'live' && product.status !== 'archived' ? (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, color: '#4ade80', fontWeight: 700, fontSize: 13 }}>
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 8px #22c55e', display: 'inline-block' }} />
+                  Live
+                </span>
+              ) : (
+                <span style={{ fontSize: 13, color: 'var(--muted)' }}>{product.releaseStatus === 'development' ? 'In development' : product.releaseStatus === 'prelaunch' ? 'Preparing for launch' : 'Sales paused'}</span>
+              )}
+            </div>
+          </div>
           <h1>{product.name}</h1>
           <p className="lead">{product.tagline}</p>
           <p>{product.description}</p>
@@ -313,7 +317,7 @@ export function Detail({product, settings, isCatalogLoaded = true}:{product:Prod
                   {pillar.tag && <span className="pillar-tag">{pillar.tag}</span>}
                 </div>
                 <h3>{pillar.title}</h3>
-                <p>{pillar.description}</p>
+                <p>{pillar.shortDescription || pillar.description}</p>
                 <div style={{ marginTop: 'auto', paddingTop: 14, display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--lime)', fontWeight: 600 }}>
                   <span>{pillar.mediaUrl ? 'View demo & details' : 'Explore capability'}</span>
                   <ArrowUpRight size={14} />
