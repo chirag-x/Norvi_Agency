@@ -1,5 +1,5 @@
 import { AccountAuth, AccountSecurity } from './Accounts';
-import { ArrowUpRight, ArrowRight, Workflow, MessageSquare, Sparkles, ShieldCheck, KeyRound, Download, Check, Menu, X, Plus, Command, ChevronDown , Instagram, Youtube, Facebook, Twitter} from 'lucide-react';
+import { ArrowUpRight, ArrowRight, Workflow, MessageSquare, Sparkles, ShieldCheck, KeyRound, Download, Check, Menu, X, Plus, Command, ChevronDown , Instagram, Youtube, Facebook, Twitter, Bot} from 'lucide-react';
 import { useEffect, useState, useRef } from 'react';
 import { Catalog, Detail, PartnerProgram, About, Help, Contact, Legal, Checkout, NotFound } from './PublicPages';
 import { Workspace, OrderStatus } from './Workspace';
@@ -13,6 +13,7 @@ function ChatWidget() {
   const [messages, setMessages] = useState([{role: 'ai', content: 'Hi there! How can I help you today?'}]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [hovered, setHovered] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -63,25 +64,79 @@ function ChatWidget() {
   };
 
   return (
-    <div className="chat-widget" style={{position:'fixed', bottom:24, right:24, zIndex:9999}}>
-      {!open && (
-        <button onClick={() => setOpen(true)} style={{
-          width: 60, height: 60, borderRadius: 30, background: 'var(--accent)', color: 'black', 
-          border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.5)'
+    <div 
+      className="chat-widget" 
+      style={{
+        position: 'fixed', 
+        bottom: 24, 
+        right: 24, 
+        zIndex: 9999,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'flex-end',
+        pointerEvents: 'auto'
+      }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      {!open && hovered && (
+        <div style={{
+          background: 'rgba(15, 20, 14, 0.95)',
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
+          color: '#ecefe9',
+          fontSize: 12,
+          fontWeight: 500,
+          padding: '7px 12px',
+          borderRadius: 8,
+          marginRight: 10,
+          whiteSpace: 'nowrap',
+          border: '1px solid rgba(255,255,255,0.12)',
+          boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6
         }}>
-          <MessageSquare size={28} />
+          <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#d4f89c', display: 'inline-block' }} />
+          Ask AI Support
+        </div>
+      )}
+
+      {!open && (
+        <button 
+          onClick={() => setOpen(true)} 
+          aria-label="Open AI Support Chat"
+          style={{
+            width: 56, 
+            height: 56, 
+            borderRadius: 28, 
+            background: 'linear-gradient(135deg, #d4f89c 0%, #b4ef54 100%)', 
+            color: '#111411', 
+            border: '1px solid rgba(255, 255, 255, 0.4)', 
+            cursor: 'pointer', 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center',
+            boxShadow: '0 4px 18px rgba(180, 239, 84, 0.45)',
+            transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+            transform: hovered ? 'scale(1.08)' : 'scale(1)'
+          }}
+        >
+          <Bot size={28} strokeWidth={2.2} />
         </button>
       )}
       
       {open && (
         <div style={{
-          width: 350, height: 500, background: 'rgba(13, 17, 12, 0.75)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', border: '1px solid var(--border)', 
+          width: 350, height: 500, background: 'rgba(13, 17, 12, 0.88)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', border: '1px solid var(--border)', 
           borderRadius: 12, display: 'flex', flexDirection: 'column', overflow: 'hidden',
           boxShadow: '0 8px 24px rgba(0,0,0,0.5)'
         }}>
           <div style={{background: 'rgba(255, 255, 255, 0.03)', padding: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border)'}}>
-            <h3 style={{margin: 0, fontSize: 16}}>NORVI AI Support</h3>
+            <h3 style={{margin: 0, fontSize: 16, display: 'flex', alignItems: 'center', gap: 8}}>
+              <Bot size={18} style={{color: 'var(--lime)'}} />
+              <span>NORVI AI Support</span>
+            </h3>
             <button onClick={() => setOpen(false)} style={{background: 'transparent', border: 'none', color: 'var(--text-light)', cursor: 'pointer'}}><X size={20}/></button>
           </div>
           
@@ -89,12 +144,54 @@ function ChatWidget() {
             {messages.map((m, i) => (
               <div key={i} style={{
                 alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start',
-                background: m.role === 'user' ? 'var(--accent)' : 'var(--panel)',
-                color: m.role === 'user' ? 'black' : 'var(--text)',
+                background: m.role === 'user' ? 'var(--lime)' : 'var(--panel)',
+                color: m.role === 'user' ? '#111411' : 'var(--text)',
                 padding: '10px 14px', borderRadius: 12, maxWidth: '85%', fontSize: 14,
+                fontWeight: m.role === 'user' ? 500 : 400,
                 border: m.role === 'error' ? '1px solid var(--red)' : 'none'
               }}>
                 <p style={{margin: 0, whiteSpace: 'pre-wrap'}}>{m.content}</p>
+                {m.role === 'ai' && m.content.length > 30 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8, paddingTop: 8, borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
+                    <a
+                      href="https://wa.me/919893534314?text=Hi%20NORVI%20Support%2C%20I%20have%20a%20question."
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 4,
+                        background: 'rgba(37, 211, 102, 0.14)',
+                        border: '1px solid rgba(37, 211, 102, 0.35)',
+                        color: '#4ade80',
+                        fontSize: 11,
+                        fontWeight: 600,
+                        padding: '3px 8px',
+                        borderRadius: 5,
+                        textDecoration: 'none'
+                      }}
+                    >
+                      WhatsApp Support ↗
+                    </a>
+                    <a
+                      href="/contact"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 4,
+                        background: 'rgba(255, 255, 255, 0.06)',
+                        border: '1px solid rgba(255, 255, 255, 0.12)',
+                        color: '#e2e8f0',
+                        fontSize: 11,
+                        padding: '3px 8px',
+                        borderRadius: 5,
+                        textDecoration: 'none'
+                      }}
+                    >
+                      Contact Form
+                    </a>
+                  </div>
+                )}
               </div>
             ))}
             {loading && messages[messages.length-1].role === 'user' && (
@@ -106,12 +203,86 @@ function ChatWidget() {
           <form onSubmit={send} style={{display: 'flex', padding: 12, borderTop: '1px solid var(--border)', background: 'rgba(0, 0, 0, 0.2)'}}>
             <input type="text" value={input} onChange={e => setInput(e.target.value)} placeholder="Ask a question..." disabled={loading} 
               style={{flex: 1, background: 'transparent', border: 'none', color: 'var(--text)', outline: 'none', fontSize: 14}} />
-            <button type="submit" disabled={loading || !input.trim()} style={{background: 'transparent', border: 'none', color: 'var(--accent)', cursor: 'pointer', opacity: loading || !input.trim() ? 0.5 : 1}}>
+            <button type="submit" disabled={loading || !input.trim()} style={{background: 'transparent', border: 'none', color: 'var(--lime)', cursor: 'pointer', opacity: loading || !input.trim() ? 0.5 : 1}}>
               <ArrowRight size={20} />
             </button>
           </form>
         </div>
       )}
+    </div>
+  );
+}
+
+function WhatsAppWidget() {
+  const [hovered, setHovered] = useState(false);
+  const phone = '919893534314';
+  const defaultMsg = encodeURIComponent('Hi NORVI Agency, I have a question about your AI agents.');
+  const href = `https://wa.me/${phone}?text=${defaultMsg}`;
+
+  return (
+    <div
+      className="whatsapp-widget"
+      style={{
+        position: 'fixed',
+        bottom: 94,
+        right: 24,
+        zIndex: 9998,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'flex-end',
+        pointerEvents: 'auto'
+      }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      {hovered && (
+        <div
+          style={{
+            background: 'rgba(15, 20, 14, 0.95)',
+            backdropFilter: 'blur(12px)',
+            WebkitBackdropFilter: 'blur(12px)',
+            color: '#ecefe9',
+            fontSize: 12,
+            fontWeight: 500,
+            padding: '7px 12px',
+            borderRadius: 8,
+            marginRight: 10,
+            whiteSpace: 'nowrap',
+            border: '1px solid rgba(255,255,255,0.12)',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6
+          }}
+        >
+          <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#25D366', display: 'inline-block' }} />
+          Chat on WhatsApp (+91 9893534314)
+        </div>
+      )}
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="Chat with NORVI Agency on WhatsApp"
+        style={{
+          width: 56,
+          height: 56,
+          borderRadius: 28,
+          background: '#25D366',
+          color: '#ffffff',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          boxShadow: '0 4px 18px rgba(37, 211, 102, 0.45)',
+          transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+          transform: hovered ? 'scale(1.08)' : 'scale(1)',
+          textDecoration: 'none'
+        }}
+      >
+        <svg width="30" height="30" viewBox="0 0 32 32" style={{ display: 'block' }}>
+          <path fill="#FFFFFF" d="M23.21 8.79A10.15 10.15 0 0016 5.87a10.19 10.19 0 00-8.8 15.22L6 26l5.08-1.33a10.13 10.13 0 004.92 1.28h0a10.19 10.19 0 0010.21-10.21 10.14 10.14 0 00-3-7.95zM16 24.31a8.42 8.42 0 01-4.3-1.18l-.31-.18-3.21.84.86-3.13-.2-.32a8.47 8.47 0 117.26 3.97zm4.64-6.33c-.25-.13-1.5-.74-1.73-.83s-.4-.13-.57.13-.66.83-.81 1-.3.18-.55.05a6.92 6.92 0 01-2.04-1.26 7.62 7.62 0 01-1.41-1.75c-.15-.25 0-.38.11-.51s.25-.3.38-.45a1.72 1.72 0 00.25-.43.46.46 0 00-.02-.44c-.06-.13-.57-1.38-.79-1.89s-.43-.43-.57-.43h-.49a.94.94 0 00-.68.32 2.87 2.87 0 00-.9 2.13 5 5 0 001.05 2.64 10.87 10.87 0 004.13 3.65 14.71 14.71 0 001.46.55 3.52 3.52 0 001.62.1 2.72 2.72 0 001.78-1.24 2.22 2.22 0 00.15-1.24c-.07-.13-.25-.2-.5-.33z"/>
+        </svg>
+      </a>
     </div>
   );
 }
@@ -155,7 +326,7 @@ function CookieConsentBanner({ showModal, onClose }: { showModal: boolean; onClo
           <span>🍪</span> Advertising & Privacy Preferences
         </div>
         <p style={{ margin: 0, fontSize: 12, color: 'var(--text-light)', lineHeight: 1.5 }}>
-          We use optional Meta Pixel tracking to measure advertising performance. We never share customer audio, interview transcripts, or AI tokens.
+          We use optional Meta Pixel tracking to measure advertising performance. We never share customer audio, interview transcripts, or private application data.
         </p>
       </div>
       <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
@@ -240,7 +411,7 @@ export default function App({ initialPath }: { initialPath: string }) {
     const slugProduct = products.find(p=>p.slug===path.split('/')[2]);
     content = (!slugProduct && !isDataLoaded) ? loadingScreen : <Detail product={slugProduct} settings={settings} isCatalogLoaded={isDataLoaded}/>;
   }
-  else if(path==='/partners') content=<PartnerProgram settings={settings}/>;
+  else if(path==='/partners') content=<PartnerProgram settings={settings} user={user}/>;
   else if(path==='/about') content=<About/>;
   else if(path==='/help') content=<Help/>;
   else if(path==='/contact') content=<Contact settings={settings}/>;
@@ -260,7 +431,7 @@ export default function App({ initialPath }: { initialPath: string }) {
         <span>{settings.bannerText}</span>
       </div>
     )}
-    {!workspace && <header className="header"><a className="brand" href="/"><img src="/logo.jpg?v=2" alt="NORVI Agency" style={{width: 34, height: 34, borderRadius: 4, objectFit: "contain", marginRight: 10}}/>{settings.name}</a><nav className={menu?'nav open':'nav'} aria-label="Main navigation"><a className={path.startsWith('/agents')?'active':''} href="/agents">Explore agents</a><a href="/partners">Partner Program</a><a href="/about">Our story</a><a href="/help">Resources</a></nav><div className="header-actions"><span style={{display:'inline-flex',alignItems:'center',justifyContent:'flex-end',minWidth:44,opacity:isAuthChecked?1:0,transition:'opacity 0.15s ease'}}>{user?<a href={user.role==='customer'?'/account':'/admin'} className="user-avatar-link" title="My Account" style={{display:'flex',textDecoration:'none'}}><span className="avatar">{user.name.slice(0,1).toUpperCase()}</span></a>:<a href="/login" className="login-link">Log in</a>}</span><a className="button button-small primary" href="/agents">Find your agent <ArrowUpRight size={16}/></a><button className="icon-button mobile-menu" aria-label="Toggle navigation" aria-expanded={menu} onClick={()=>setMenu(!menu)}>{menu?<X/>:<Menu/>}</button></div></header>}<main id="main-content">{content}</main>{!workspace&&<Footer settings={settings} onOpenConsent={()=>setShowConsentModal(true)}/>}<ChatWidget /><CookieConsentBanner showModal={showConsentModal} onClose={()=>setShowConsentModal(false)} />
+    {!workspace && <header className="header"><a className="brand" href="/"><img src="/logo.jpg?v=2" alt="NORVI Agency" style={{width: 34, height: 34, borderRadius: 4, objectFit: "contain", marginRight: 10}}/>{settings.name}</a><nav className={menu?'nav open':'nav'} aria-label="Main navigation"><a className={path.startsWith('/agents')?'active':''} href="/agents">Explore agents</a><a href="/partners">Partner Program</a><a href="/about">Our story</a><a href="/help">Resources</a></nav><div className="header-actions"><span style={{display:'inline-flex',alignItems:'center',justifyContent:'flex-end',minWidth:44,opacity:isAuthChecked?1:0,transition:'opacity 0.15s ease'}}>{user?<a href={user.role==='customer'?'/account':'/admin'} className="user-avatar-link" title="My Account" style={{display:'flex',textDecoration:'none'}}><span className="avatar">{user.name.slice(0,1).toUpperCase()}</span></a>:<a href="/login" className="login-link">Log in</a>}</span><a className="button button-small primary" href="/agents">Find your agent <ArrowUpRight size={16}/></a><button className="icon-button mobile-menu" aria-label="Toggle navigation" aria-expanded={menu} onClick={()=>setMenu(!menu)}>{menu?<X/>:<Menu/>}</button></div></header>}<main id="main-content">{content}</main>{!workspace&&<Footer settings={settings} onOpenConsent={()=>setShowConsentModal(true)}/>}<WhatsAppWidget /><ChatWidget /><CookieConsentBanner showModal={showConsentModal} onClose={()=>setShowConsentModal(false)} />
       {verified && (
         <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(0,0,0,0.85)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center', padding:'20px'}}>
           <div className="panel" style={{maxWidth: 420, width: '100%', textAlign:'center', padding:'40px 30px'}}>
@@ -287,13 +458,13 @@ export function ProductCard({product}:{product:Product}){
         <ProductIcon product={product}/>
         <ArrowUpRight size={19}/>
       </div>
-      <span className="category">{typeof product.category === 'string' ? product.category : (product.category?.name || 'Agent')}</span>
+      <span className="category">{product.subHeading || product.extendedContent?.subHeading || (typeof product.category === 'string' ? product.category : product.category?.name) || 'Desktop Agent'}</span>
       <h3>{product.name}</h3>
       <p>{product.tagline}</p>
 
       {product.features && product.features.length > 0 && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, margin: '12px 0 10px 0' }}>
-          {product.features.slice(0, 2).map((feat, i) => (
+          {product.features.map((feat, i) => (
             <span key={i} style={{ fontSize: 11, padding: '3px 8px', borderRadius: 4, background: 'rgba(255,255,255,0.03)', color: 'var(--muted)', border: '1px solid var(--line)', whiteSpace: 'nowrap' }}>
               {feat}
             </span>
@@ -302,9 +473,26 @@ export function ProductCard({product}:{product:Product}){
       )}
 
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center', marginTop: 12 }}>
-        <span className="badge">
-          {product.releaseStatus === 'development' ? 'In development' : product.releaseStatus === 'prelaunch' ? 'Preparing for launch' : product.status === 'archived' ? 'Sales paused' : 'Live'}
-        </span>
+        {product.releaseStatus === 'live' && product.status !== 'archived' ? (
+          <span className="badge" style={{ 
+            display: 'inline-flex', 
+            alignItems: 'center', 
+            gap: 6, 
+            background: 'rgba(34, 197, 94, 0.14)', 
+            color: '#4ade80', 
+            borderColor: 'rgba(34, 197, 94, 0.45)', 
+            fontWeight: 700,
+            padding: '3px 9px',
+            boxShadow: '0 0 10px rgba(34, 197, 94, 0.2)'
+          }}>
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 8px #22c55e', display: 'inline-block' }} />
+            Live
+          </span>
+        ) : (
+          <span className="badge">
+            {product.releaseStatus === 'development' ? 'In development' : product.releaseStatus === 'prelaunch' ? 'Preparing for launch' : product.status === 'archived' ? 'Sales paused' : 'Live'}
+          </span>
+        )}
         {startingPrice > 0 && product.releaseStatus !== 'development' && (
           <span className="badge" style={{ color: 'var(--lime)', borderColor: 'rgba(200,255,100,0.3)', fontWeight: 600 }}>
             From ₹{startingPrice.toLocaleString('en-IN')}/mo
@@ -325,5 +513,5 @@ export function ProductCard({product}:{product:Product}){
   );
 }
 
-function Home({products,settings}:{products:Product[];settings:Settings}){return <><section className="hero container"><div className="hero-copy"><div className="eyebrow"><span className="tiny-spark">✦</span> A NEW WAY TO GET THINGS DONE</div><h1>{settings.headline==="Less busywork.\\nMore possibility." || settings.headline==="Less busywork.\nMore possibility."?<>Less busywork.<br/>More <span className="serif">possibility.</span></>:<span className="customheadline" dangerouslySetInnerHTML={{__html: settings.headline.replace(/\\n|\n/g, '<br/>')}} />}</h1><p>{settings.description}</p><div className="hero-buttons"><a className="button primary" href="/agents">Explore the agents <ArrowUpRight size={19}/></a><a className="text-button" href="#how-it-works">See how it works <ArrowRight size={17}/></a></div><div className="hero-note"><ShieldCheck size={16}/><span>Your account. Your agents. Your access.</span></div><div className="hero-social-links" style={{display:'flex',gap:'1.5rem',marginTop:'1.5rem'}}>{settings.socialInstagram && <a href={settings.socialInstagram} target="_blank" rel="noreferrer" style={{color:'#E1306C'}}><Instagram size={22}/></a>}{settings.socialYoutube && <a href={settings.socialYoutube} target="_blank" rel="noreferrer" style={{color:'#FF0000'}}><Youtube size={22}/></a>}{settings.socialFacebook && <a href={settings.socialFacebook} target="_blank" rel="noreferrer" style={{color:'#1877F2'}}><Facebook size={22}/></a>}{settings.socialTwitter && <a href={settings.socialTwitter} target="_blank" rel="noreferrer" style={{color:'#1DA1F2'}}><Twitter size={22}/></a>}</div></div><div className="hero-console"><div className="console-top"><span><span className="console-dot"/> YOUR NEXT WORKFLOW</span><span>01 / 03</span></div><div className="workflow-title"><span className="mini-label">FROM TO-DO TO DONE</span><h2>Give the routine<br/>a new routine.</h2><p>A simpler way to put your agents to work.</p></div><div className="flow-line"><div className="flow-node"><span className="node-symbol"><Plus size={19}/></span><span><b>Choose your task</b><small>Start with what slows you down</small></span><span className="step-index">01</span></div><div className="connector"/><div className="flow-node selected"><span className="node-symbol"><Sparkles size={19}/></span><span><b>Meet your agent</b><small>The right tool for the right work</small></span><span className="step-index">02</span></div><div className="connector"/><div className="flow-node"><span className="node-symbol"><Check size={19}/></span><span><b>Make space for more</b><small>Bring your focus back to you</small></span><span className="step-index">03</span></div></div><div className="console-bottom"><span>Designed around your workflow</span><Workflow size={17}/></div></div></section><div className="value-ribbon"><div className="container" style={{display:'grid',gridTemplateColumns:'repeat(auto-fit, minmax(200px, 1fr))',gap:'16px',alignItems:'center'}}><span><ShieldCheck size={18} style={{color:'var(--lime)'}}/> 100% Undetectable Display</span><span><Workflow size={18} style={{color:'var(--lime)'}}/> Hardware Audio Routing</span><span><Download size={18} style={{color:'var(--lime)'}}/> 100% Local PC Execution</span><span><Sparkles size={18} style={{color:'var(--lime)'}}/> Zero Cloud Token Markups</span></div></div><section className="section container" id="agents"><div className="section-heading"><div><span className="eyebrow">THE AGENT COLLECTION</span><h2>Small tools.<br/><span className="muted">Bigger possibilities.</span></h2></div><div className="section-aside"><p>Explore your next addition to the workday.<br/>One agent. One less thing on your list.</p><a className="text-button" href="/agents">View all agents <ArrowUpRight size={17}/></a></div></div><div className="product-grid">{products.slice(0,3).map(p=><ProductCard key={p.id} product={p}/>)}</div>{settings.bannerText ? <p className="fineprint">{settings.bannerText}</p> : null}</section><section className="how-section" id="how-it-works"><div className="container"><div className="section-heading"><div><span className="eyebrow">LESS SETUP. MORE MOMENTUM.</span><h2>A clear path to<br/>your next agent.</h2></div><p className="section-aside">From discovery to your desktop,<br/>everything has its place.</p></div><div className="steps">{[['01','Find your fit','Explore the features, requirements, and workflow of each agent.'],['02','Make it yours','Create an account and choose the agent that fits your work.'],['03','Activate & go','Find your personal key in your account, download, and activate.']].map(([n,t,d])=><div className="step" key={n}><span>{n}</span><h3>{t}</h3><p>{d}</p></div>)}</div></div></section><section className="section container"><div className="faq-layout"><div><span className="eyebrow">GOOD QUESTIONS</span><h2>A little clarity<br/>goes a long way.</h2><a className="text-button" href="/help">Visit the help center <ArrowUpRight size={16}/></a></div><div className="faqs">{[['What is an AI agent?','An AI agent is software designed to help with a particular task or workflow. Each product page will explain its specific capabilities and requirements.'],['Where do I find my activation key?','Your key appears in your account after a verified purchase. You also receive it in your first purchase email.'],['Can I use one key for every agent?','Each license belongs to one customer and one product. Different agents require different keys.'],['Are AI usage costs included?','All licenses include unlimited local AI execution. Any optional high-speed cloud AI tokens or external APIs are transparently listed on each agent page.']].map(([q,a])=><details key={q}><summary>{q}<Plus size={18}/></summary><p>{a}</p></details>)}</div></div></section><section className="cta container"><div><span className="eyebrow">MAKE ROOM FOR YOUR NEXT BIG THING</span><h2>Your workday.<br/>With a little more <span className="serif">possibility.</span></h2></div><a className="button dark" href="/agents">Find your agent <ArrowUpRight size={19}/></a></section></>;}
+function Home({products,settings}:{products:Product[];settings:Settings}){return <><section className="hero container"><div className="hero-copy"><div className="eyebrow"><span className="tiny-spark">✦</span> A NEW WAY TO GET THINGS DONE</div><h1>{settings.headline==="Less busywork.\\nMore possibility." || settings.headline==="Less busywork.\nMore possibility."?<>Less busywork.<br/>More <span className="serif">possibility.</span></>:<span className="customheadline" dangerouslySetInnerHTML={{__html: settings.headline.replace(/\\n|\n/g, '<br/>')}} />}</h1><p>{settings.description}</p><div className="hero-buttons"><a className="button primary" href="/agents">Explore the agents <ArrowUpRight size={19}/></a><a className="text-button" href="#how-it-works">See how it works <ArrowRight size={17}/></a></div><div className="hero-note"><ShieldCheck size={16}/><span>Your account. Your agents. Your access.</span></div><div className="hero-social-links" style={{display:'flex',gap:'1.5rem',marginTop:'1.5rem'}}>{settings.socialInstagram && <a href={settings.socialInstagram} target="_blank" rel="noreferrer" style={{color:'#E1306C'}}><Instagram size={22}/></a>}{settings.socialYoutube && <a href={settings.socialYoutube} target="_blank" rel="noreferrer" style={{color:'#FF0000'}}><Youtube size={22}/></a>}{settings.socialFacebook && <a href={settings.socialFacebook} target="_blank" rel="noreferrer" style={{color:'#1877F2'}}><Facebook size={22}/></a>}{settings.socialTwitter && <a href={settings.socialTwitter} target="_blank" rel="noreferrer" style={{color:'#1DA1F2'}}><Twitter size={22}/></a>}</div></div><div className="hero-console"><div className="console-top"><span><span className="console-dot"/> YOUR NEXT WORKFLOW</span><span>01 / 03</span></div><div className="workflow-title"><span className="mini-label">FROM TO-DO TO DONE</span><h2>Give the routine<br/>a new routine.</h2><p>A simpler way to put your agents to work.</p></div><div className="flow-line"><div className="flow-node"><span className="node-symbol"><Plus size={19}/></span><span><b>Choose your task</b><small>Start with what slows you down</small></span><span className="step-index">01</span></div><div className="connector"/><div className="flow-node selected"><span className="node-symbol"><Sparkles size={19}/></span><span><b>Meet your agent</b><small>The right tool for the right work</small></span><span className="step-index">02</span></div><div className="connector"/><div className="flow-node"><span className="node-symbol"><Check size={19}/></span><span><b>Make space for more</b><small>Bring your focus back to you</small></span><span className="step-index">03</span></div></div><div className="console-bottom"><span>Designed around your workflow</span><Workflow size={17}/></div></div></section><div className="value-ribbon"><div className="container" style={{display:'grid',gridTemplateColumns:'repeat(auto-fit, minmax(200px, 1fr))',gap:'16px',alignItems:'center'}}><span><Workflow size={18} style={{color:'var(--lime)'}}/> Autonomous Desktop AI Agents</span><span><ShieldCheck size={18} style={{color:'var(--lime)'}}/> 100% Private Local PC Execution</span><span><KeyRound size={18} style={{color:'var(--lime)'}}/> Instant License &amp; Key Activation</span><span><Sparkles size={18} style={{color:'var(--lime)'}}/> Transparent Pricing · Zero Hidden Fees</span></div></div><section className="section container" id="agents"><div className="section-heading"><div><span className="eyebrow">THE AGENT COLLECTION</span><h2>Small tools.<br/><span className="muted">Bigger possibilities.</span></h2></div><div className="section-aside"><p>Explore your next addition to the workday.<br/>One agent. One less thing on your list.</p><a className="text-button" href="/agents">View all agents <ArrowUpRight size={17}/></a></div></div><div className="product-grid">{products.slice(0,3).map(p=><ProductCard key={p.id} product={p}/>)}</div>{settings.bannerText ? <p className="fineprint">{settings.bannerText}</p> : null}</section><section className="how-section" id="how-it-works"><div className="container"><div className="section-heading"><div><span className="eyebrow">LESS SETUP. MORE MOMENTUM.</span><h2>A clear path to<br/>your next agent.</h2></div><p className="section-aside">From discovery to your desktop,<br/>everything has its place.</p></div><div className="steps">{[['01','Find your dedicated agent','Browse purpose-built agents like Voro (real-time interview & coding copilot), Rolvio (job hunter & tracker), or Nexus (viral content studio). Review transparent hardware specs, live demos, and capabilities.'],['02','Choose your license tier','Select flexible 1-Month, 3-Month, or Lifetime access with zero recurring surprise billing. Pay securely via Razorpay (UPI, Cards, Netbanking) for instant digital fulfillment.'],['03','Install & run locally','Download the lightweight native installer for Windows or macOS directly from your dashboard. Paste your activation key once to unlock full local PC execution with multi-device support.']].map(([n,t,d])=><div className="step" key={n}><span>{n}</span><h3>{t}</h3><p>{d}</p></div>)}</div></div></section><section className="section container"><div className="faq-layout"><div><span className="eyebrow">GOOD QUESTIONS</span><h2>A little clarity<br/>goes a long way.</h2><a className="text-button" href="/help">Visit the help center <ArrowUpRight size={16}/></a></div><div className="faqs">{[['What makes NORVI desktop AI agents different from web chatbots?','Unlike web-based chatbots or browser extensions that require constant cloud uploads, NORVI agents are native desktop applications (Windows 10/11 64-bit and macOS). They run locally on your machine, process screen context and audio with low latency, and keep your sensitive work and private data on your device.'],['How do licenses and device activations work?','Every purchased license allows simultaneous activation on up to 3 of your personal computers (e.g., your desktop and laptop). If you change machines, you can release or rotate your active devices anytime with 1 click directly from your Keys & Devices dashboard.'],['Where and how do I receive my activation key after purchase?','Delivery is instant. The moment your checkout completes via Razorpay, your unique activation key (NORVI-••••-••••) is displayed on screen, added to your /account/licenses dashboard, and emailed to you. You can copy it with one click and activate your agent immediately.'],['Do I have to pay ongoing cloud token fees or hidden markups?','No. All NORVI agents include unlimited local PC execution with zero token markups. For features using high-speed cloud intelligence (such as live transcription or speech models), generous quotas are included or direct transparent routing is provided—with no surprise bills.'],['Can I use my agent offline without an internet connection?','Yes. Once activated, your agent can operate completely offline for up to 24 hours (1 day) before performing a brief background check. You can continue using your tools on your machine even if you are traveling or lose internet connectivity.'],['Can I upgrade my plan from 1-Month or 3-Month to Lifetime later?','Yes. You can renew or upgrade your license tier at any time from your account dashboard. Upgrading to Lifetime access unlocks permanent software updates and priority technical support.']].map(([q,a])=><details key={q}><summary>{q}<Plus size={18}/></summary><p>{a}</p></details>)}</div></div></section><section className="cta container"><div><span className="eyebrow">MAKE ROOM FOR YOUR NEXT BIG THING</span><h2>Your workday.<br/>With a little more <span className="serif">possibility.</span></h2></div><a className="button dark" href="/agents">Find your agent <ArrowUpRight size={19}/></a></section></>;}
 function Footer({settings, onOpenConsent}:{settings:Settings; onOpenConsent?: () => void}){const brandLabel = settings.name === 'NORVI' ? 'NORVI Agency' : settings.name;return <footer className="footer container"><div className="footer-main"><div><a href="/" className="brand"><img src="/logo.jpg?v=2" alt="NORVI Agency" style={{width: 34, height: 34, borderRadius: 4, objectFit: "contain", marginRight: 10}}/>{settings.name}</a><p>A little less routine.<br/>A little more room for you.</p></div><div><b>Explore</b><a href="/agents">All agents</a><a href="/partners">Partner Program</a><a href="/about">Our story</a></div><div><b>Here to help</b><a href="/help">Help center</a><a href="/contact">Contact us</a><a href="/account">My account</a></div><div><b>The details</b><a href="/privacy">Privacy policy</a><a href="/terms">Terms of service</a><a href="/refunds">Refund policy</a><a href="/delivery">Shipping & delivery</a>{onOpenConsent && <button onClick={onOpenConsent} style={{background:'none',border:'none',padding:0,color:'inherit',font:'inherit',textAlign:'left',cursor:'pointer'}}>Cookie preferences</button>}</div></div><div className="footer-bottom"><span>© {new Date().getFullYear()} {brandLabel}. All rights reserved.</span><a href="/license">License agreement <ArrowUpRight size={13}/></a><span>Built for a better workday.</span></div></footer>;}

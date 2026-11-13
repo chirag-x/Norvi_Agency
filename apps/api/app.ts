@@ -39,6 +39,34 @@ export function createApp(repo: Repository, encryptionKey: string, { preview = f
     app.post('/api/licenses/:id/device-reset', async c => { const result = await repo.change(s => { const user = c.get('user'); const l = s.licenses.find(l => l.id === c.req.param('id')); if (!l || (l.userId !== user.id && !permissions.devices.includes(user.role))) return false; l.device = null; audit(s, user, 'Reset device', l.id); return true; }); return result ? c.json({ ok: true }) : c.json({ error: 'License not found.' }, 404); });
     app.post('/api/licenses/:id/download', async c => { const s = await repo.read(); if (s.settings.maintenanceMode) return c.json({ error: 'Downloads are temporarily disabled for maintenance.' }, 503); return c.json({ error: 'No agent release has been uploaded yet. Add the actual agent files before enabling downloads.' }, 409); });
     app.post('/api/support', async c => { const data = z.object({ subject: z.string().trim().min(3).max(120), message: z.string().trim().min(10).max(3000) }).parse(await c.req.json()); await repo.change(s => s.tickets.unshift({ ...data, id: crypto.randomUUID(), userId: c.get('user').id, status: 'open', createdAt: new Date().toISOString() })); return c.json({ ok: true }); });
+    const affiliates: Array<{ userId: string; code: string; status: string; sales: number; totalEarned: number; pendingBalance: number }> = [
+      { userId: 'customer-1', code: 'NORVI10', status: 'active', sales: 3, totalEarned: 150000, pendingBalance: 250000 }
+    ];
+    app.get('/api/partner/stats', async c => {
+      const user = c.get('user');
+      if (!user) return c.json({ active: false, authenticated: false });
+      const aff = affiliates.find(a => a.userId === user.id);
+      if (!aff) return c.json({ active: false, authenticated: true });
+      return c.json({ active: true, ...aff, authenticated: true });
+    });
+    app.get('/api/partner/promotional-content', async c => c.json([]));
+    app.post('/api/partner/join', async c => {
+      const user = c.get('user');
+      if (!user) return c.json({ error: 'Sign in to join.' }, 401);
+      const { code } = z.object({ code: z.string().trim().toUpperCase() }).parse(await c.req.json());
+      const existing = affiliates.find(a => a.userId === user.id);
+      if (existing) {
+        existing.code = code;
+      } else {
+        affiliates.push({ userId: user.id, code, status: 'active', sales: 0, totalEarned: 0, pendingBalance: 0 });
+      }
+      return c.json({ ok: true, code });
+    });
+    app.post('/api/partner/payout', async c => {
+      const user = c.get('user');
+      if (!user) return c.json({ error: 'Sign in to request payout.' }, 401);
+      return c.json({ ok: true });
+    });
     app.use('/api/admin/*', async (c, next) => { if (c.req.path.startsWith('/api/admin/impersonate') && (c.req.method === 'DELETE' || c.req.path.endsWith('/stop'))) return next(); if (c.get('user').role === 'customer') return c.json({ error: 'Staff permission required.' }, 403); await next(); });
     app.get('/api/admin/:section', async c => {
       const section = c.req.param('section'), user = c.get('user');
@@ -198,7 +226,7 @@ export function createApp(repo: Repository, encryptionKey: string, { preview = f
       return c.json({ ok: true });
     });
     app.delete('/api/admin/coupons/:id', async c => c.json({ ok: true }));
-    app.post('/api/admin/products', async c => { const user = c.get('user'); if (!permissions.products.includes(user.role)) return c.json({ error: 'Permission denied.' }, 403); const input = z.object({ id: z.string().optional(), name: z.string().trim().min(2).max(80), slug: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Use lowercase words separated by hyphens.'), categoryId: z.string().min(1), category: z.object({ id: z.string(), slug: z.string(), name: z.string() }).optional(), tagline: z.string().min(3).max(140), description: z.string().min(5).max(2000), price: z.string().min(1).max(50), status: z.enum(['draft', 'published', 'archived']), releaseStatus: z.enum(['development', 'prelaunch', 'live']), logoUrl: z.string().nullable(), features: z.array(z.string().max(120)).max(8), requirements: z.string().max(400), version: z.string().max(40), workflowHeading: z.string().max(150), workflowDescription: z.string().max(2000), workflowMediaUrl: z.string().nullable(), workflowNote: z.string().max(500), extendedContent: z.any().optional(), trialActive: z.boolean().optional() }).parse(await c.req.json()); const result = await repo.change(s => { if (s.products.some(p => p.slug === input.slug && p.id !== input.id)) return { error: 'This URL is already used by another agent.' }; const p = { ...input, id: input.id || crypto.randomUUID(), updatedAt: new Date().toISOString() }; const index = s.products.findIndex(x => x.id === p.id); if (index >= 0) s.products[index] = p; else s.products.push(p); audit(s, user, 'Saved product (' + p.status + ')', p.name); return { product: p }; }); return c.json(result, 'error' in result ? 409 : 200); });
+    app.post('/api/admin/products', async c => { const user = c.get('user'); if (!permissions.products.includes(user.role)) return c.json({ error: 'Permission denied.' }, 403); const input = z.object({ id: z.string().optional(), name: z.string().trim().min(2).max(80), slug: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Use lowercase words separated by hyphens.'), categoryId: z.string().min(1), category: z.object({ id: z.string(), slug: z.string(), name: z.string() }).optional(), subHeading: z.string().optional(), tagline: z.string().min(3).max(140), description: z.string().min(5).max(2000), price: z.string().min(1).max(50), status: z.enum(['draft', 'published', 'archived']), releaseStatus: z.enum(['development', 'prelaunch', 'live']), logoUrl: z.string().nullable(), features: z.array(z.string().max(120)).max(8), requirements: z.string().max(400), version: z.string().max(40), workflowHeading: z.string().max(150), workflowDescription: z.string().max(2000), workflowMediaUrl: z.string().nullable(), workflowNote: z.string().max(500), extendedContent: z.any().optional(), trialActive: z.boolean().optional() }).parse(await c.req.json()); const result = await repo.change(s => { if (s.products.some(p => p.slug === input.slug && p.id !== input.id)) return { error: 'This URL is already used by another agent.' }; const p = { ...input, id: input.id || crypto.randomUUID(), updatedAt: new Date().toISOString() }; const index = s.products.findIndex(x => x.id === p.id); if (index >= 0) s.products[index] = p; else s.products.push(p); audit(s, user, 'Saved product (' + p.status + ')', p.name); return { product: p }; }); return c.json(result, 'error' in result ? 409 : 200); });
     app.post('/api/admin/products/:id/trial', async c => { const user = c.get('user'); if (!permissions.products.includes(user.role)) return c.json({ error: 'Permission denied.' }, 403); const { trialActive } = z.object({ trialActive: z.boolean() }).parse(await c.req.json()); const ok = await repo.change(s => { const p = s.products.find(p => p.id === c.req.param('id')); if (!p) return false; p.trialActive = trialActive; return true; }); return ok ? c.json({ ok: true }) : c.json({ error: 'Product not found.' }, 404); });
     app.post('/api/admin/products/:id/status', async c => { const user = c.get('user'); if (!permissions.products.includes(user.role)) return c.json({ error: 'Permission denied.' }, 403); const { status } = z.object({ status: z.enum(['draft', 'published', 'archived']) }).parse(await c.req.json()); const ok = await repo.change(s => { const p = s.products.find(p => p.id === c.req.param('id')); if (!p) return false; p.status = status; return true; }); return ok ? c.json({ ok: true }) : c.json({ error: 'Product not found.' }, 404); });
     app.post('/api/admin/licenses/:id/:action', async c => { const user = c.get('user'); if (!permissions.manageLicenses.includes(user.role)) return c.json({ error: 'Permission denied.' }, 403); const { reason } = z.object({ reason: z.string().trim().min(5).max(250) }).parse(await c.req.json()); const action = z.enum(['revoke', 'restore', 'rotate']).parse(c.req.param('action')); const result = await repo.change(async s => { const l = s.licenses.find(l => l.id === c.req.param('id')); if (!l) return false; if (action === 'rotate') { const key = 'NORVI_' + secret(); l.keyHash = await hash(key); l.encryptedKey = await seal(key, encryptionKey); l.suffix = key.slice(-6); } else l.status = action === 'revoke' ? 'revoked' : 'active'; l.device = null; audit(s, user, action + ': ' + reason, l.id); return true; }); return result ? c.json({ ok: true }) : c.json({ error: 'License not found.' }, 404); });

@@ -120,7 +120,9 @@ if (path.startsWith('/agents/')) {
 } else if (path === '/agents') {
   title = "All AI Agents | NORVI Agency";
 } else if (path === '/about') {
-  title = "About Us | NORVI Agency";
+  title = "About NORVI Agency & Founder Chirag Sharma";
+  description = "Learn about NORVI Agency and founder Chirag Sharma. Discover how our autonomous, privacy-first desktop AI agents simplify everyday workflows.";
+  keywords = "Chirag Sharma, Chirag Sharma NORVI, Founder of NORVI Agency, NORVI Agency Owner, NORVI AI, Autonomous Desktop Agents, AI Engineer India";
 } else if (path === '/partners') {
   title = "Partner Program | NORVI Agency";
 } else if (path === '/help') {
@@ -137,6 +139,36 @@ const websiteJsonLd = JSON.stringify({
   "url": "https://nor-vi.in/"
 });
 
+const founderJsonLd = {
+  "@type": "Person",
+  "name": "Chirag Sharma",
+  "jobTitle": "Founder & Lead AI Engineer",
+  "url": "https://chirag-portfolio-v3.netlify.app/",
+  "sameAs": [
+    "https://chirag-portfolio-v3.netlify.app/",
+    (settings as any).socialInstagram,
+    (settings as any).socialYoutube,
+    (settings as any).socialFacebook,
+    (settings as any).socialTwitter
+  ].filter(Boolean),
+  "knowsAbout": [
+    "Autonomous AI Agents",
+    "Desktop Software Engineering",
+    "Multimodal Computer Vision",
+    "Audio DSP & Hardware Routing",
+    "Career & Media Automation"
+  ],
+  "nationality": {
+    "@type": "Country",
+    "name": "India"
+  },
+  "worksFor": {
+    "@type": "Organization",
+    "name": "NORVI Agency",
+    "url": "https://nor-vi.in/"
+  }
+};
+
 const orgJsonLd = JSON.stringify({
   "@context": "https://schema.org",
   "@type": "Organization",
@@ -145,8 +177,24 @@ const orgJsonLd = JSON.stringify({
   "url": "https://nor-vi.in/",
   "logo": "https://nor-vi.in/logo.jpg?v=2",
   "description": settings.description,
-  "sameAs": [(settings as any).socialInstagram, (settings as any).socialYoutube, (settings as any).socialFacebook, (settings as any).socialTwitter].filter(Boolean)
+  "founder": founderJsonLd,
+  "sameAs": [
+    (settings as any).socialInstagram,
+    (settings as any).socialYoutube,
+    (settings as any).socialFacebook,
+    (settings as any).socialTwitter,
+    "https://chirag-portfolio-v3.netlify.app/"
+  ].filter(Boolean)
 });
+
+const aboutPageJsonLd = path === '/about' ? JSON.stringify({
+  "@context": "https://schema.org",
+  "@type": "AboutPage",
+  "name": "About NORVI Agency & Founder Chirag Sharma",
+  "url": "https://nor-vi.in/about/",
+  "description": "Learn about NORVI Agency and founder Chirag Sharma. Discover our autonomous, privacy-first desktop AI agents.",
+  "mainEntity": founderJsonLd
+}) : "";
 ---
 <!doctype html>
 <html lang="en">
@@ -159,7 +207,8 @@ const orgJsonLd = JSON.stringify({
   <meta name="description" content={description}/>
   <meta name="keywords" content={keywords} />
   <link rel="canonical" href={canonicalUrl} />
-  <meta name="theme-color" content="#c8ff64" />
+  <meta name="theme-color" content="#111411" />
+  <meta name="color-scheme" content="dark" />
   
   <meta property="og:site_name" content="NORVI Agency" />
   <meta property="og:url" content={canonicalUrl} />
@@ -179,6 +228,7 @@ const orgJsonLd = JSON.stringify({
   {isProduct && productJsonLd && <script type="application/ld+json" set:html={productJsonLd}></script>}
   {isProduct && faqJsonLd && <script type="application/ld+json" set:html={faqJsonLd}></script>}
   {isProduct && breadcrumbJsonLd && <script type="application/ld+json" set:html={breadcrumbJsonLd}></script>}
+  {path === '/about' && aboutPageJsonLd && <script type="application/ld+json" set:html={aboutPageJsonLd}></script>}
 
   <!-- Meta Pixel Code (Strict Affirmative Consent Guarded) -->
   <script is:inline>

@@ -82,6 +82,7 @@ async function fetchLivePublicCatalog(): Promise<boolean> {
   const products = productsResult.data.map(p => ({
     ...p,
     extendedContent: (p as any).extendedContent || {},
+    subHeading: (p as any).subHeading || (p as any).extendedContent?.subHeading || undefined,
     category: categories.find(c => c.id === p.categoryId) || null
   }));
 

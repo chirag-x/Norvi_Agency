@@ -46,9 +46,9 @@ export function AccountAuth({ path }: { path: string }) {
   }
   const connected = config?.mode === 'supabase';
   const title = confirm ? (recovery ? 'Choose a new password.' : 'Confirm your email.') : register ? 'Create your account.' : reset ? 'Reset your password.' : verify ? 'Check your inbox.' : staff ? 'Admin sign in.' : 'Welcome back.';
-  return <div className="auth-page container"><div className="auth-story"><span className="eyebrow">{staff ? 'THE NORVI WORKSPACE' : 'WELCOME TO NORVI'}</span><h1>Your next chapter.<br /><span className="serif">All in one place.</span></h1><p>Explore the agent collection. Keep your profile, purchases, and product access together.</p><p><ShieldCheck size={18} /> Individual accounts. Administrator MFA.</p></div><div className="auth-card"><h2>{title}</h2>
+  return <div className="auth-page container"><div className="auth-story"><span className="eyebrow">{staff ? 'THE NORVI WORKSPACE' : 'WELCOME TO NORVI'}</span><h1>Your next chapter.<br /><span className="serif">All in one place.</span></h1><p>Explore the agent collection. Keep your profile, purchases, and product access together.</p><p><ShieldCheck size={18} /> Verified customer accounts. Encrypted login security.</p></div><div className="auth-card"><h2>{title}</h2>
     {!config && !configError && <Loading />}{configError && <Notice kind="error">{configError}</Notice>}
-    {config && !connected && <Notice>{config.preview ? 'Local preview uses sample accounts. Real registration is disabled until Supabase is connected.' : 'Account setup is pending. Registration will open once the database and email service are configured.'}</Notice>}
+    {config && !connected && <Notice>{config.preview ? 'Demo preview mode is active with sample accounts.' : 'Account registration is currently undergoing quick maintenance. Please check back shortly.'}</Notice>}
     {connected && <p>{staff ? 'Use your invited staff account. Authenticator verification is required to access the workspace.' : 'Sign in with your email address to access your agents and manage activation keys.'}</p>}
     <form onSubmit={submit}>
       {register && <Field label="Full name"><input required minLength={2} maxLength={80} autoComplete="name" value={name} onChange={e => setName(e.target.value)} disabled={!connected || busy} /></Field>}
@@ -77,7 +77,7 @@ export function AccountSecurity() {
       {enrollment.qr && <div className="qr-box" dangerouslySetInnerHTML={{ __html: enrollment.qr }} style={{ maxWidth: 200, margin: '20px 0' }} />}
       <code className="full-key">{enrollment.secret}</code></>}
       {factor && <form onSubmit={async e => { e.preventDefault(); setBusy(true); setFeedback(''); try { await api('/auth/mfa/verify', { method: 'POST', body: JSON.stringify({ factorId: factor, code }) }); setEnrollment(null); setCode(''); location.href = identity?.user.role === 'customer' ? '/account' : '/admin'; } catch (e: any) { setFeedback(e.message); setCode(''); reload(); } finally { setBusy(false); } }}><Field label="Authenticator code"><input required inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} value={code} onChange={e => setCode(e.target.value)} /></Field><button className="button primary" disabled={busy}>Verify authenticator</button></form>}
-      {feedback && <Notice kind="error">{feedback}</Notice>}<p>If you lose your authenticator, contact the owner for identity-verified recovery. Email reset alone does not remove MFA.</p>
+      {feedback && <Notice kind="error">{feedback}</Notice>}<p>If you lose your authenticator, contact NORVI support for identity-verified recovery. Email reset alone does not remove MFA.</p>
     </div>}
     <p><a href="/account">Back to account</a></p>
   </div>;

@@ -94,7 +94,7 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
       supabase.from('site_settings').select('name, headline, description, email, company, domain, maintenance_mode, permissions, banner_text, sale_active, sale_percentage, socialInstagram:social_instagram, socialYoutube:social_youtube, socialFacebook:social_facebook, socialTwitter:social_twitter').single(),
       supabase.from('categories').select('id, slug, name, createdAt:created_at')
     ]);
-    const products = (productsResult.data || catalog.products).map(p => ({...p, extendedContent: (p as any).extendedContent || {}, category: (categoriesResult.data || catalog.categories).find(c => c.id === p.categoryId) || null}));
+    const products = (productsResult.data || catalog.products).map(p => ({...p, extendedContent: (p as any).extendedContent || {}, subHeading: (p as any).subHeading || (p as any).extendedContent?.subHeading || undefined, category: (categoriesResult.data || catalog.categories).find(c => c.id === p.categoryId) || null}));
     const settings = settingsResult.data ? { ...settingsResult.data, maintenanceMode: settingsResult.data.maintenance_mode, bannerText: settingsResult.data.banner_text, saleActive: settingsResult.data.sale_active, salePercentage: settingsResult.data.sale_percentage, permissions: (Object.keys(settingsResult.data.permissions || {}).length > 0) ? settingsResult.data.permissions : defaultPermissions } : catalog.settings;
     const categories = categoriesResult.data || catalog.categories;
     return c.json({ categories, products, settings, preview: false });
@@ -2002,8 +2002,25 @@ License generated successfully.`);
     });
 
     app.get('/api/partner/stats', async c => {
+      const user = c.get('user');
+      if (!user) return c.json({ active: false, authenticated: false });
+      
       const { data, error } = await c.get('db').rpc('get_partner_stats');
-      return error ? c.json({ error: error.message }, 503) : c.json(data);
+      if (!error && data) {
+        return c.json({ ...data, authenticated: true });
+      }
+
+      // Resilient fallback query via serviceDb
+      try {
+        if (c.env.SUPABASE_URL && c.env.SUPABASE_SERVICE_ROLE_KEY) {
+          const serviceDb = createClient(c.env.SUPABASE_URL, c.env.SUPABASE_SERVICE_ROLE_KEY);
+          const { data: aff } = await serviceDb.from('affiliates').select('*').eq('user_id', user.id).maybeSingle();
+          if (aff) {
+            return c.json({ active: true, code: aff.code, status: aff.status, sales: 0, totalEarned: 0, pendingBalance: 0, authenticated: true });
+          }
+        }
+      } catch {}
+      return c.json({ active: false, authenticated: true });
     });
 
     app.post('/api/partner/join', async c => {

@@ -46,7 +46,7 @@
       "status": "archived",
       "logoUrl": "https://lpzqvziejdpzykwrhkmn.supabase.co/storage/v1/object/public/product-assets/20648c17-771a-4ccd-9298-fdcad7cdecf9.jpg",
       "features": [
-        "Auto-Applies to LinkedIn & Indeed",
+        "Auto-Applies to LinkedIn , Indeed & more",
         "Matches Your Resume to Jobs",
         "Tracks Recruiter Replies in Email",
         "Human-like Typing & Anti-Bot Shield",
@@ -111,23 +111,8 @@
           "competitor1Name": "LazyApply",
           "competitor2Name": "Manual Applying"
         },
-        "workflowSteps": [
-          {
-            "step": "01",
-            "title": "Profile Setup",
-            "description": "Add your resume, target titles, locations, and salary expectations."
-          },
-          {
-            "step": "02",
-            "title": "Review Matches",
-            "description": "Rolvio discovers verified jobs and calculates ATS match scores."
-          },
-          {
-            "step": "03",
-            "title": "Automated Submissions",
-            "description": "Rolvio applies cleanly through your browser with human-like interactions."
-          }
-        ],
+        "subHeading": "Autonomous Career Agent",
+        "heroMediaUrl": null,
         "featurePillars": [
           {
             "id": "rolvio-p1",
@@ -159,6 +144,7 @@
           "ZipRecruiter"
         ]
       },
+      "subHeading": "Autonomous Career Agent",
       "category": {
         "id": "944ab0ea-e72b-49dd-9886-6816094c48de",
         "slug": "career-automation",
@@ -180,7 +166,7 @@
       "status": "published",
       "logoUrl": "https://lpzqvziejdpzykwrhkmn.supabase.co/storage/v1/object/public/product-assets/243715ee-81e1-430e-a00b-abb34026556b.jpg",
       "features": [
-        "Invisible on Zoom & Meet",
+        "Invisible on Zoom , Meet & more",
         "Live Coding & LeetCode Helper",
         "Private Earpiece Whisper",
         "Reads Screen Context in Real-Time",
@@ -233,39 +219,39 @@
         "guide": {
           "sections": [
             {
-              "id": "section-1792823152875-fq54",
-              "content": "1. Click the \"Download\" button next to Voro in your NORVI dashboard to get the latest official installer (Voro_Setup.exe).\n2. Run the installer and follow the quick on-screen instructions.\n3. Once installation completes, launch Voro from your desktop shortcut or Windows Start Menu.\n4. Voro will display the activation prompt upon first launch.",
-              "heading": "Download & Run Voro Installer",
+              "id": "section-1794562366355-u0pm",
+              "content": "1. In your NORVI Dashboard (https://nor-vi.in/account/agents), click the \"Download Installer\" button next to Nexus to get the official setup file (Nexus_Setup.exe).\n2. Open the downloaded file and follow the standard on-screen Windows installer steps.\n3. Once installed, open Nexus from your desktop shortcut or Windows Start menu.",
+              "heading": "Download & Install Nexus",
               "imageUrl": null
             },
             {
-              "id": "section-1792823160938-sr2j",
-              "content": "1. In your NORVI dashboard (https://nor-vi.in/account/agents), locate Voro in your active collection.\n2. Click the \"View License\" button and copy your unique activation key (Format: NORVI-XXXX-XXXX-XXXX-...).\n3. Paste your key into the Voro activation window and click \"Activate & Launch\".\n4. Once activated, Voro unlocks 100% unlimited, lifetime access with no recurring subscription fees or question caps.",
+              "id": "section-1794562366770-dn3z",
+              "content": "1. On your NORVI Dashboard, find Nexus and click \"View License\".\n2. Copy your unique activation key.\n3. In the Nexus application, paste your license key and click \"Activate\". Your lifetime license is immediately verified, giving you full access.",
               "heading": "Activate Your License Key",
               "imageUrl": null
             },
             {
-              "id": "section-1792823177395-xqah",
-              "content": "Voro runs high-speed AI models locally on your PC for maximum privacy and zero data leaks:\n1. In Voro, open Settings (gear icon) and go to the \"Help\" tab -> \"Quick Setup Guide\".\n2. Click \"Download Ollama (Windows)\" to download the official OllamaSetup.exe.\n3. Run the installer to finish installing Ollama on your PC.\n4. Launch Ollama once from your Start Menu (you can log in or simply skip).\n5. Close or minimize Ollama — it will run quietly in your Windows system tray, and Voro will automatically connect to it!",
-              "heading": "Setup AI Brain",
+              "id": "section-1794562367196-2ucj",
+              "content": "Unlike older tools that require you to download huge 10GB files or install complex local software, Nexus connects to the NORVI Cloud AI brain automatically with your license.\n• Viral hook detection, engagement scoring, and title writing are 100% active immediately.\n• You can check your operational status at any time on the Nexus Dashboard.",
+              "heading": "Instant Cloud AI Brain (Zero Setup Needed)",
               "imageUrl": null
             },
             {
-              "id": "section-1792823180946-w9gf",
-              "content": "For near-instant voice transcription during live interviews, Groq provides lightning-fast Whisper processing for free:\n1. In Voro Settings -> Help tab -> Quick Setup Guide, click \"Get Free Groq API Key\".\n2. Sign up or log in to the Groq Console (100% free with Google or GitHub).\n3. Click \"Create API Key\", set the Key Name to \"VORO\", and select \"No Expiration\".\n4. Copy your generated key (starts with \"gsk_...\").\n5. In Voro, go to the \"Audio\" tab, paste your key into the \"Groq API Key\" field, and click \"Save & Restart\".",
-              "heading": "Connect Groq Speech Recognition (<200ms)",
+              "id": "section-1794562367664-ev6j",
+              "content": "For blazing-fast audio transcription (~3 seconds for a 20-minute video), we recommend connecting a free Groq key:\n1. Inside Nexus, click Help Center ➔ Quick Setup and click \"Get Free Groq API Key\" (or visit https://console.groq.com/keys).\n2. Sign up or log in (100% free with your Google or GitHub account, no card required).\n3. Click \"Create API Key\", name it \"Nexus\", and choose \"No Expiration\".\n4. Copy your key (starts with \"gsk_...\").\n5. Open Settings in Nexus, paste it into the \"Groq API Key\" field, and click \"Save Settings\".\n(Note: If you ever work offline, simply switch to \"Local (Faster-Whisper)\" in Settings to transcribe without internet).",
+              "heading": "Connect Free Fast Voice Recognition (3-Second Transcription)",
               "imageUrl": null
             },
             {
-              "id": "section-1792823181195-c6dk",
-              "content": "Make Voro answer live interview questions using your real experience and projects:\n1. In Voro Settings, open the \"Profile\" tab and paste your résumé, tech stack, and notable project achievements.\n2. Open the \"Company Info\" tab and enter the company name and job description you are interviewing for.\n3. Choose your preferred AI Tone in the \"General\" settings (e.g., \"Conversational Script\" or \"Direct & Technical\").\n4. Click \"Save & Restart\" — Voro will now ground every answer in your real background!",
-              "heading": "Load Your Resume & Target Company Context",
+              "id": "section-1794562368131-8wn6",
+              "content": "Connect your social platforms once to unlock automated hands-free publishing:\n1. Go to Settings ➔ Social Media Accounts in Nexus.\n2. Click \"Connect\" next to YouTube to authorize your channel for Shorts uploads.\n3. Connect TikTok and choose your default visibility (Public, Friends, or Private).\n4. Add your Instagram account for automated Reels posting.\n5. All accounts remain safely encrypted on your computer.",
+              "heading": "Connect Your YouTube, TikTok & Instagram Channels",
               "imageUrl": null
             },
             {
-              "id": "section-1792823181616-w07d",
-              "content": "Follow these 4 essential rules before joining your live interview call:\n• Rule 1 (Stealth Mode): Press Ctrl+Shift+G to enable Stealth Mode before sharing your screen. Voro will be 100% invisible to Zoom, Teams, Meet, and OBS!\n• Rule 2 (System Audio Capture): Ensure the Headset icon (🎧) is green so Voro can hear the interviewer through your headphones.\n• Rule 3 (Manual vs Auto Answering): Use Ctrl+Shift+U to toggle between Auto (⚡ Auto) and Manual (⏸️ Manual). In manual mode, press Ctrl+Enter to distill and answer the interviewer's question while filtering out small talk.\n• Rule 4 (Occupancy Slider): Use the Occupancy slider on Voro's top bar to adjust window transparency to your preference.",
-              "heading": "Interview Day Golden Rules & Controls",
+              "id": "section-1794562368532-rhc4",
+              "content": "Ready to make your first clip? It takes just three simple steps:\n1. Pick your video: Use the \"Discover\" tab to search for YouTube videos, or go to \"Clip Lab\" and click \"📁 Import Local Video\" to select any video file on your PC.\n2. Choose your style: Select your desired clip length (30s, 60s, or 90s) and your favorite Caption Style (such as Hormozi Viral or MrBeast Explosive).\n3. Click \"Analyze with AI\": Nexus will extract the highest-scoring moments with instant vertical face centering and animated captions.\n4. Click \"Render Clip\" and send it to the \"Publishing Queue\" with your chosen date and time. Nexus will publish it automatically while you relax!",
+              "heading": "Create & Schedule Your First Viral Short",
               "imageUrl": null
             }
           ],
@@ -321,6 +307,7 @@
           "competitor1Name": "Parakeet.ai",
           "competitor2Name": "ChatGPT / Web AI"
         },
+        "subHeading": "Interview Assistant",
         "heroMediaUrl": null,
         "featurePillars": [
           {
@@ -385,6 +372,7 @@
           "All Others Apps"
         ]
       },
+      "subHeading": "Interview Assistant",
       "category": {
         "id": "430a669a-1b36-418f-9dd9-76b41fc91ddb",
         "slug": "interview-assistance",
@@ -397,57 +385,179 @@
       "slug": "nexus",
       "name": "Nexus",
       "categoryId": "73ce8f2d-6749-4861-bd6c-97c675ca3566",
-      "tagline": "Turn 1 Long Video into 10 Viral Shorts & Auto-Publish Everywhere 24/7.",
-      "description": "Nexus is a native, privacy-first desktop AI agent designed to replace expensive social media agencies and cloud video clipper subscriptions. Operating directly from your Windows PC, Nexus autonomously discovers high-potential videos, detects viral hooks, generates kinetic animated captions, reframes footage to 9:16 vertical video using smart facial tracking, and schedules multi-platform publishing to YouTube Shorts, TikTok, Instagram Reels, Facebook Reels, and X (Twitter) on complete autopilot.",
+      "tagline": "Turn Long Videos into Viral Shorts, Reels & TikToks in Seconds",
+      "description": "Nexus is your autonomous social media video studio. It watches your full-length podcasts, YouTube videos, and interviews, automatically picks out the most exciting moments, crops them into vertical 9:16 videos, adds animated viral captions, and schedules them across YouTube, TikTok, and Instagram.\n\nEverything is powered by NORVI Cloud AI with zero complex setups, zero heavy downloads, and no expensive monthly clipping subscriptions.",
       "price": " Select Your Plan ",
-      "price1m": 499,
-      "price3m": 1299,
+      "price1m": 599,
+      "price3m": 1499,
       "price_lifetime": 4999,
       "status": "archived",
       "logoUrl": "https://lpzqvziejdpzykwrhkmn.supabase.co/storage/v1/object/public/product-assets/af8f7d1a-ef49-4214-a79f-79ed2c75323a.jpg",
       "features": [
-        "Turns Long Videos into Viral Shorts",
-        "Auto-Publishes 24/7 to YouTube & Reels",
-        "Kinetic Animated Subtitles",
-        "Active Speaker Facial Centering",
-        "AI Virality Hook Scoring (0-100)"
+        "Turns Long Videos into Viral Vertical Shorts",
+        "Auto-Publishes to YouTube,TikTok,Reels & more",
+        "Animated Captions (Hormozi & MrBeast Styles)",
+        "Smart Face Centering Keeps Speaker in Frame",
+        "AI Virality Scoring Finds the Best Clips"
       ],
-      "version": "version_1.0.0",
-      "requirements": "Windows 10/11 , Supports Low end Pc ",
+      "version": "V - 1.2.0",
+      "requirements": "Windows 10 / Windows 11 (64-bit). Works on standard laptops and normal home/office PCs.",
       "releaseStatus": "prelaunch",
       "workflowHeading": "Automate Your Empire in 3 Simple Steps",
       "workflowDescription": "Setting up your automated content pipeline with Nexus is effortless. First, use the 'Discover' tab to search for viral long-form videos by niche, duration, or direct URL. Second, let the 'Clip Lab' use local AI to instantly identify engaging highlights, auto-crop them for vertical viewing, and generate precise captions. Finally, head to the 'Publishing Queue' to let the AI write your titles and hashtags, pick your platforms, and set a schedule. The Nexus background daemon will handle the rest, silently publishing your content at the exact right time while and works if you close Nexus app.",
       "workflowMediaUrl": null,
       "workflowNote": "Nexus has no limit for usages your data and activation  keys are heavily encrypted and never leave your machine!",
-      "aiUsage": "Unlimited No Limit ",
-      "deviceAllowance": "3 active device per license. Manage devices in your account.",
+      "aiUsage": "Unlimited — Powered by NORVI Cloud AI",
+      "deviceAllowance": "3 active devices per license. Easily manage or switch devices anytime from your account.",
       "is_on_sale": true,
       "trialActive": true,
       "extendedContent": {
+        "seo": {
+          "ogImage": "https://nor-vi.in/logo.jpg?v=2",
+          "metaTitle": "Nexus - #1 Autonomous Social Media AI & Viral Video Clipper | NORVI",
+          "focusKeywords": "ai viral clipping tool, video to shorts ai, automated reels generator, tiktok clipper, opusclip alternative, nexus ai",
+          "metaDescription": "Turn long podcasts and YouTube videos into viral TikToks, YouTube Shorts, and Instagram Reels in seconds. Auto-crop, animated captions, and hands-free publishing."
+        },
+        "faqs": [
+          {
+            "answer": "No, not at all! Nexus is engineered to run smoothly on everyday laptops and regular Windows PCs. The heavy AI thinking is handled instantly by NORVI Cloud AI, meaning your computer stays fast, cool, and responsive.",
+            "question": "Do I need a powerful gaming computer or expensive graphics card to use Nexus?"
+          },
+          {
+            "answer": "Zero technical setup is required. When you install Nexus and sign into your NORVI account, your AI brain is already connected and ready. You don't need to download any heavy AI models or know anything about programming.",
+            "question": "Do I have to install any complicated AI software, coding tools, or heavy files?"
+          },
+          {
+            "answer": "Yes! You can connect your YouTube channel, TikTok account, and Instagram profile directly in Nexus. Once your clips are ready, just set the date and time in the Publishing Queue. Nexus will automatically post the videos with your titles, descriptions, and hashtags at the exact scheduled time.",
+            "question": "Can Nexus really post to my YouTube, TikTok, and Instagram accounts for me?"
+          },
+          {
+            "answer": "You can use both! You can search and pick trending videos from YouTube, or simply click \"Import Local Video\" to select any video file (.mp4, .mov, .mkv, .webm) from your computer, such as your camera recordings or Zoom interviews.",
+            "question": "Can I use videos saved on my computer, or only YouTube links?"
+          },
+          {
+            "answer": "No! Unlike online clipping websites that charge you every time you run out of processing minutes, Nexus provides unlimited video clipping. You can create as many clips as your content needs.",
+            "question": "Is there a limit on how many videos or clips I can create each month?"
+          },
+          {
+            "answer": "100% safe. Your login tokens and keys are securely locked on your own computer and are never shared or sold. Your original video files stay safely on your PC.",
+            "question": "Are my social media logins and private video files safe?"
+          },
+          {
+            "answer": "Absolutely. Nexus was built specifically for creators, business owners, and educators who don't have time to learn complex video editing software. Generating viral shorts takes just three clicks: pick your video, choose your caption style, and click \"Analyze with AI\".",
+            "question": "I am not a professional video editor. Can a complete beginner use Nexus?"
+          }
+        ],
         "badgeText": "⚡ 100% Local Execution | Autonomous 24/7 Publishing Daemon | Zero Cloud Subscriptions",
+        "comparison": {
+          "rows": [
+            {
+              "us": "From ₹599 / Lifetime Option",
+              "comp1": "Expensive Monthly Bills ($360-$1,200/yr)",
+              "comp2": "Free, but takes 15-20 hours every week",
+              "feature": "Pricing Model"
+            },
+            {
+              "us": "Unlimited ",
+              "comp1": "Strict 100-300 min monthly quota",
+              "comp2": "Unlimited, but slow manual work",
+              "feature": "Video Export Limits"
+            },
+            {
+              "us": "Yes Built-In ",
+              "comp1": "Extra Paid Add-on",
+              "comp2": "Manual download and phone uploading",
+              "feature": "Automatic Social Publishing"
+            },
+            {
+              "us": "4 Designer Styles",
+              "comp1": "Generic templates",
+              "comp2": "Manual caption typing & keyframing",
+              "feature": "Creator Subtitle Presets"
+            },
+            {
+              "us": "Instant Camera Cuts (No dizzy sliding)",
+              "comp1": "Often misidentifies side speakers",
+              "comp2": "Requires manual keyframing",
+              "feature": "Face Centering & Scene-Cut Snapping"
+            },
+            {
+              "us": "Yes",
+              "comp1": "Cloud upload bottleneck",
+              "comp2": "Yes",
+              "feature": "Direct PC Video File Import"
+            },
+            {
+              "us": "100% Private",
+              "comp1": "Cloud-hosted 3rd party databases",
+              "comp2": "N/A",
+              "feature": "Account Privacy & Security"
+            }
+          ],
+          "headline": "Why Creators Choose Nexus Over Expensive Monthly Subscriptions",
+          "competitor1Name": "OpusClip / Klap ($30-$100/mo)",
+          "competitor2Name": "Manual Editing (CapCut / Premiere)"
+        },
         "heroMediaUrl": null,
         "featurePillars": [
           {
-            "id": "pillar-1793032250131-947h",
-            "tag": "AI Virality Engine",
+            "id": "pillar-1794561733657-zad8",
+            "tag": "Automatic Clip Finder",
             "icon": "Sparkles",
-            "title": "Discovers High-Engagement Moments Without Manual Scrubbing",
-            "description": "Nexus eliminates hours of manual timeline scrubbing. Its local AI engine parses full video transcripts, analyzes emotional momentum, detects high-retention narrative hooks, and scores clip virality from 0 to 100. It segments content into optimal short-form targets (30s, 60s, 90s, or 180s) while ensuring full compliance with Fair Use curation standards."
+            "title": "Finds the Most Exciting Moments Automatically",
+            "description": "Say goodbye to scrubbing through 2-hour podcast timelines. Nexus listens to the entire video, detects peak story moments and gripping statements, and extracts only the clips most likely to hold viewers' attention."
           },
           {
-            "id": "pillar-1793032256601-hxtz",
-            "tag": "9:16 Smart Reframing",
+            "id": "pillar-1794561734357-dptf",
+            "tag": "Smart Vertical Framing",
             "icon": "Eye",
-            "title": "Active Speaker Centering with Styled Kinetic Word-by-Word Captions",
-            "description": "Horizontal landscape footage is automatically converted into high-converting 9:16 vertical video. Nexus utilizes OpenCV computer vision to continuously track active speakers and eliminate awkward edge crops. Integrated subtitle synthesis generates word-level animated .ass kinetic captions styled with custom accent colors, outlines, and shadow depth for maximum viewer watch-time."
+            "title": "Keeps the Speaker Perfectly Centered in 9:16",
+            "description": "Horizontal widescreen videos are automatically converted into modern vertical shorts. Nexus tracks who is speaking and keeps their face centered. When the camera angle suddenly switches between host and guest, Nexus instantly cuts to the new speaker without dizzy sliding."
           },
           {
-            "id": "pillar-1793032256980-tqhe",
-            "tag": "Hands-Free Posting    ",
+            "id": "pillar-1794561735004-onqe",
+            "tag": "Eye-Catching Subtitles",
+            "icon": "Layers",
+            "title": "Viral Animated Captions",
+            "description": "Over 80% of short-form viewers watch with the sound off. Nexus generates bold, animated word-by-word subtitles with vibrant highlight colors. Choose from famous creator styles including Hormozi Viral, MrBeast Explosive, Minimalist Clean, or Neon Cyber."
+          },
+          {
+            "id": "pillar-1794561735589-f3fp",
+            "tag": "Virality Predictions",
+            "icon": "Globe",
+            "title": "Predicts Virality Scores Before You Post",
+            "description": "Nexus gives every extracted clip an AI virality score from 1 to 10 along with a breakdown of why it will hook viewers. It also writes catchy titles, descriptions, and hashtags tailored for the algorithms."
+          },
+          {
+            "id": "pillar-1794561736222-54s0",
+            "tag": "Hands-Free Publishing",
             "icon": "Bot",
-            "title": "Background Scheduling & Publishing with Zero Cloud API Markups",
-            "description": "Never log into 5 different social media dashboards again. Nexus features an autonomous background daemon that sits in your Windows system tray, monitoring your visual content calendar. When a scheduled time arrives, it posts native video files, viral titles, AI-generated captions, and trending hashtags directly to YouTube, TikTok, Instagram, Facebook, and X. With isolated platform task queues, one network hiccup never stops your other uploads."
+            "title": "Publishes Directly to Your Social Media.",
+            "description": "Never spend your evenings logging into three different social media apps. Add your finished clips to the Publishing Queue, pick your dates and times, and Nexus uploads them directly to your accounts with the right titles and tags."
+          },
+          {
+            "id": "pillar-1794561736789-dynr",
+            "tag": "Quiet Background Helper",
+            "icon": "Zap",
+            "title": "Works Silently in the Background While You Sleep",
+            "description": "Nexus minimizes neatly into your Windows system tray. It monitors your visual content schedule and automatically publishes your videos at peak audience engagement hours, even when the main window is closed."
+          },
+          {
+            "id": "pillar-1794561737356-hrpi",
+            "tag": "Zero Setup Cloud Brain",
+            "icon": "Cpu",
+            "title": "100% Cloud AI Brain — Zero Complicated Setup",
+            "description": "You do not need an expensive gaming rig, special graphics cards, or confusing software installations. All AI analysis is handled in the cloud by NORVI. Simply log in, and you are ready to produce viral shorts immediately."
           }
+        ],
+        "platformBadges": [
+          "YOUTUBE",
+          "INSTAGRAM",
+          "TIKTOK",
+          "FACEBOOK",
+          "X(TWITTER)",
+          "WINDOWS 10 , 11",
+          "Direct File Import"
         ]
       },
       "category": {

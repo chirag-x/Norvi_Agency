@@ -10,6 +10,7 @@ export type AgentSeo = { metaTitle?: string; metaDescription?: string; focusKeyw
 export type GuideSection = { id: string; heading: string; content: string; imageUrl?: string | null; };
 export type AgentGuide = { videoUrl?: string | null; summary?: string | null; sections: GuideSection[]; };
 export type AgentExtendedContent = {
+  subHeading?: string;
   badgeText?: string;
   heroMediaUrl?: string | null;
   heroMediaType?: 'video' | 'gif' | 'image';
@@ -22,7 +23,7 @@ export type AgentExtendedContent = {
   seo?: AgentSeo;
   guide?: AgentGuide;
 };
-export type Product = { id: string; slug: string; name: string; categoryId: string; category?: Category | null; tagline: string; description: string; price: string; price1m?: string; price3m?: string; price_lifetime?: string; is_on_sale?: boolean; trialActive?: boolean; aiUsage?: string; deviceAllowance?: string; status: 'draft' | 'published' | 'archived'; releaseStatus: 'development' | 'prelaunch' | 'live'; logoUrl: string | null; icon?: string; color?: string; features: string[]; version: string; requirements: string; workflowHeading: string; workflowDescription: string; workflowMediaUrl: string | null; workflowNote: string; updatedAt?: string; extendedContent?: AgentExtendedContent; };
+export type Product = { id: string; slug: string; name: string; categoryId: string; category?: Category | null; subHeading?: string; tagline: string; description: string; price: string; price1m?: string; price3m?: string; price_lifetime?: string; is_on_sale?: boolean; trialActive?: boolean; aiUsage?: string; deviceAllowance?: string; status: 'draft' | 'published' | 'archived'; releaseStatus: 'development' | 'prelaunch' | 'live'; logoUrl: string | null; icon?: string; color?: string; features: string[]; version: string; requirements: string; workflowHeading: string; workflowDescription: string; workflowMediaUrl: string | null; workflowNote: string; updatedAt?: string; extendedContent?: AgentExtendedContent; };
 export type User = { id: string; name: string; email: string; role: Role; status: 'active' | 'suspended'; createdAt: string; lastLogin: string | null };
 export type License = { id: string; userId: string; productId: string; status: 'active' | 'revoked'; keyHash: string; encryptedKey: string; suffix: string; createdAt: string; device: string | null; expiresAt: string | null };
 export type Order = { id: string; userId: string; productId: string; status: 'simulated' | 'refunded' | 'pending' | 'paid' | 'failed'; amount: string; createdAt: string; licenseId: string };
@@ -47,6 +48,7 @@ export const products: Product[] = [
     slug: "omnix",
     name: "Omnix",
     categoryId: "cat-1",
+    subHeading: "Voice Desktop Agent",
     category: { id: 'cat-1', slug: 'desktop-automation', name: 'Desktop automation' },
     tagline: "Speak your next task into action.",
     description: "A voice-first desktop agent being developed to understand natural-language instructions, plan tasks, and operate your computer. Capabilities and supported environments will be confirmed through release testing.",
@@ -72,6 +74,7 @@ export const products: Product[] = [
     slug: "voro",
     name: "Voro",
     categoryId: "cat-2",
+    subHeading: "Interview Assistant",
     category: { id: 'cat-2', slug: 'interview-assistance', name: 'Interview assistance' },
     tagline: "Bring context to your interview preparation.",
     description: "An interview assistant with screen and audio context, résumé memory, and coding assistance. Designed for practice and situations where assistance is permitted. The application is reported complete; the NORVI release and compatibility checks are still being prepared.",
@@ -175,6 +178,7 @@ export const products: Product[] = [
       "slug": "rolvio",
       "name": "Rolvio",
       "categoryId": "cat-3",
+      "subHeading": "Autonomous Career Agent",
       "category": { id: 'cat-3', slug: 'job-search-automation', name: 'Job-search automation' },
       "tagline": "The Autonomous AI Career Agent & Desktop Job-Search Engine",
       "description": "An end-to-end autonomous AI career agent that automates your entire job hunt. Features AI resume parsing, ATS skill matching, stealth multi-platform auto-applying across LinkedIn, Indeed, Naukri, Internshala, and Wellfound, strict DOM verification, and background IMAP email interview tracking.",
