@@ -10,7 +10,22 @@ export default defineConfig({
   integrations: [
     react(),
     sitemap({
-      filter: (page) => !page.includes('/account') && !page.includes('/admin') && !page.includes('/checkout') && !page.includes('/orders') && !page.includes('/login') && !page.includes('/register')
+      filter: (page) => {
+        const privatePrefixes = [
+          '/account',
+          '/admin',
+          '/checkout',
+          '/orders',
+          '/login',
+          '/register',
+          '/reset-password',
+          '/update-password',
+          '/verify-email',
+          '/auth',
+          '/onboarding'
+        ];
+        return !privatePrefixes.some(prefix => page.includes(prefix));
+      }
     })
   ],
   devToolbar: { enabled: false },

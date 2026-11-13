@@ -14,7 +14,7 @@ export function getStaticPaths() {
 }
 
 const path = '/' + (Astro.params.path || '');
-const privatePage = /\/(account|admin|checkout|orders|login|register)/.test(path);
+const privatePage = /\/(account|admin|checkout|orders|login|register|reset-password|update-password|verify-email|auth|onboarding)/.test(path);
 const settings = catalog.settings;
 const canonicalPath = path === '/' ? '/' : path.replace(/\/+$/, '') + '/';
 const canonicalUrl = `https://nor-vi.in${canonicalPath}`;
@@ -125,6 +125,8 @@ if (path.startsWith('/agents/')) {
   keywords = "Chirag Sharma, Chirag Sharma NORVI, Founder of NORVI Agency, NORVI Agency Owner, NORVI AI, Autonomous Desktop Agents, AI Engineer India";
 } else if (path === '/partners') {
   title = "Partner Program | NORVI Agency";
+  description = "Join the NORVI Partner Program. Earn a 15% commission on every referral while giving your audience an exclusive 10% discount on autonomous desktop AI agents.";
+  keywords = "NORVI Partner Program, AI Affiliate Program, NORVI Agency Affiliates, AI Agents Referral, Chirag Sharma Partner";
 } else if (path === '/help') {
   title = "Help Center | NORVI Agency";
 } else if (path === '/contact') {

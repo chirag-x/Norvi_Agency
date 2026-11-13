@@ -3,6 +3,13 @@ Allow: /
 Disallow: /account
 Disallow: /admin
 Disallow: /checkout
+Disallow: /orders
 Disallow: /login
+Disallow: /register
+Disallow: /reset-password
+Disallow: /update-password
+Disallow: /verify-email
+Disallow: /auth/
+Disallow: /onboarding
 
 Sitemap: https://nor-vi.in/sitemap-index.xml
