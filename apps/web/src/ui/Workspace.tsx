@@ -41,17 +41,37 @@ function CommandPalette({ user }: { user: User }) {
 }
 
 export function Workspace({ path, products, settings, onCatalogChange }: { path: string; products: Product[]; settings: Settings; onCatalogChange: () => void }) {
-    const admin = path.startsWith('/admin'), base = admin ? '/admin' : '/account'; const section = path.slice(base.length); const { data: identity, error } = useData('/me'); const [logoutError, setLogoutError] = useState('');
-    if (error) return <div className="container page"><Empty title={admin ? 'Your workspace awaits.' : 'Your agents live here.'} description={error} href={admin ? '/admin/login' : '/login'} label={admin ? 'Open admin sign in' : 'Open customer sign in'} /></div>;
-    if (!identity) return <Loading />; if(identity.mfaRequired) return <div className="container page"><Notice>Complete authenticator verification to access your account.</Notice><a className="button primary" href="/account/security">Open account security</a></div>; const user: User = identity.user; if (admin && user.role === 'customer') return <div className="container page"><Notice kind="error">This account has no staff permissions.</Notice><a href="/account" className="button secondary">Return to my account</a></div>;
+    const admin = path.startsWith('/admin'), base = admin ? '/admin' : '/account';
+    const section = path.slice(base.length);
+    const { data: identity, error } = useData('/me');
+    const [logoutError, setLogoutError] = useState('');
+    const user: User | undefined = identity?.user;
+
     const pMap = settings?.permissions || allowed;
-    const canAccessSlug = (slug: string) => user.role === 'owner' || pMap[user.role]?.includes('*') || pMap[user.role]?.includes(slug) || (slug === '/releases' && pMap[user.role]?.includes('/products'));
+    const canAccessSlug = (slug: string) => {
+      if (!user) return false;
+      if (user.role === 'owner') return true;
+      const perms = pMap[user.role] || [];
+      if (perms.includes('*')) return true;
+      return perms.includes(slug);
+    };
     const nav = admin ? staffNav.filter(([slug]) => canAccessSlug(slug)) : customerNav;
-      console.log('ACTIVE NAV:', nav);
     const sectionAllowed = !admin || canAccessSlug(section);
+
+    useEffect(() => {
+      if (identity && user && admin && section === '' && !canAccessSlug('') && nav.length > 0) {
+        window.location.replace(base + nav[0][0]);
+      }
+    }, [identity, user, admin, section, nav]);
+
+    if (error) return <div className="container page"><Empty title={admin ? 'Your workspace awaits.' : 'Your agents live here.'} description={error} href={admin ? '/admin/login' : '/login'} label={admin ? 'Open admin sign in' : 'Open customer sign in'} /></div>;
+    if (!identity) return <Loading />;
+    if (identity.mfaRequired) return <div className="container page"><Notice>Complete authenticator verification to access your account.</Notice><a className="button primary" href="/account/security">Open account security</a></div>;
+    if (!user) return <div className="container page"><Empty title="Account not found." description="Please sign in again." href={admin ? '/admin/login' : '/login'} label={admin ? 'Open admin sign in' : 'Open customer sign in'} /></div>;
+    if (admin && user.role === 'customer') return <div className="container page"><Notice kind="error">This account has no staff permissions.</Notice><a href="/account" className="button secondary">Return to my account</a></div>;
     return <div className="workspace"><CommandPalette user={user} /><aside className="sidebar"><a href="/" className="brand sidebar-brand" title="Return to website homepage" style={{ display: 'inline-flex', alignItems: 'center', gap: 10, padding: '4px 0 20px 0', textDecoration: 'none', color: 'var(--text)', fontWeight: 700, fontSize: 18 }}><img src="/logo.jpg?v=2" alt="NORVI Agency" style={{ width: 32, height: 32, borderRadius: 6, objectFit: 'contain' }} /><span>{settings?.name || 'NORVI'}</span></a><div className="workspace-label">{admin ? 'AGENCY WORKSPACE' : 'PERSONAL WORKSPACE'}</div><nav aria-label="Workspace navigation">{nav.map(([slug, label, Icon]) => <a key={slug} href={base + slug} className={section === slug ? 'selected' : ''}><Icon size={18} />{label}{section === slug && <span className="nav-indicator" />}</a>)}</nav><div className="sidebar-bottom"><div className="preview-box"><ShieldCheck size={18} /><b>{identity.preview ? 'Local preview' : 'NORVI account'}</b><p>{identity.preview ? 'Sample data. No live payments or emails.' : 'Verified account. Active customer workspace.'}</p></div><a href="/" className="text-button">Back to website <ArrowUpRight size={15} /></a><button className="logout" onClick={async () => { try { await api('/auth/logout', { method: 'POST' }); location.href = admin ? '/admin/login' : '/login'; } catch (e: any) { setLogoutError(e.message); } }}><LogOut size={16} />{identity.preview ? 'Sign out of preview' : 'Sign out'}</button>{logoutError && <Notice kind="error">{logoutError}</Notice>}</div></aside><div className="workspace-main">
         {(user as any).isImpersonated && <div style={{ background: '#eab308', color: '#1a1a1a', padding: '12px 24px', fontWeight: 600, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', flexWrap: 'wrap', borderBottom: '2px solid #ca8a04', zIndex: 100 }}><div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><ShieldCheck size={18} /><span>You are currently impersonating <b>{user.name}</b> {user.email ? `(${user.email})` : ''} · Role: <b>{user.role}</b></span></div><button type="button" className="button primary small" style={{ background: '#1c2418', color: '#fff', borderColor: '#1c2418', cursor: 'pointer' }} onClick={async () => { try { await api('/admin/impersonate', { method: 'DELETE' }); } catch { try { await api('/admin/impersonate/stop', { method: 'POST' }); } catch {} } document.cookie = 'norvi_impersonate=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT; Max-Age=0;'; window.location.href = '/admin/customers'; }}>Stop Impersonating</button></div>}
-        <div className="workspace-topbar"><div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}><a href="/" className="brand" title="Return to website homepage" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, textDecoration: 'none', color: 'inherit', fontWeight: 700, fontSize: 16 }}><img src="/logo.jpg?v=2" alt="NORVI Agency" style={{ width: 22, height: 22, borderRadius: 4, objectFit: 'contain' }} /><span>{settings?.name || 'NORVI'}</span></a><span className="slash">/</span><span style={{ color: 'var(--muted)', fontSize: 14 }}>{admin ? 'Agency workspace' : 'My account'}</span></div><div style={{display: 'flex', alignItems: 'center', gap: 15}}><a href="/" className="text-button" style={{fontSize: 13}}>Back to website <ArrowUpRight size={14} /></a><span className="user-chip"><span className="avatar">{user.name.slice(0, 1).toUpperCase()}</span>{user.name}<Badge>{user.role.replace('_', ' ')}</Badge></span></div></div>{!sectionAllowed ? <Notice kind="error">Your role cannot open this section.</Notice> : admin ? <Admin section={section} user={user} settings={settings} onCatalogChange={onCatalogChange} /> : <Customer section={section} products={products} user={user} />}</div></div>;
+        <div className="workspace-topbar"><div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}><a href="/" className="brand" title="Return to website homepage" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, textDecoration: 'none', color: 'inherit', fontWeight: 700, fontSize: 16 }}><img src="/logo.jpg?v=2" alt="NORVI Agency" style={{ width: 22, height: 22, borderRadius: 4, objectFit: 'contain' }} /><span>{settings?.name || 'NORVI'}</span></a><span className="slash">/</span><span style={{ color: 'var(--muted)', fontSize: 14 }}>{admin ? 'Agency workspace' : 'My account'}</span></div><div style={{display: 'flex', alignItems: 'center', gap: 15}}><a href="/" className="text-button" style={{fontSize: 13}}>Back to website <ArrowUpRight size={14} /></a><span className="user-chip"><span className="avatar">{(user.name || 'Admin').slice(0, 1).toUpperCase()}</span>{user.name || 'Admin'}<Badge>{(user.role || 'staff').replace('_', ' ')}</Badge></span></div></div>{!sectionAllowed ? <Notice kind="error">Your role cannot open this section.</Notice> : admin ? <Admin section={section} user={user} settings={settings} onCatalogChange={onCatalogChange} /> : <Customer section={section} products={products} user={user} />}</div></div>;
 }
 export function CustomerInvoiceModal({ order, user, onClose }: { order: any; user: User; onClose: () => void }) {
   const isPaid = order.status === 'paid';
@@ -1063,7 +1083,125 @@ export function OrderTable({ items, onViewInvoice, onCopied }: { items: any[]; o
     </div>
   );
 }
+
+export function PaginationBar({
+  page,
+  totalItems,
+  pageSize = 15,
+  onPageChange,
+  label = 'records'
+}: {
+  page: number;
+  totalItems: number;
+  pageSize?: number;
+  onPageChange: (newPage: number) => void;
+  label?: string;
+}) {
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const [inputPage, setInputPage] = useState('');
+
+  if (totalItems <= 0) return null;
+
+  const from = totalItems === 0 ? 0 : (page - 1) * pageSize + 1;
+  const to = Math.min(page * pageSize, totalItems);
+
+  const handleJump = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const parsed = parseInt(inputPage, 10);
+    if (!isNaN(parsed) && parsed >= 1 && parsed <= totalPages) {
+      onPageChange(parsed);
+      setInputPage('');
+    }
+  };
+
+  return (
+    <div
+      className="pagination-bar"
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '10px 14px',
+        background: 'var(--surface, #1e261a)',
+        border: '1px solid var(--border)',
+        borderRadius: 8,
+        fontSize: '12px',
+        color: 'var(--text-light)',
+        gap: 12,
+        flexWrap: 'wrap',
+        margin: '10px 0'
+      }}
+    >
+      <div>
+        Showing <b>{from}–{to}</b> of <b>{totalItems}</b> {label}
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <button
+            type="button"
+            className="button secondary small"
+            disabled={page <= 1}
+            onClick={() => onPageChange(page - 1)}
+            style={{ padding: '3px 10px', fontSize: '11.5px', height: '28px' }}
+          >
+            ‹ Prev
+          </button>
+          <span style={{ padding: '0 4px', fontWeight: 600, color: 'var(--text)' }}>
+            Page {page} of {totalPages}
+          </span>
+          <button
+            type="button"
+            className="button secondary small"
+            disabled={page >= totalPages}
+            onClick={() => onPageChange(page + 1)}
+            style={{ padding: '3px 10px', fontSize: '11.5px', height: '28px' }}
+          >
+            Next ›
+          </button>
+        </div>
+
+        <form onSubmit={handleJump} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+          <span style={{ fontSize: '11px', color: 'var(--muted)' }}>Go to:</span>
+          <input
+            type="number"
+            min={1}
+            max={totalPages}
+            placeholder={String(page)}
+            value={inputPage}
+            onChange={e => setInputPage(e.target.value)}
+            style={{
+              width: '54px',
+              height: '28px',
+              padding: '2px 6px',
+              fontSize: '11.5px',
+              textAlign: 'center',
+              borderRadius: 4,
+              border: '1px solid var(--border)',
+              background: 'var(--bg, #0b120c)',
+              color: 'var(--text)'
+            }}
+          />
+          <button
+            type="submit"
+            className="button secondary small"
+            style={{ padding: '3px 9px', fontSize: '11.5px', height: '28px' }}
+            disabled={!inputPage || parseInt(inputPage, 10) < 1 || parseInt(inputPage, 10) > totalPages}
+          >
+            Go
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 export function AdminOrderTable({ items, onCopied }: { items: any[]; onCopied?: (msg: string) => void }) {
+  const [page, setPage] = useState(1);
+  useEffect(() => {
+    setPage(1);
+  }, [items]);
+
   if (!items.length) {
     return <Empty title="No matching orders." description="Try adjusting your search query or filters." />;
   }
@@ -1071,123 +1209,129 @@ export function AdminOrderTable({ items, onCopied }: { items: any[]; onCopied?: 
     navigator.clipboard.writeText(text);
     if (onCopied) onCopied(`Copied ${label}: ${text}`);
   };
+  const pageSize = 15;
+  const paged = items.slice((page - 1) * pageSize, page * pageSize);
   return (
-    <div className="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>Order Ref</th>
-            <th>Customer</th>
-            <th>Agent</th>
-            <th>Payment ID</th>
-            <th>Amount</th>
-            <th>License Key</th>
-            <th>Date</th>
-            <th>Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          {items.map(o => (
-            <tr key={o.id}>
-              <td>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <code style={{ fontSize: '12px' }}>#{o.id.slice(0, 8)}</code>
-                  <button
-                    type="button"
-                    title="Copy full order ID"
-                    aria-label="Copy order ID"
-                    style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--text-light)' }}
-                    onClick={() => copy(o.id, 'order ID')}
-                  >
-                    <Copy size={12} />
-                  </button>
-                </div>
-              </td>
-              <td>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+    <>
+      <PaginationBar page={page} totalItems={items.length} pageSize={pageSize} onPageChange={setPage} label="orders" />
+      <div className="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Order Ref</th>
+              <th>Customer</th>
+              <th>Agent</th>
+              <th>Payment ID</th>
+              <th>Amount</th>
+              <th>License Key</th>
+              <th>Date</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {paged.map(o => (
+              <tr key={o.id}>
+                <td>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <b>{o.customer || 'Customer'}</b>
-                  </div>
-                  {o.email && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <small style={{ color: 'var(--text-light)' }}>{o.email}</small>
-                      <button
-                        type="button"
-                        title="Copy customer email"
-                        aria-label="Copy email"
-                        style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--lime, #98e038)' }}
-                        onClick={() => copy(o.email, 'email')}
-                      >
-                        <Copy size={11} />
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </td>
-              <td>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                  <b>{o.product || o.productId}</b>
-                  {o.productSlug && (
-                    <a href={`/agents/${o.productSlug}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: '11px', color: 'var(--accent)', textDecoration: 'none' }}>
-                      /{o.productSlug} ↗
-                    </a>
-                  )}
-                </div>
-              </td>
-              <td>
-                {o.providerPaymentId ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <code style={{ fontSize: '11px', color: 'var(--lime, #98e038)' }}>{o.providerPaymentId}</code>
+                    <code style={{ fontSize: '12px' }}>#{o.id.slice(0, 8)}</code>
                     <button
                       type="button"
-                      title="Copy Razorpay payment ID"
-                      aria-label="Copy payment ID"
-                      style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--lime, #98e038)' }}
-                      onClick={() => copy(o.providerPaymentId, 'payment ID')}
+                      title="Copy full order ID"
+                      aria-label="Copy order ID"
+                      style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--text-light)' }}
+                      onClick={() => copy(o.id, 'order ID')}
                     >
                       <Copy size={12} />
                     </button>
                   </div>
-                ) : (
-                  <small style={{ color: 'var(--muted)' }}>—</small>
-                )}
-              </td>
-              <td>
-                <b>{o.amount}</b>
-              </td>
-              <td>
-                {o.licenseSuffix ? (
-                  <a href="/admin/licenses" className="badge" style={{ fontSize: '11px', textDecoration: 'none', padding: '2px 8px' }}>
-                    <KeyRound size={11} style={{ marginRight: 4, verticalAlign: 'middle' }} />
-                    ••••-{o.licenseSuffix}
-                  </a>
-                ) : (
-                  <small style={{ color: 'var(--muted)' }}>No license</small>
-                )}
-              </td>
-              <td>
-                <small className="block">{date(o.createdAt)}</small>
-              </td>
-              <td>
-                {o.status === 'trial' || String(o.providerPaymentId || '').startsWith('trial_') ? (
-                  <span className="badge" style={{ background: '#1e293b', color: '#93c5fd' }}>Free Trial</span>
-                ) : o.status === 'gift' || String(o.providerPaymentId || '').startsWith('gift_') ? (
-                  <span className="badge" style={{ background: '#2e1065', color: '#d8b4fe' }}>Gifted</span>
-                ) : o.status === 'free' || String(o.providerPaymentId || '').startsWith('free_') || (o.status === 'paid' && (o.amountMinor !== undefined ? Number(o.amountMinor) === 0 : parseFloat(String(o.amount || '0').replace(/[^0-9.]/g, '')) === 0)) ? (
-                  <span className="badge" style={{ background: '#14532d', color: '#86efac' }}>100% Promo</span>
-                ) : o.status === 'paid' ? (
-                  <span className="badge good">paid</span>
-                ) : o.status === 'refunded' ? (
-                  <span className="badge" style={{ background: '#3b2020', color: '#f87171' }}>refunded</span>
-                ) : (
-                  <Badge>{o.status}</Badge>
-                )}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+                </td>
+                <td>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <b>{o.customer || 'Customer'}</b>
+                    </div>
+                    {o.email && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <small style={{ color: 'var(--text-light)' }}>{o.email}</small>
+                        <button
+                          type="button"
+                          title="Copy customer email"
+                          aria-label="Copy email"
+                          style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--lime, #98e038)' }}
+                          onClick={() => copy(o.email, 'email')}
+                        >
+                          <Copy size={11} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </td>
+                <td>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    <b>{o.product || o.productId}</b>
+                    {o.productSlug && (
+                      <a href={`/agents/${o.productSlug}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: '11px', color: 'var(--accent)', textDecoration: 'none' }}>
+                        /{o.productSlug} ↗
+                      </a>
+                    )}
+                  </div>
+                </td>
+                <td>
+                  {o.providerPaymentId ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <code style={{ fontSize: '11px', color: 'var(--lime, #98e038)' }}>{o.providerPaymentId}</code>
+                      <button
+                        type="button"
+                        title="Copy Razorpay payment ID"
+                        aria-label="Copy payment ID"
+                        style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--lime, #98e038)' }}
+                        onClick={() => copy(o.providerPaymentId, 'payment ID')}
+                      >
+                        <Copy size={12} />
+                      </button>
+                    </div>
+                  ) : (
+                    <small style={{ color: 'var(--muted)' }}>—</small>
+                  )}
+                </td>
+                <td>
+                  <b>{o.amount}</b>
+                </td>
+                <td>
+                  {o.licenseSuffix ? (
+                    <a href="/admin/licenses" className="badge" style={{ fontSize: '11px', textDecoration: 'none', padding: '2px 8px' }}>
+                      <KeyRound size={11} style={{ marginRight: 4, verticalAlign: 'middle' }} />
+                      ••••-{o.licenseSuffix}
+                    </a>
+                  ) : (
+                    <small style={{ color: 'var(--muted)' }}>No license</small>
+                  )}
+                </td>
+                <td>
+                  <small className="block">{date(o.createdAt)}</small>
+                </td>
+                <td>
+                  {o.status === 'trial' || String(o.providerPaymentId || '').startsWith('trial_') ? (
+                    <span className="badge" style={{ background: '#1e293b', color: '#93c5fd' }}>Free Trial</span>
+                  ) : o.status === 'gift' || String(o.providerPaymentId || '').startsWith('gift_') ? (
+                    <span className="badge" style={{ background: '#2e1065', color: '#d8b4fe' }}>Gifted</span>
+                  ) : o.status === 'free' || String(o.providerPaymentId || '').startsWith('free_') || (o.status === 'paid' && (o.amountMinor !== undefined ? Number(o.amountMinor) === 0 : parseFloat(String(o.amount || '0').replace(/[^0-9.]/g, '')) === 0)) ? (
+                    <span className="badge" style={{ background: '#14532d', color: '#86efac' }}>100% Promo</span>
+                  ) : o.status === 'paid' ? (
+                    <span className="badge good">paid</span>
+                  ) : o.status === 'refunded' ? (
+                    <span className="badge" style={{ background: '#3b2020', color: '#f87171' }}>refunded</span>
+                  ) : (
+                    <Badge>{o.status}</Badge>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <PaginationBar page={page} totalItems={items.length} pageSize={pageSize} onPageChange={setPage} label="orders" />
+    </>
   );
 }
 function Announcements({ user, items, action }: { user: User; items: any[]; action: (path: string, body?: object, method?: string) => Promise<void> }) { const isOwner = user.role === 'owner'; return <><div className="panel"><h3>Team Announcements</h3>{!items.length ? <p>No internal announcements yet.</p> : items.map(a => <div className="list-row" key={a.id}><Mail size={16} /><div className="grow" style={{ flex: 1, minWidth: 0 }}><p style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{a.message}</p></div><span className="small-note">{date(a.createdAt)}</span>{isOwner && <button className="text-button bare" onClick={() => action('/admin/announcements/' + a.id, {}, 'DELETE')}><X size={14}/></button>}</div>)}</div>{isOwner && <form className="panel" onSubmit={async e => { e.preventDefault(); const form = e.currentTarget; await action('/admin/announcements', { audience: 'team', message: new FormData(form).get('message') }); form.reset(); }}><h3>Post an announcement</h3><Field label="Message"><textarea name="message" required minLength={3} rows={3} placeholder="Tell your team what's new..." /></Field><button className="button primary">Broadcast to team</button></form>}</>; }
@@ -2440,6 +2584,11 @@ export function InquiriesAdmin({ onFeedback }: { onFeedback: (msg: string) => vo
   const [filter, setFilter] = useState<'all' | 'tickets' | 'contacts' | 'open' | 'resolved'>('all');
   const [selectedInquiry, setSelectedInquiry] = useState<any>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+
+  useEffect(() => {
+    setPage(1);
+  }, [query, filter]);
 
   const inquiries = Array.isArray(rawData) ? rawData : [];
 
@@ -2452,6 +2601,9 @@ export function InquiriesAdmin({ onFeedback }: { onFeedback: (msg: string) => vo
     if (filter === 'resolved') return inq.status === 'resolved';
     return true;
   });
+
+  const pageSize = 15;
+  const paged = filtered.slice((page - 1) * pageSize, page * pageSize);
 
   const totalCount = inquiries.length;
   const openCount = inquiries.filter((i: any) => i.status === 'open').length;
@@ -2586,137 +2738,141 @@ export function InquiriesAdmin({ onFeedback }: { onFeedback: (msg: string) => vo
           description={query ? "Try clearing your search query." : "Your inbox is clear! Customer support requests and website contact messages will appear here in real-time."}
         />
       ) : (
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Customer / Sender</th>
-                <th>Channel / Origin</th>
-                <th>Subject &amp; Message Snippet</th>
-                <th>Submitted</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((inq: any) => (
-                <tr key={inq.id}>
-                  <td>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <b>{inq.name || 'Unnamed'}</b>
-                      {inq.email && (
+        <>
+          <PaginationBar page={page} totalItems={filtered.length} pageSize={pageSize} onPageChange={setPage} label="inquiries" />
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Customer / Sender</th>
+                  <th>Channel / Origin</th>
+                  <th>Subject &amp; Message Snippet</th>
+                  <th>Submitted</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {paged.map((inq: any) => (
+                  <tr key={inq.id}>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <b>{inq.name || 'Unnamed'}</b>
+                        {inq.email && (
+                          <button
+                            type="button"
+                            title="Copy email"
+                            aria-label="Copy email"
+                            style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--lime, #98e038)' }}
+                            onClick={() => {
+                              navigator.clipboard.writeText(inq.email);
+                              onFeedback(`Copied email ${inq.email}`);
+                            }}
+                          >
+                            <Copy size={12} />
+                          </button>
+                        )}
+                      </div>
+                      <small className="block" style={{ color: 'var(--muted)' }}>{inq.email}</small>
+                    </td>
+                    <td>
+                      {inq.source === 'support_ticket' ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                          <span
+                            className="badge"
+                            style={{
+                              background: 'rgba(192, 132, 252, 0.14)',
+                              color: '#c084fc',
+                              borderColor: 'rgba(192, 132, 252, 0.4)',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 5,
+                              width: 'fit-content',
+                              fontWeight: 600
+                            }}
+                          >
+                            <Users size={12} /> Support Ticket
+                          </span>
+                          <small style={{ color: 'var(--muted)', fontSize: 11 }}>Registered Customer</small>
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                          <span
+                            className="badge"
+                            style={{
+                              background: 'rgba(251, 191, 36, 0.14)',
+                              color: '#fbbf24',
+                              borderColor: 'rgba(251, 191, 36, 0.4)',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 5,
+                              width: 'fit-content',
+                              fontWeight: 600
+                            }}
+                          >
+                            <Globe size={12} /> Contact Form
+                          </span>
+                          <small style={{ color: 'var(--muted)', fontSize: 11 }}>Website Visitor (Public)</small>
+                        </div>
+                      )}
+                    </td>
+                    <td style={{ maxWidth: 360, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <b style={{ display: 'block', color: 'var(--text)' }}>{inq.subject || 'No subject'}</b>
+                      <small style={{ color: 'var(--muted)', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {inq.message}
+                      </small>
+                    </td>
+                    <td>{date(inq.createdAt)}</td>
+                    <td>
+                      <span
+                        className="badge"
+                        style={{
+                          background: inq.status === 'resolved' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(152, 224, 56, 0.12)',
+                          color: inq.status === 'resolved' ? 'var(--muted)' : 'var(--lime, #98e038)',
+                          borderColor: inq.status === 'resolved' ? 'var(--border)' : 'rgba(152, 224, 56, 0.3)'
+                        }}
+                      >
+                        {inq.status || 'open'}
+                      </span>
+                    </td>
+                    <td>
+                      <div className="row-actions" style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                         <button
                           type="button"
-                          title="Copy email"
-                          aria-label="Copy email"
-                          style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--lime, #98e038)' }}
-                          onClick={() => {
-                            navigator.clipboard.writeText(inq.email);
-                            onFeedback(`Copied email ${inq.email}`);
-                          }}
+                          className="button secondary small"
+                          style={{ padding: '4px 10px', fontSize: 12 }}
+                          onClick={() => setSelectedInquiry(inq)}
                         >
-                          <Copy size={12} />
+                          View &amp; Reply
                         </button>
-                      )}
-                    </div>
-                    <small className="block" style={{ color: 'var(--muted)' }}>{inq.email}</small>
-                  </td>
-                  <td>
-                    {inq.source === 'support_ticket' ? (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                        <span
-                          className="badge"
-                          style={{
-                            background: 'rgba(192, 132, 252, 0.14)',
-                            color: '#c084fc',
-                            borderColor: 'rgba(192, 132, 252, 0.4)',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: 5,
-                            width: 'fit-content',
-                            fontWeight: 600
-                          }}
+                        <button
+                          type="button"
+                          className="button secondary small"
+                          style={{ padding: '4px 10px', fontSize: 12 }}
+                          disabled={busyId === inq.id}
+                          onClick={() => handleToggleStatus(inq)}
                         >
-                          <Users size={12} /> Support Ticket
-                        </span>
-                        <small style={{ color: 'var(--muted)', fontSize: 11 }}>Registered Customer</small>
-                      </div>
-                    ) : (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                        <span
-                          className="badge"
-                          style={{
-                            background: 'rgba(251, 191, 36, 0.14)',
-                            color: '#fbbf24',
-                            borderColor: 'rgba(251, 191, 36, 0.4)',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: 5,
-                            width: 'fit-content',
-                            fontWeight: 600
-                          }}
+                          {inq.status === 'resolved' ? 'Reopen' : 'Resolve'}
+                        </button>
+                        <button
+                          type="button"
+                          className="button secondary small"
+                          style={{ padding: '4px 8px', fontSize: 12, color: 'var(--red, #ef4444)', borderColor: 'rgba(239, 68, 68, 0.4)' }}
+                          disabled={busyId === inq.id}
+                          title="Permanently delete inquiry"
+                          onClick={() => handleDelete(inq)}
                         >
-                          <Globe size={12} /> Contact Form
-                        </span>
-                        <small style={{ color: 'var(--muted)', fontSize: 11 }}>Website Visitor (Public)</small>
+                          <Trash2 size={13} />
+                        </button>
                       </div>
-                    )}
-                  </td>
-                  <td style={{ maxWidth: 360, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    <b style={{ display: 'block', color: 'var(--text)' }}>{inq.subject || 'No subject'}</b>
-                    <small style={{ color: 'var(--muted)', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {inq.message}
-                    </small>
-                  </td>
-                  <td>{date(inq.createdAt)}</td>
-                  <td>
-                    <span
-                      className="badge"
-                      style={{
-                        background: inq.status === 'resolved' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(152, 224, 56, 0.12)',
-                        color: inq.status === 'resolved' ? 'var(--muted)' : 'var(--lime, #98e038)',
-                        borderColor: inq.status === 'resolved' ? 'var(--border)' : 'rgba(152, 224, 56, 0.3)'
-                      }}
-                    >
-                      {inq.status || 'open'}
-                    </span>
-                  </td>
-                  <td>
-                    <div className="row-actions" style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                      <button
-                        type="button"
-                        className="button secondary small"
-                        style={{ padding: '4px 10px', fontSize: 12 }}
-                        onClick={() => setSelectedInquiry(inq)}
-                      >
-                        View &amp; Reply
-                      </button>
-                      <button
-                        type="button"
-                        className="button secondary small"
-                        style={{ padding: '4px 10px', fontSize: 12 }}
-                        disabled={busyId === inq.id}
-                        onClick={() => handleToggleStatus(inq)}
-                      >
-                        {inq.status === 'resolved' ? 'Reopen' : 'Resolve'}
-                      </button>
-                      <button
-                        type="button"
-                        className="button secondary small"
-                        style={{ padding: '4px 8px', fontSize: 12, color: 'var(--red, #ef4444)', borderColor: 'rgba(239, 68, 68, 0.4)' }}
-                        disabled={busyId === inq.id}
-                        title="Permanently delete inquiry"
-                        onClick={() => handleDelete(inq)}
-                      >
-                        <Trash2 size={13} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <PaginationBar page={page} totalItems={filtered.length} pageSize={pageSize} onPageChange={setPage} label="inquiries" />
+        </>
       )}
 
       {selectedInquiry && (
@@ -3153,8 +3309,72 @@ export function CustomerOrdersModal({
   );
 }
 
+function getActivityCategory(action: string) {
+  const act = String(action || '').toLowerCase();
+  if (act.includes('team') || act.includes('staff')) {
+    return { label: 'Team & Staff', color: '#4ade80', bg: 'rgba(34, 197, 94, 0.12)', border: 'rgba(34, 197, 94, 0.3)' };
+  }
+  if (act.includes('product') || act.includes('category') || act.includes('release')) {
+    return { label: 'Products & Agents', color: '#60a5fa', bg: 'rgba(59, 130, 246, 0.12)', border: 'rgba(59, 130, 246, 0.3)' };
+  }
+  if (act.includes('license') || act.includes('security') || act.includes('device') || act.includes('impersonat') || act.includes('key')) {
+    return { label: 'Security & Keys', color: '#f87171', bg: 'rgba(239, 68, 68, 0.12)', border: 'rgba(239, 68, 68, 0.3)' };
+  }
+  if (act.includes('permission') || act.includes('setting') || act.includes('content') || act.includes('announcement') || act.includes('coupon')) {
+    return { label: 'Settings & Config', color: '#fbbf24', bg: 'rgba(245, 158, 11, 0.12)', border: 'rgba(245, 158, 11, 0.3)' };
+  }
+  return { label: 'System Action', color: '#a3e635', bg: 'rgba(163, 230, 53, 0.12)', border: 'rgba(163, 230, 53, 0.3)' };
+}
+
+function formatActivityTitle(action: string): string {
+  const act = String(action || '');
+  const map: Record<string, string> = {
+    'staff.promoted_direct': 'Direct Staff Promotion',
+    'staff.invited': 'Sent Team Invitation',
+    'staff.invite_cancelled': 'Cancelled Team Invitation',
+    'staff.invite_resent': 'Resent Team Invitation',
+    'staff.role_changed': 'Updated Staff Role',
+    'staff.access_toggled': 'Toggled Staff Active/Suspension',
+    'settings.permissions_updated': 'Saved Dynamic Role Permissions',
+    'settings.updated': 'Updated Agency Settings',
+    'content.updated': 'Updated Website Content',
+    'product.created': 'Created New Agent Product',
+    'product.updated': 'Updated Agent Product Details',
+    'product.deleted': 'Deleted Agent Product',
+    'product.status_changed': 'Updated Agent Release Status',
+    'category.created': 'Created Agent Category',
+    'announcement.created': 'Created Announcement',
+    'announcement.deleted': 'Deleted Announcement',
+    'coupon.created': 'Created Discount Coupon',
+    'coupon.deleted': 'Deleted Discount Coupon',
+    'security.impersonation_started': 'Staff Impersonation Session',
+    'security.impersonation_stopped': 'Ended Impersonation Session',
+    'license.revoked': 'Revoked License Key',
+    'license.restored': 'Restored License Key',
+    'license.rotated': 'Rotated License Key'
+  };
+  return map[act] || act;
+}
+
 function Admin({ section, user, settings, onCatalogChange }: { section: string; user: User; settings: Settings; onCatalogChange: () => void }) {
     const map: Record<string, string> = { '': 'analytics', '/products': 'products', '/releases': 'products', '/categories': 'categories', '/customers': 'customers', '/licenses': 'licenses', '/orders': 'orders', '/inquiries': 'inquiries', '/promotions': 'settings', '/team': 'team', '/announcements': 'announcements/team', '/content': 'content', '/activity': 'activity', '/settings': 'settings' }; const endpoint = section === '' && user.role === 'support' ? 'customers' : map[section] || 'products'; const { data, error, reload } = useData('/admin/' + endpoint); const [query, setQuery] = useState(''), [filter, setFilter] = useState('all'), [editing, setEditing] = useState<Product | null | undefined>(undefined), [feedback, setFeedback] = useState(''), [licenseAction, setLicenseAction] = useState<{ id: string; action: string } | null>(null), [giftModal, setGiftModal] = useState(false), [banningDevice, setBanningDevice] = useState<{ id: string; installationId: string } | null>(null), [telemetryLicense, setTelemetryLicense] = useState<{ id: string; product: string; customer: string; email?: string } | null>(null), [viewingOrdersCustomer, setViewingOrdersCustomer] = useState<{ id: string; name: string; email?: string } | null>(null);
+    const [page, setPage] = useState(1);
+    const [activityTab, setActivityTab] = useState<'audit' | 'delivery'>('audit');
+    const [auditPage, setAuditPage] = useState(1);
+    const [deliveryPage, setDeliveryPage] = useState(1);
+
+    useEffect(() => {
+      setPage(1);
+      setAuditPage(1);
+      setDeliveryPage(1);
+    }, [section, query, filter, activityTab]);
+
+    const rawEmails = Array.isArray(data?.emails) ? data.emails : [];
+    const filteredEmails = rawEmails.filter((e: any) => {
+      if (!query) return true;
+      return JSON.stringify(e).toLowerCase().includes(query.toLowerCase());
+    });
+
     const titles: Record<string, string> = { '': 'Your agency, at a glance.', '/products': 'Agent Collection & Content.', '/releases': 'Agent Releases & Commercial Deployment.', '/customers': 'The people behind the accounts.', '/licenses': 'Access, under your control.', '/orders': 'Every order, in one place.', '/inquiries': 'Customer Inquiries & Support Messages.', '/promotions': 'Run sales and global announcements.', '/team': 'Good work takes a team.', '/announcements': 'Internal directives.', '/content': 'Make it sound like you.', '/activity': 'A clear record of every change.', '/settings': 'The details that make it yours.' };
     const items = (data?.items || []) as any[];
     const filtered = items.filter(item => {
@@ -3162,6 +3382,14 @@ function Admin({ section, user, settings, onCatalogChange }: { section: string; 
       if (!matchesQuery) return false;
       if (filter === 'all') return true;
       if (filter === 'nonbuyers') return item.purchases === 0;
+      if (section === '/activity') {
+        const act = String(item.action || '').toLowerCase();
+        if (filter === 'team') return act.includes('team') || act.includes('staff');
+        if (filter === 'products') return act.includes('product') || act.includes('category') || act.includes('release');
+        if (filter === 'permissions') return act.includes('permission') || act.includes('setting') || act.includes('content') || act.includes('announcement') || act.includes('coupon');
+        if (filter === 'security') return act.includes('license') || act.includes('security') || act.includes('device') || act.includes('impersonat') || act.includes('key');
+        return true;
+      }
       if (section === '/orders') {
         const isPaid = item.status === 'paid' && Number(item.amountMinor || 0) > 0 && !String(item.providerPaymentId || '').startsWith('trial_') && !String(item.providerPaymentId || '').startsWith('gift_') && !String(item.providerPaymentId || '').startsWith('free_');
         const isTrial = item.status === 'trial' || String(item.providerPaymentId || '').startsWith('trial_');
@@ -3261,23 +3489,360 @@ function Admin({ section, user, settings, onCatalogChange }: { section: string; 
           </div>
           <div className="workspace-welcome"><div><span className="eyebrow">A STRONG START</span><h2>Let’s make NORVI<br /><span className="serif">yours.</span></h2><p>Your website is taking shape. Add your product details and explore the customer journey.</p><a className="button primary" href={user.role === 'support' ? '/admin/customers' : '/admin/products'}>{user.role === 'support' ? 'Explore customers' : 'Manage your agents'}<ArrowUpRight size={17} /></a></div><div className="setup-list">{[['Website name', 'NORVI is ready', true], ['Product details', 'Names, features, prices, and releases', false], ['Secure accounts', 'Connect your authentication service', false], ['Payments & email', 'Connect your business accounts', false]].map(([title, desc, done]) => <div key={String(title)}><span className={done ? 'check-circle done' : 'check-circle'}>{done ? <Check size={14} /> : <span />}</span><div><b>{title}</b><small>{desc}</small></div></div>)}</div></div><div className="panel-heading"><h3>Find your next step</h3><a href="/" className="text-button">View website <ArrowUpRight size={15} /></a></div>{user.role !== 'support' && <SocialMediaForm settings={settings} onSave={onCatalogChange} />}
           <div className="quick-links">{(user.role === 'support' ? [['Customers', 'Find accounts, including non-buyers', '/admin/customers', Users], ['Licenses', 'Help with devices and access', '/admin/licenses', KeyRound]] : [['Your products', 'Add, edit, and publish your agents', '/admin/products', Box], ['Website content', 'Edit your headline and description', '/admin/content', FileText]]).map(([title, desc, href, Icon]: any) => <a className="panel" href={href} key={title}><Icon size={22} /><h3>{title}</h3><p>{desc}</p><ArrowUpRight size={19} /></a>)}</div></>}
-        {['/products', '/releases', '/categories', '/customers', '/licenses', '/orders', '/activity'].includes(section) && <div className="catalog-toolbar"><label className="search"><Search size={17} /><input aria-label="Search records" placeholder={section === '/customers' ? 'Search name or email…' : section === '/orders' ? 'Search order ID, customer, email, payment ID…' : section === '/activity' ? 'Search action or actor…' : 'Search records…'} value={query} onChange={e => setQuery(e.target.value)} /></label>{section !== '/activity' && <select aria-label="Filter records" value={filter} onChange={e => setFilter(e.target.value)}><option value="all">All records</option>{['/products', '/releases'].includes(section) ? <><option value="published">Published</option><option value="draft">Drafts</option><option value="archived">Archived</option></> : section === '/customers' ? <option value="nonbuyers">No purchases</option> : section === '/orders' ? <><option value="paid">Paid (Commercial)</option><option value="trial">Free Trials</option><option value="gift">Gifted Licenses</option><option value="pending">Pending</option><option value="refunded">Refunded</option></> : <><option value="active">Active</option><option value="revoked">Revoked</option></>}</select>}</div>}
+        {['/products', '/releases', '/categories', '/customers', '/licenses', '/orders', '/activity'].includes(section) && (
+          <div className="catalog-toolbar">
+            <label className="search">
+              <Search size={17} />
+              <input
+                aria-label="Search records"
+                placeholder={
+                  section === '/customers'
+                    ? 'Search name or email…'
+                    : section === '/orders'
+                    ? 'Search order ID, customer, email, payment ID…'
+                    : section === '/activity'
+                    ? (activityTab === 'audit' ? 'Search action, actor, target or note…' : 'Search email order ID or status…')
+                    : 'Search records…'
+                }
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+              />
+            </label>
+            {section === '/activity' ? (
+              activityTab === 'audit' && (
+                <select aria-label="Filter records" value={filter} onChange={e => setFilter(e.target.value)}>
+                  <option value="all">All Activity</option>
+                  <option value="team">Team & Staff</option>
+                  <option value="products">Products & Agents</option>
+                  <option value="permissions">Permissions & Settings</option>
+                  <option value="security">Security & Keys</option>
+                </select>
+              )
+            ) : (
+              <select aria-label="Filter records" value={filter} onChange={e => setFilter(e.target.value)}>
+                <option value="all">All records</option>
+                {['/products', '/releases'].includes(section) ? (
+                  <>
+                    <option value="published">Published</option>
+                    <option value="draft">Drafts</option>
+                    <option value="archived">Archived</option>
+                  </>
+                ) : section === '/customers' ? (
+                  <option value="nonbuyers">No purchases</option>
+                ) : section === '/orders' ? (
+                  <>
+                    <option value="paid">Paid (Commercial)</option>
+                    <option value="trial">Free Trials</option>
+                    <option value="gift">Gifted Licenses</option>
+                    <option value="pending">Pending</option>
+                    <option value="refunded">Refunded</option>
+                  </>
+                ) : (
+                  <>
+                    <option value="active">Active</option>
+                    <option value="revoked">Revoked</option>
+                  </>
+                )}
+              </select>
+            )}
+          </div>
+        )}
         {section === '/categories' && <CategoriesAdmin categories={data.categories} onSave={() => { reload(); onCatalogChange(); }} />}
         {section === '/products' && <><CatalogNoticeEditor settings={settings} onSave={onCatalogChange} /><div className="admin-products">{filtered.map((p: Product) => <div className="panel admin-product" key={p.id}><ProductIcon product={p} /><div className="grow" style={{ flex: 1, minWidth: 0 }}><div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}><h3>{p.name}</h3><select aria-label="Change agent status" value={p.status} style={{ width: 'auto', padding: '2px 8px', fontSize: '12px', borderRadius: '4px', background: 'var(--surface, #1e261a)', color: p.status === 'published' ? 'var(--lime, #98e038)' : 'var(--text-light)', border: '1px solid var(--border)' }} onChange={async e => { await action('/admin/products/' + p.id + '/status', { status: e.target.value }); onCatalogChange(); }}><option value="published">Published</option><option value="draft">Draft</option><option value="archived">Archived</option></select></div><p>{p.tagline}</p><span className="small-note">/{p.slug} · {p.price}</span></div><div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}><a href={`/agents/${p.slug}`} target="_blank" rel="noopener noreferrer" className="button secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '6px 12px', fontSize: '13px' }}>View Page <ExternalLink size={14} /></a><button className="button secondary" onClick={() => setEditing(p)}>Edit Content & SEO <ArrowUpRight size={15} /></button><button className="button secondary" style={{color: "var(--red)", borderColor: "var(--red)"}} onClick={() => { if(window.confirm("Are you sure you want to permanently delete this agent?")) { action("/admin/products/" + p.id, {}, "DELETE"); } }}>Delete</button></div></div>)}</div>{!filtered.length && <Empty title="No products match." description="Change your filters or add your first agent." />}</>}
         {section === '/releases' && <AgentReleasesAdmin products={filtered} onSave={() => { reload(); onCatalogChange(); }} />}
-        {section === '/customers' && <><div className="table-wrap"><table><thead><tr><th>Customer</th><th>Registered</th><th>Purchases & Spend</th><th>Licenses</th><th>Status</th><th>Actions</th></tr></thead><tbody>{filtered.map(u => <tr key={u.id}><td><div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><b>{u.name || 'Unnamed'}</b>{u.email && <button type="button" title="Copy email" aria-label="Copy customer email" style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--lime, #98e038)' }} onClick={() => { navigator.clipboard.writeText(u.email); setFeedback(`Copied email ${u.email}`); }}><Copy size={12} /></button>}</div><small className="block">{u.email}</small></td><td>{date(u.createdAt)}</td><td><div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}><div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}><b style={{ color: Number(u.totalSpent || 0) > 0 ? 'var(--lime, #98e038)' : 'var(--text-light)' }}>{Number(u.totalSpent || 0) > 0 ? `₹${Number(u.totalSpent).toLocaleString()}` : (u.orderCount > 0 ? 'Free / Trial' : '₹0')}</b><button type="button" className="button secondary small" style={{ padding: '2px 8px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }} onClick={() => setViewingOrdersCustomer({ id: u.id, name: u.name || 'Customer', email: u.email })}><CreditCard size={12} /> {u.orderCount || 0} {u.orderCount === 1 ? 'order' : 'orders'}</button></div>{u.purchasedProducts && u.purchasedProducts.length > 0 ? <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>{u.purchasedProducts.map((p: any) => <span key={p.slug || p.id} className="badge" style={{ fontSize: '10px', padding: '1px 6px' }}>{p.name}</span>)}</div> : <small style={{ color: 'var(--muted)', fontSize: '11px' }}>No purchases</small>}</div></td><td><b>{u.activeLicenses || u.licenseCount || 0}</b></td><td><Badge>{u.suspended ? 'suspended' : u.status || 'active'}</Badge></td><td><div className="row-actions"><button className="button secondary" onClick={() => action('/admin/customers/' + u.id + '/suspend', { suspended: !(u.suspended || u.status === 'suspended') })}>{(u.suspended || u.status === 'suspended') ? 'Restore account' : 'Suspend account'}</button>{(user.role === 'owner' || user.role === 'administrator') && <><button className="button secondary" onClick={async () => { await action('/admin/impersonate', { id: u.id }); window.location.href = u.role === 'customer' ? '/account' : '/admin'; }}>Login As</button><button className="button secondary" style={{ color: 'var(--red, #ef4444)', borderColor: 'var(--red, #ef4444)' }} onClick={() => { if (window.confirm(`⚠️ PERMANENT ACCOUNT DELETION\n\nAre you sure you want to permanently delete the account for "${u.name || u.email}"?\n\nThis will permanently destroy:\n• All licenses and key activations\n• All connected hardware devices\n• All orders and purchase receipts\n• Customer profile and login credentials\n\nThis action cannot be undone.`)) { action('/admin/customers/' + u.id + '/delete'); } }}>Delete account</button></>}</div></td></tr>)}</tbody></table></div>{!filtered.length && <Empty title="No matching customers." description="Try a different search or filter." />}</>}
-        {section === '/licenses' && (!filtered.length ? <Empty title="No licenses issued yet." description="Active customer licenses and key activations will appear here as orders are placed." href="/admin/orders" label="View orders" /> : <div className="license-list">{filtered.map(l => <AdminLicenseCard key={l.id} license={l} userRole={user.role} onAction={action} onBanDevice={dev => setBanningDevice(dev)} onUnbanDevice={async (deviceId, installationId) => { if (window.confirm(`Lift ban on hardware ID "${installationId}"?`)) { await action(`/admin/devices/${deviceId}/unban`); } }} onRemoveDevice={async (deviceId, installationId) => { if (window.confirm(`Unlink hardware ID "${installationId}" from this license?\n\nThis frees the slot cleanly so the customer can activate another machine.`)) { await action(`/admin/devices/${deviceId}/remove`); } }} onShowTelemetry={lic => setTelemetryLicense(lic)} onLicenseAction={(id, act) => setLicenseAction({ id, action: act })} onCopiedEmail={email => setFeedback(`Copied email ${email}`)} />)}</div>)}
+        {section === '/customers' && <>
+          <PaginationBar page={page} totalItems={filtered.length} pageSize={15} onPageChange={setPage} label="customers" />
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Customer</th>
+                  <th>Registered</th>
+                  <th>Purchases &amp; Spend</th>
+                  <th>Licenses</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.slice((page - 1) * 15, page * 15).map(u => (
+                  <tr key={u.id}>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <b>{u.name || 'Unnamed'}</b>
+                        {u.email && (
+                          <button
+                            type="button"
+                            title="Copy email"
+                            aria-label="Copy customer email"
+                            style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--lime, #98e038)' }}
+                            onClick={() => {
+                              navigator.clipboard.writeText(u.email);
+                              setFeedback(`Copied email ${u.email}`);
+                            }}
+                          >
+                            <Copy size={12} />
+                          </button>
+                        )}
+                      </div>
+                      <small className="block">{u.email}</small>
+                    </td>
+                    <td>{date(u.createdAt)}</td>
+                    <td>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                          <b style={{ color: Number(u.totalSpent || 0) > 0 ? 'var(--lime, #98e038)' : 'var(--text-light)' }}>
+                            {Number(u.totalSpent || 0) > 0 ? `₹${Number(u.totalSpent).toLocaleString()}` : (u.orderCount > 0 ? 'Free / Trial' : '₹0')}
+                          </b>
+                          <button
+                            type="button"
+                            className="button secondary small"
+                            style={{ padding: '2px 8px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                            onClick={() => setViewingOrdersCustomer({ id: u.id, name: u.name || 'Customer', email: u.email })}
+                          >
+                            <CreditCard size={12} /> {u.orderCount || 0} {u.orderCount === 1 ? 'order' : 'orders'}
+                          </button>
+                        </div>
+                        {u.purchasedProducts && u.purchasedProducts.length > 0 ? (
+                          <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                            {u.purchasedProducts.map((p: any) => (
+                              <span key={p.slug || p.id} className="badge" style={{ fontSize: '10px', padding: '1px 6px' }}>
+                                {p.name}
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <small style={{ color: 'var(--muted)', fontSize: '11px' }}>No purchases</small>
+                        )}
+                      </div>
+                    </td>
+                    <td><b>{u.activeLicenses || u.licenseCount || 0}</b></td>
+                    <td><Badge>{u.suspended ? 'suspended' : u.status || 'active'}</Badge></td>
+                    <td>
+                      <div className="row-actions">
+                        <button className="button secondary" onClick={() => action('/admin/customers/' + u.id + '/suspend', { suspended: !(u.suspended || u.status === 'suspended') })}>
+                          {(u.suspended || u.status === 'suspended') ? 'Restore account' : 'Suspend account'}
+                        </button>
+                        {(user.role === 'owner' || user.role === 'administrator') && (
+                          <>
+                            <button className="button secondary" onClick={async () => { await action('/admin/impersonate', { id: u.id }); window.location.href = u.role === 'customer' ? '/account' : '/admin'; }}>
+                              Login As
+                            </button>
+                            <button className="button secondary" style={{ color: 'var(--red, #ef4444)', borderColor: 'var(--red, #ef4444)' }} onClick={() => { if (window.confirm(`⚠️ PERMANENT ACCOUNT DELETION\n\nAre you sure you want to permanently delete the account for "${u.name || u.email}"?\n\nThis will permanently destroy:\n• All licenses and key activations\n• All connected hardware devices\n• All orders and purchase receipts\n• Customer profile and login credentials\n\nThis action cannot be undone.`)) { action('/admin/customers/' + u.id + '/delete'); } }}>
+                              Delete account
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <PaginationBar page={page} totalItems={filtered.length} pageSize={15} onPageChange={setPage} label="customers" />
+          {!filtered.length && <Empty title="No matching customers." description="Try a different search or filter." />}
+        </>}
+        {section === '/licenses' && (!filtered.length ? (
+          <Empty title="No licenses issued yet." description="Active customer licenses and key activations will appear here as orders are placed." href="/admin/orders" label="View orders" />
+        ) : (
+          <>
+            <PaginationBar page={page} totalItems={filtered.length} pageSize={15} onPageChange={setPage} label="licenses" />
+            <div className="license-list">
+              {filtered.slice((page - 1) * 15, page * 15).map(l => (
+                <AdminLicenseCard
+                  key={l.id}
+                  license={l}
+                  userRole={user.role}
+                  onAction={action}
+                  onBanDevice={dev => setBanningDevice(dev)}
+                  onUnbanDevice={async (deviceId, installationId) => { if (window.confirm(`Lift ban on hardware ID "${installationId}"?`)) { await action(`/admin/devices/${deviceId}/unban`); } }}
+                  onRemoveDevice={async (deviceId, installationId) => { if (window.confirm(`Unlink hardware ID "${installationId}" from this license?\n\nThis frees the slot cleanly so the customer can activate another machine.`)) { await action(`/admin/devices/${deviceId}/remove`); } }}
+                  onShowTelemetry={lic => setTelemetryLicense(lic)}
+                  onLicenseAction={(id, act) => setLicenseAction({ id, action: act })}
+                  onCopiedEmail={email => setFeedback(`Copied email ${email}`)}
+                />
+              ))}
+            </div>
+            <PaginationBar page={page} totalItems={filtered.length} pageSize={15} onPageChange={setPage} label="licenses" />
+          </>
+        ))}
         {section === '/orders' && <><div className="stat-grid" style={{ marginBottom: 16 }}><Stat label="Total Orders" value={filtered.length} icon={<CreditCard />} /><Stat label="Paid Commercial Volume" value={'₹' + (filtered.filter(o => o.status === 'paid' && Number(o.amountMinor || (parseFloat(String(o.amount || '0').replace(/[^0-9.]/g, '')) * 100) || 0) > 0 && !String(o.providerPaymentId || '').startsWith('trial_') && !String(o.providerPaymentId || '').startsWith('gift_') && !String(o.providerPaymentId || '').startsWith('free_')).reduce((acc, o) => acc + (Number(o.amountMinor || (parseFloat(String(o.amount || '0').replace(/[^0-9.]/g, '')) * 100)) || 0) / 100, 0)).toLocaleString()} icon={<Activity />} /></div><AdminOrderTable items={filtered} onCopied={msg => setFeedback(msg)} /></>}
         {section === '/inquiries' && <InquiriesAdmin onFeedback={setFeedback} />}
         {section === '/promotions' && <><PromotionsManager /><TrialManager /><CouponsManager /></>}
         {section === '/marketing' && <MarketingManager />}
           {section === '/ai-agent' && <AIAgentManager />}
           {section === '/affiliates' && <AffiliateManager />}
-          {section === '/team' && <Team data={data} onAction={action} isOwner={user.role === 'owner'} settings={settings} />}
+          {section === '/team' && <Team data={data} onAction={action} isOwner={user.role === 'owner'} settings={settings} user={user} onCatalogChange={onCatalogChange} />}
         {section === '/announcements' && <Announcements user={user} items={items} action={action} />}
         {section === '/content' && <SettingsForm initial={data.settings} contentOnly onSave={() => { reload(); onCatalogChange(); }} />}
         {section === '/settings' && <><SettingsForm initial={data.settings} onSave={() => { reload(); onCatalogChange(); }} /><div className="panel"><h3>Integration readiness</h3><div className="list-row"><span>Authentication · Supabase</span><Badge>Not connected</Badge></div><div className="list-row"><span>Payments · Razorpay</span><Badge>Not connected</Badge></div><div className="list-row"><span>Email · Resend</span><Badge>Not connected</Badge></div><p className="small-note">Provider secrets belong in protected server configuration, never in this form.</p></div></>}
-        {section === '/activity' && <><div className="panel"><div className="panel-heading" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><h3>Activity log ({filtered.length})</h3></div>{!filtered.length ? <p>No changes match your filter.</p> : filtered.map(a => <div className="list-row" key={a.id}><span className="activity-icon"><Activity size={16} /></span><div className="grow" style={{ flex: 1, minWidth: 0 }}><b>{a.action}</b><p>{a.actor} · {a.target}</p></div><span className="small-note">{date(a.createdAt)}</span></div>)}</div><div className="panel"><h3>Email delivery</h3>{!data.emails.length ? <p>No purchase email jobs yet.</p> : data.emails.map((e: any) => <div className="list-row" key={e.id}><Mail size={16} /><span className="grow">Purchase confirmation · {e.orderId.slice(0, 8)}</span><Badge>{e.status}</Badge></div>)}</div></>}
+        {section === '/activity' && (
+          <>
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '16px', borderBottom: '1px solid var(--border)', paddingBottom: '12px', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                className={`button small ${activityTab === 'audit' ? 'primary' : 'secondary'}`}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '13px' }}
+                onClick={() => setActivityTab('audit')}
+              >
+                <Activity size={14} /> System Audit Trail ({filtered.length})
+              </button>
+              <button
+                type="button"
+                className={`button small ${activityTab === 'delivery' ? 'primary' : 'secondary'}`}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '13px' }}
+                onClick={() => setActivityTab('delivery')}
+              >
+                <Mail size={14} /> Transactional Email Delivery ({filteredEmails.length})
+              </button>
+            </div>
+
+            {activityTab === 'audit' && (
+              <div className="panel">
+                <div className="panel-heading" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                  <div>
+                    <h3 style={{ margin: 0 }}>Administrative Audit Trail ({filtered.length})</h3>
+                    <small style={{ color: 'var(--muted)' }}>Comprehensive chronological log of administrative, staff, product, and configuration actions.</small>
+                  </div>
+                </div>
+                <PaginationBar page={auditPage} totalItems={filtered.length} pageSize={15} onPageChange={setAuditPage} label="audit logs" />
+                {!filtered.length ? (
+                  <p style={{ padding: '16px 0', color: 'var(--muted)' }}>No audit events match your search or filter.</p>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {filtered.slice((auditPage - 1) * 15, auditPage * 15).map(a => {
+                      const cat = getActivityCategory(a.action);
+                      const title = formatActivityTitle(a.action);
+                      const actorDisplay = a.actorEmail ? `${a.actor || 'Admin'} (${a.actorEmail})` : (a.actor || 'System / Admin');
+                      const noteOrReason = a.reason || a.metadata?.reason || a.metadata?.note || (a.metadata?.role ? `Assigned role: ${a.metadata.role}` : null);
+                      const ipDisplay = a.ipAddress || a.metadata?.ip;
+
+                      return (
+                        <div
+                          className="panel"
+                          key={a.id}
+                          style={{
+                            background: 'var(--surface, #1e261a)',
+                            border: '1px solid var(--border)',
+                            borderRadius: 8,
+                            padding: '12px 16px',
+                            display: 'flex',
+                            alignItems: 'flex-start',
+                            justifyContent: 'space-between',
+                            gap: 16,
+                            flexWrap: 'wrap'
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, flex: 1, minWidth: 260 }}>
+                            <span
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                width: 32,
+                                height: 32,
+                                borderRadius: 6,
+                                background: cat.bg,
+                                color: cat.color,
+                                border: `1px solid ${cat.border}`,
+                                flexShrink: 0,
+                                marginTop: 2
+                              }}
+                            >
+                              <Activity size={16} />
+                            </span>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minWidth: 0 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                                <b style={{ fontSize: 14 }}>{title}</b>
+                                <span
+                                  style={{
+                                    fontSize: 10.5,
+                                    fontWeight: 600,
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '0.04em',
+                                    padding: '2px 7px',
+                                    borderRadius: 4,
+                                    background: cat.bg,
+                                    color: cat.color,
+                                    border: `1px solid ${cat.border}`
+                                  }}
+                                >
+                                  {cat.label}
+                                </span>
+                                <code style={{ fontSize: 11, color: 'var(--muted)', background: 'transparent', padding: 0 }}>
+                                  {a.action}
+                                </code>
+                              </div>
+
+                              <div style={{ fontSize: 12.5, color: 'var(--text-light)', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                                <span>Actor: <b style={{ color: 'var(--text)' }}>{actorDisplay}</b></span>
+                                {a.target && (
+                                  <>
+                                    <span style={{ color: 'var(--muted)' }}>•</span>
+                                    <span>Target: <code style={{ fontSize: 11, background: 'rgba(255,255,255,0.06)', padding: '1px 5px', borderRadius: 3 }}>{a.target}</code></span>
+                                  </>
+                                )}
+                                {ipDisplay && (
+                                  <>
+                                    <span style={{ color: 'var(--muted)' }}>•</span>
+                                    <span style={{ color: 'var(--muted)', fontSize: 11 }}>IP: {ipDisplay}</span>
+                                  </>
+                                )}
+                              </div>
+
+                              {noteOrReason && (
+                                <p style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--muted)', fontStyle: 'italic', background: 'rgba(0,0,0,0.15)', padding: '4px 8px', borderRadius: 4, borderLeft: '2px solid var(--accent, #98e038)' }}>
+                                  "{noteOrReason}"
+                                </p>
+                              )}
+                            </div>
+                          </div>
+
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2, flexShrink: 0 }}>
+                            <span className="small-note" style={{ fontSize: 12, fontWeight: 500 }}>
+                              {date(a.createdAt)}
+                            </span>
+                            <span style={{ fontSize: 10.5, color: 'var(--muted)' }}>
+                              {new Date(a.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+                <PaginationBar page={auditPage} totalItems={filtered.length} pageSize={15} onPageChange={setAuditPage} label="audit logs" />
+              </div>
+            )}
+
+            {activityTab === 'delivery' && (
+              <div className="panel">
+                <div className="panel-heading" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                  <div>
+                    <h3 style={{ margin: 0 }}>Customer Transactional Email Delivery ({filteredEmails.length})</h3>
+                    <small style={{ color: 'var(--muted)' }}>Receipt and key delivery notifications dispatched via Resend.</small>
+                  </div>
+                </div>
+                <PaginationBar page={deliveryPage} totalItems={filteredEmails.length} pageSize={15} onPageChange={setDeliveryPage} label="delivery jobs" />
+                {!filteredEmails.length ? (
+                  <p style={{ color: 'var(--muted)', padding: '16px 0' }}>No customer purchase email jobs recorded yet.</p>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {filteredEmails.slice((deliveryPage - 1) * 15, deliveryPage * 15).map((e: any) => (
+                      <div className="list-row" key={e.id}>
+                        <Mail size={16} />
+                        <span className="grow">Purchase confirmation · Order {e.orderId?.slice(0, 8) || 'N/A'}</span>
+                        <Badge>{e.status}</Badge>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <PaginationBar page={deliveryPage} totalItems={filteredEmails.length} pageSize={15} onPageChange={setDeliveryPage} label="delivery jobs" />
+              </div>
+            )}
+          </>
+        )}
     </>}{editing !== undefined && <Modal title={editing ? 'Edit agent' : 'Add an agent'} onClose={() => setEditing(undefined)} wide><ProductForm categories={data.categories} product={editing} onSave={() => { setEditing(undefined); reload(); onCatalogChange(); }} /></Modal>}{licenseAction && <Modal title={licenseAction.action === 'revoke' ? 'Revoke product access?' : licenseAction.action === 'rotate' ? 'Replace the activation key?' : licenseAction.action === 'delete' ? 'Permanently delete key?' : 'Restore product access?'} onClose={() => setLicenseAction(null)}><p>{licenseAction.action === 'delete' ? 'WARNING: This permanently deletes the license and device records. This action cannot be undone.' : 'This updates the customer license status. A reason will be recorded in the security audit log.'}</p><form onSubmit={async e => { e.preventDefault(); const reason = new FormData(e.currentTarget).get('reason'); await action('/admin/licenses/' + licenseAction.id + '/' + licenseAction.action, { reason }); setLicenseAction(null); }}><Field label="Reason"><textarea name="reason" required minLength={5} maxLength={250} rows={3} /></Field><button className="button primary">Confirm {licenseAction.action}</button></form></Modal>}
     {giftModal && <Modal title="Gift a License" onClose={() => setGiftModal(false)}><p>Manually generate and send an active license to a customer's email address. They must have a registered account.</p><form onSubmit={async e => { e.preventDefault(); const d = new FormData(e.currentTarget); await action('/admin/licenses/gift', { email: d.get('email'), productSlug: d.get('productSlug'), duration: d.get('duration') }); setGiftModal(false); }}><Field label="Customer Email"><input name="email" type="email" required /></Field><Field label="Product Slug (URL)"><input name="productSlug" required placeholder="e.g. omnix-ai" /></Field><Field label="License Duration"><select name="duration" defaultValue="1_month"><option value="1_day">1 Day (Trial Key)</option><option value="1_month">1 Month</option><option value="3_months">3 Months</option><option value="lifetime">Lifetime</option></select></Field><button className="button primary" style={{marginTop: '1rem'}}>Generate and Gift Key</button></form></Modal>}
     {banningDevice && <BanDeviceModal device={banningDevice} onClose={() => setBanningDevice(null)} onConfirmBan={async (duration, reason) => { await action(`/admin/devices/${banningDevice.id}/ban`, { duration, reason }); }} />}
@@ -4432,41 +4997,137 @@ export function CategoriesAdmin({ categories, onSave }: { categories: Category[]
   </div>;
 }
 
-export function RolePermissionsAdmin({ settings, onSave }: { settings: Settings; onSave: () => void }) {
-  const [permissions, setPermissions] = useState(settings.permissions || { "support": ["/customers", "/licenses", "/orders"], "product_manager": ["/products", "/releases", "/content"], "administrator": ["/products", "/releases", "/customers", "/licenses", "/orders", "/subscriptions", "/team", "/content", "/settings", "/activity"] });
+export function RolePermissionsAdmin({
+  settings,
+  isOwner,
+  onSave,
+  onCatalogChange
+}: {
+  settings: Settings;
+  isOwner?: boolean;
+  onSave: () => void;
+  onCatalogChange?: () => void;
+}) {
+  const [permissions, setPermissions] = useState<Record<string, string[]>>(
+    settings.permissions || {
+      "support": ["/customers", "/licenses", "/orders"],
+      "product_manager": ["/products", "/releases", "/content"],
+      "administrator": ["", "/products", "/releases", "/customers", "/licenses", "/orders", "/subscriptions", "/team", "/content", "/settings", "/activity", "manage_role_permissions"]
+    }
+  );
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
   const roles = ['administrator', 'product_manager', 'support'];
-  const sections = Object.fromEntries(staffNav.filter(s => s[0] !== '').map(s => [s[0], s[1]]));
+  const sectionsList: [string, string][] = [
+    ['', 'Overview (Main Dashboard)'],
+    ...staffNav.filter(s => s[0] !== '').map(s => [s[0], s[1]] as [string, string]),
+    ['manage_role_permissions', '🛡️ Manage Role Permissions (Security Configuration)']
+  ];
+
   const toggle = (role: string, path: string) => {
     setPermissions(p => {
       const paths = p[role] || [];
       const updated = paths.includes(path) ? paths.filter(x => x !== path) : [...paths, path];
-      return { ...p, [role]: [...new Set(['', ...updated])] };
+      return { ...p, [role]: [...new Set(updated)] };
     });
   };
-  return <form className="panel" onSubmit={async e => { e.preventDefault(); setBusy(true); try { await api('/admin/permissions', { method: 'PATCH', body: JSON.stringify(permissions) }); setMessage('Permissions saved successfully.'); onSave(); } catch(e: any) { setMessage(e.message); } setBusy(false); }}>
-    <h3>Dynamic Role Permissions</h3>
-    <p>Configure exactly which dashboard sections each role is allowed to access.</p>
-    <div className="table-wrap"><table>
-      <thead><tr><th>Section</th>{roles.map(r => <th key={r}>{r.replace('_', ' ')}</th>)}</tr></thead>
-      <tbody>
-        {Object.entries(sections).map(([path, label]) => <tr key={path}>
-          <td><b>{label as string}</b></td>
-          {roles.map(role => <td key={role}><input type="checkbox" checked={(permissions[role] || []).includes(path)} onChange={() => toggle(role, path)} /></td>)}
-        </tr>)}
-      </tbody>
-    </table></div>
-    <button className="button primary" disabled={busy}>Save permissions</button>
-    {message && <Notice>{message}</Notice>}
-  </form>;
+
+  return (
+    <form
+      className="panel"
+      onSubmit={async e => {
+        e.preventDefault();
+        setBusy(true);
+        try {
+          await api('/admin/permissions', { method: 'PATCH', body: JSON.stringify(permissions) });
+          setMessage('Permissions saved successfully. Changes synced across the workspace.');
+          onSave();
+          if (onCatalogChange) onCatalogChange();
+        } catch (e: any) {
+          setMessage(e.message);
+        }
+        setBusy(false);
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6, flexWrap: 'wrap', gap: 8 }}>
+        <h3 style={{ margin: 0 }}>Dynamic Role Permissions</h3>
+        <span style={{ fontSize: 11, background: 'rgba(152, 224, 56, 0.1)', color: 'var(--lime, #98e038)', border: '1px solid rgba(152, 224, 56, 0.3)', padding: '2px 8px', borderRadius: 12, fontWeight: 600 }}>
+          Owner Locked to Permanent Full Access
+        </span>
+      </div>
+      <p style={{ margin: '0 0 16px', fontSize: 13, color: 'var(--text-light)' }}>
+        Configure exactly which dashboard sections each role is allowed to access. The Owner role permanently holds full access. You can also grant or revoke the ability to manage dynamic role permissions for each staff role below.
+      </p>
+      <div className="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Section / Capability</th>
+              <th style={{ textAlign: 'center' }}>Owner</th>
+              {roles.map(r => (
+                <th key={r} style={{ textAlign: 'center' }}>
+                  {r.replace('_', ' ')}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {sectionsList.map(([path, label]) => (
+              <tr key={path} style={path === 'manage_role_permissions' ? { background: 'rgba(152, 224, 56, 0.05)' } : undefined}>
+                <td>
+                  <b>{label}</b>
+                  {path === 'manage_role_permissions' && (
+                    <small style={{ display: 'block', color: 'var(--muted)', fontSize: 11, marginTop: 2 }}>
+                      Allows designated role to view & change role permission settings in the Team tab.
+                    </small>
+                  )}
+                </td>
+                <td style={{ textAlign: 'center' }}>
+                  <input type="checkbox" checked disabled title="Owner permanently has full access" />
+                </td>
+                {roles.map(role => (
+                  <td key={role} style={{ textAlign: 'center' }}>
+                    <input
+                      type="checkbox"
+                      checked={(permissions[role] || []).includes(path)}
+                      onChange={() => toggle(role, path)}
+                    />
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <button className="button primary" disabled={busy} style={{ marginTop: 14 }}>
+        {busy ? 'Saving...' : 'Save permissions'}
+      </button>
+      {message && <Notice>{message}</Notice>}
+    </form>
+  );
 }
 
 export function SettingsForm({ initial, contentOnly = false, onSave }: { initial: Settings; contentOnly?: boolean; onSave: () => void }) { const [message, setMessage] = useState(''); return <form className="panel settings-form" onSubmit={async e => { e.preventDefault(); const form = new FormData(e.currentTarget); const d = { ...Object.fromEntries(form), maintenanceMode: form.get('maintenanceMode') === 'on' }; try { await api(contentOnly ? '/admin/content' : '/admin/settings', { method: 'PATCH', body: JSON.stringify(contentOnly ? d : { ...initial, ...d }) }); setMessage('Saved. Your website preview has been updated.'); onSave(); } catch (e: any) { setMessage(e.message); } }}><h3>{contentOnly ? 'Homepage copy' : 'Business details'}</h3>{!contentOnly && <div className="form-grid"><Field label="Website name"><input name="name" required defaultValue={initial.name} /></Field><Field label="Company name"><input name="company" defaultValue={initial.company} /></Field><Field label="Support email"><input name="email" defaultValue={initial.email} /></Field><Field label="Website domain"><input name="domain" defaultValue={initial.domain} /></Field></div>}<Field label="Homepage headline" hint="Use a new line to split the headline."><textarea name="headline" required rows={2} defaultValue={initial.headline} /></Field><Field label="Homepage description"><textarea name="description" required rows={3} defaultValue={initial.description} /></Field>{!contentOnly && <label style={{ display: 'flex', gap: 10, alignItems: 'center', margin: '20px 0', background: 'var(--surface)', padding: 15, borderRadius: 8, border: '1px solid var(--border)' }}><input type="checkbox" name="maintenanceMode" defaultChecked={initial.maintenanceMode} style={{ width: 18, height: 18 }} /><div><b>Maintenance Mode</b><p style={{ margin: 0, fontSize: 13, color: 'var(--text-light)' }}>When enabled, checkout and downloads are temporarily disabled for customers.</p></div></label>}<button className="button primary">Save changes <Check size={16} /></button>{message && <Notice>{message}</Notice>}</form>; }
-function Team({ data, onAction, isOwner, settings }: { data: any; onAction: (path: string, body?: object, method?: string) => Promise<void>; isOwner: boolean; settings: Settings }) { 
+function Team({
+  data,
+  onAction,
+  isOwner,
+  settings,
+  user,
+  onCatalogChange
+}: {
+  data: any;
+  onAction: (path: string, body?: object, method?: string) => Promise<void>;
+  isOwner: boolean;
+  settings: Settings;
+  user?: User;
+  onCatalogChange?: () => void;
+}) { 
   const [directEmail, setDirectEmail] = useState('');
   const [directRole, setDirectRole] = useState<'administrator' | 'product_manager' | 'support'>('administrator');
   const [recruiting, setRecruiting] = useState(false);
+
+  const canManagePermissions = isOwner || (settings?.permissions?.[user?.role || ''] || []).includes('manage_role_permissions');
 
   return <>
     <div className="panel">
@@ -4571,7 +5232,14 @@ function Team({ data, onAction, isOwner, settings }: { data: any; onAction: (pat
         </div>
       ))}
     </div>
-    {isOwner && <RolePermissionsAdmin settings={settings} onSave={() => onAction('')} />}
+    {canManagePermissions && (
+      <RolePermissionsAdmin
+        settings={settings}
+        isOwner={isOwner}
+        onSave={() => onAction('')}
+        onCatalogChange={onCatalogChange}
+      />
+    )}
   </>; 
 }
 export function OrderStatus() { const { data, error } = useData('/account'); const [orderId, setOrderId] = useState(''); useEffect(() => { setOrderId(new URLSearchParams(location.search).get('id') || ''); }, []); if (error) return <div className="container page"><Notice kind="error">{error}</Notice><a href="/login" className="button primary">Open account</a></div>; if (!data) return <Loading />; const order = data.orders.find((o: any) => o.id === orderId); return <div className="container page order-success">{order ? <><span className="success-symbol"><Check size={36} /></span><span className="eyebrow">ORDER CONFIRMED</span><h1>A little more possibility.<br />Now in your account.</h1><p>Your license key has been generated and dispatched to your account.</p><div className="panel"><div className="summary-row"><span>Order reference</span><code>#{order.id.slice(0, 8)}</code></div><div className="summary-row"><span>Amount charged</span><b>{order.amount || 'Verified Payment'}</b></div><div className="summary-row"><span>Order status</span><Badge>{order.status || 'paid'}</Badge></div></div><a href="/account/licenses" className="button primary">View your activation key <KeyRound size={18} /></a><a href="/account" className="text-button">Go to dashboard <ArrowRight size={16} /></a></> : <Empty title="Select an order from your account." description="Order details are private to the customer who placed them." href="/account/billing" label="View billing" />}</div>; }

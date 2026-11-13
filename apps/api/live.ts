@@ -35,6 +35,32 @@ const fireLog = async (c: any, webhookUrl: string | undefined, content: string) 
   await p;
 };
 
+const logAdminAudit = async (c: any, action: string, targetId: string, reason?: string, metadata?: any) => {
+  try {
+    const user = c.get('user');
+    const ip = c.req.header('cf-connecting-ip') || c.req.header('x-forwarded-for') || '';
+    const adminDb = (c.env.SUPABASE_SERVICE_ROLE_KEY && !c.env.SUPABASE_SERVICE_ROLE_KEY.includes('YOUR_'))
+      ? createClient(c.env.SUPABASE_URL!, c.env.SUPABASE_SERVICE_ROLE_KEY!)
+      : c.get('db');
+    
+    const enrichedMetadata = {
+      ...(metadata || {}),
+      actorEmail: user?.email || 'system',
+      actorName: user?.name || 'Staff'
+    };
+
+    await adminDb.rpc('log_action', {
+      p_action: action,
+      p_target_id: targetId,
+      p_reason: reason || null,
+      p_metadata: enrichedMetadata,
+      p_ip_address: ip
+    });
+  } catch (err) {
+    console.error('logAdminAudit error:', err);
+  }
+};
+
 function timingSafeEqual(a: string, b: string): boolean {
   if (a.length !== b.length) return false;
   let diff = 0;
@@ -737,6 +763,10 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     const section = first === 'analytics' ? '' : first === 'devices' ? '/licenses' : first === 'impersonate' ? '/customers' : '/' + first;
     const settings = await c.get('db').rpc('get_site_settings');
     const permissions = settings.data?.permissions || defaultPermissions;
+    if (section === '/permissions') {
+      if ((permissions[user.role] || []).includes('manage_role_permissions')) return next();
+      return c.json({ error: 'Your role cannot modify role permissions.' }, 403);
+    }
     if (!(permissions[user.role] || []).includes(section)) return c.json({ error: 'Your role cannot access this section.' }, 403);
     await next();
   });
@@ -1044,16 +1074,19 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     if (!['owner', 'administrator'].includes(effectiveRole)) return c.json({ error: 'Permission denied.' }, 403); 
     const { id } = await c.req.json(); 
     setCookie(c, 'norvi_impersonate', id, { path: '/' }); 
+    await logAdminAudit(c, 'security.impersonation_started', id, 'Started customer impersonation session', { impersonatedUserId: id });
     return c.json({ ok: true }); 
   });
   
-  app.delete('/api/admin/impersonate', c => { 
+  app.delete('/api/admin/impersonate', async c => { 
     deleteCookie(c, 'norvi_impersonate', { path: '/' }); 
+    await logAdminAudit(c, 'security.impersonation_stopped', 'session', 'Ended customer impersonation session');
     return c.json({ ok: true }); 
   });
 
-  app.post('/api/admin/impersonate/stop', c => { 
+  app.post('/api/admin/impersonate/stop', async c => { 
     deleteCookie(c, 'norvi_impersonate', { path: '/' }); 
+    await logAdminAudit(c, 'security.impersonation_stopped', 'session', 'Ended customer impersonation session');
     return c.json({ ok: true }); 
   });
 
@@ -1061,6 +1094,9 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     if (c.get('user').role !== 'owner') return c.json({ error: 'Only owners can invite staff.' }, 403);
     const input = await c.req.json();
     const { error } = await c.get('db').rpc('invite_staff_member', { invite_email: input.email, invite_role: input.role });
+    if (!error) {
+      await logAdminAudit(c, 'staff.invited', input.email, `Invited teammate with role ${input.role}`, { role: input.role, targetEmail: input.email });
+    }
     return error ? c.json({ error: 'Failed to send invite: ' + error.message }, 400) : c.json({ ok: true });
   });
 
@@ -1076,6 +1112,7 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     // 1. Try RPC admin_direct_promote_staff
     const rpcRes = await c.get('db').rpc('admin_direct_promote_staff', { p_email: cleanEmail, p_role: role });
     if (!rpcRes.error) {
+      await logAdminAudit(c, 'staff.promoted_direct', cleanEmail, `Directly recruited to ${role}`, { role, targetEmail: cleanEmail });
       return c.json({ ok: true, member: rpcRes.data });
     }
 
@@ -1101,6 +1138,7 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
 
     // Accept pending invitations for this email
     await adminDb.from('staff_invitations').update({ status: 'accepted' }).eq('email', cleanEmail);
+    await logAdminAudit(c, 'staff.promoted_direct', cleanEmail, `Directly recruited to ${role}`, { role, targetEmail: cleanEmail });
 
     return c.json({ ok: true });
   });
@@ -1108,6 +1146,9 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
   app.post('/api/admin/team/:id/suspend', async c => {
     if (c.get('user').role !== 'owner') return c.json({ error: 'Only owners can suspend staff.' }, 403);
     const { error } = await c.get('db').rpc('admin_toggle_staff_status', { p_user_id: c.req.param('id') });
+    if (!error) {
+      await logAdminAudit(c, 'staff.access_toggled', c.req.param('id'), 'Toggled staff access status');
+    }
     return error ? c.json({ error: 'Could not suspend staff.' }, 500) : c.json({ ok: true });
   });
 
@@ -1115,18 +1156,27 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     if (c.get('user').role !== 'owner') return c.json({ error: 'Only owners can change roles.' }, 403);
     const { role } = z.object({ role: z.enum(['administrator', 'product_manager', 'support']) }).parse(await c.req.json());
     const { error } = await c.get('db').rpc('admin_update_staff_role', { p_user_id: c.req.param('id'), p_role: role });
+    if (!error) {
+      await logAdminAudit(c, 'staff.role_changed', c.req.param('id'), `Changed staff role to ${role}`, { newRole: role });
+    }
     return error ? c.json({ error: error.message }, 400) : c.json({ ok: true });
   });
 
   app.delete('/api/admin/team/invite/:id', async c => {
     if (!['owner', 'administrator'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
     const { error } = await c.get('db').rpc('admin_delete_invitation', { p_invitation_id: c.req.param('id') });
+    if (!error) {
+      await logAdminAudit(c, 'staff.invite_cancelled', c.req.param('id'), 'Cancelled staff invitation');
+    }
     return error ? c.json({ error: error.message }, 400) : c.json({ ok: true });
   });
 
   app.post('/api/admin/team/invite/:id/resend', async c => {
     if (c.get('user').role !== 'owner') return c.json({ error: 'Only owners can resend invitations.' }, 403);
     const { error } = await c.get('db').rpc('admin_resend_invitation', { p_invitation_id: c.req.param('id') });
+    if (!error) {
+      await logAdminAudit(c, 'staff.invite_resent', c.req.param('id'), 'Resent staff invitation email');
+    }
     return error ? c.json({ error: error.message }, 400) : c.json({ ok: true });
   });
 
@@ -1397,6 +1447,9 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     if (!['owner', 'administrator', 'product_manager'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
     const { status } = z.object({ status: z.enum(['draft', 'published', 'archived']) }).parse(await c.req.json());
     const { data, error } = await c.get('db').rpc('admin_set_product_status', { p_product_id: c.req.param('id'), p_status: status });
+    if (!error) {
+      await logAdminAudit(c, 'product.status_changed', c.req.param('id'), `Changed agent product status to ${status}`, { status });
+    }
     return error ? c.json({ error: error.message }, 400) : c.json({ ok: true, ...(data || {}) });
   });
 
@@ -1454,6 +1507,9 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
         p_device_allowance: input.deviceAllowance || null,
         p_extended_content: input.extendedContent || {}
       });
+    if (!error) {
+      await logAdminAudit(c, input.id ? 'product.updated' : 'product.created', input.slug, `${input.id ? 'Updated' : 'Created'} agent product: ${input.name}`, { slug: input.slug, status: input.status, releaseStatus: input.releaseStatus });
+    }
     return error ? c.json({ error: 'Product could not be saved. ' + error.message }, 400) : c.json({ ok: true });
   });
 
@@ -1466,12 +1522,18 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     if (c.get('user').role !== 'owner') return c.json({ error: 'Permission denied.' }, 403);
     const { message, audience } = z.object({ message: z.string().min(1), audience: z.enum(['customer', 'team']) }).parse(await c.req.json());
     const { error } = await c.get('db').rpc('admin_create_announcement', { p_message: message, p_audience: audience });
+    if (!error) {
+      await logAdminAudit(c, 'announcement.created', audience, `Created ${audience} announcement: "${message.slice(0, 50)}..."`);
+    }
     return error ? c.json({ error: error.message }, 400) : c.json({ ok: true });
   });
 
   app.delete('/api/admin/announcements/:id', async c => {
     if (c.get('user').role !== 'owner') return c.json({ error: 'Permission denied.' }, 403);
     const { error } = await c.get('db').rpc('admin_delete_announcement', { p_id: c.req.param('id') });
+    if (!error) {
+      await logAdminAudit(c, 'announcement.deleted', c.req.param('id'), 'Deleted announcement');
+    }
     return error ? c.json({ error: error.message }, 400) : c.json({ ok: true });
   });
 
@@ -1495,6 +1557,9 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     if (!['owner', 'administrator'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
     const input = await c.req.json();
     const { error } = await c.get('db').rpc('admin_update_content', { p_headline: input.headline, p_description: input.description });
+    if (!error) {
+      await logAdminAudit(c, 'content.updated', 'homepage_content', 'Updated website headline and copy');
+    }
     return error ? c.json({ error: 'Settings could not be saved.' }, 400) : c.json({ ok: true });
   });
 
@@ -1512,16 +1577,33 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
       const advanced = await c.get('db').rpc('admin_update_advanced_settings', { p_maintenance_mode: input.maintenanceMode, p_permissions: input.permissions || {} });
       if (advanced.error) return c.json({ error: 'Advanced settings could not be saved: ' + advanced.error.message }, 400);
     }
+    await logAdminAudit(c, 'settings.updated', 'store_configuration', 'Updated store configuration', { name: input.name, maintenanceMode: input.maintenanceMode });
     return c.json({ ok: true });
   });
 
   app.patch('/api/admin/permissions', async c => {
-    if (c.get('user').role !== 'owner') return c.json({ error: 'Owner permission required.' }, 403);
-    const permissions = z.record(z.array(z.string().max(80)).max(30)).parse(await c.req.json());
+    const user = c.get('user');
     const current = await c.get('db').rpc('get_site_settings');
     if (current.error) return c.json({ error: 'Settings could not be loaded.' }, 503);
+    const currentPermissions = current.data?.permissions || defaultPermissions;
+    const canManage = user.role === 'owner' || (currentPermissions[user.role] || []).includes('manage_role_permissions');
+    if (!canManage) return c.json({ error: 'Only the agency owner or authorized staff can configure permissions.' }, 403);
+
+    const permissions = z.record(z.array(z.string().max(80)).max(30)).parse(await c.req.json());
+    // Owner is permanently locked with full wildcard access
+    permissions.owner = ['*'];
+
+    const adminDb = (c.env.SUPABASE_SERVICE_ROLE_KEY && !c.env.SUPABASE_SERVICE_ROLE_KEY.includes('YOUR_'))
+      ? createClient(c.env.SUPABASE_URL!, c.env.SUPABASE_SERVICE_ROLE_KEY!)
+      : c.get('db');
+
     const { error } = await c.get('db').rpc('admin_update_advanced_settings', { p_maintenance_mode: !!current.data?.maintenanceMode, p_permissions: permissions });
-    return error ? c.json({ error: error.message }, 400) : c.json({ ok: true });
+    if (error) {
+      const fallback = await adminDb.from('site_settings').update({ permissions }).eq('id', 1);
+      if (fallback.error) return c.json({ error: fallback.error.message }, 400);
+    }
+    await logAdminAudit(c, 'settings.permissions_updated', 'dynamic_role_permissions', 'Saved dynamic role permissions matrix', { updatedRoles: Object.keys(permissions) });
+    return c.json({ ok: true });
   });
   
   app.post('/api/licenses/:id/download', async c => {
@@ -2367,12 +2449,18 @@ License generated successfully.`);
         p_expires_at: input.expiresAt || null,
         p_max_uses: maxUses
       });
+      if (!error) {
+        await logAdminAudit(c, 'coupon.created', input.code, `Created/Updated coupon code ${input.code} (${input.discount}%)`);
+      }
       return error ? c.json({ error: error.message }, 400) : c.json({ ok: true });
     });
 
     app.delete('/api/admin/products/:id', async c => {
       if (!['owner', 'administrator'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
       const { error } = await c.get('db').rpc('admin_delete_product', { p_product_id: c.req.param('id') });
+      if (!error) {
+        await logAdminAudit(c, 'product.deleted', c.req.param('id'), 'Deleted agent product from catalog');
+      }
       return error ? c.json({ error: error.message }, 400) : c.json({ ok: true });
     });
 
@@ -2386,12 +2474,18 @@ License generated successfully.`);
         p_sale_percentage: input.salePercentage || 0,
         p_sale_product_ids: input.saleProductIds || []
       });
+      if (!error) {
+        await logAdminAudit(c, 'settings.promotions_updated', 'promotions', 'Updated promotions and sale configurations');
+      }
       return error ? c.json({ error: 'Failed to update promotions: ' + error.message }, 400) : c.json({ ok: true });
     });
 
     app.delete('/api/admin/coupons/:id', async c => {
       if (!['owner', 'administrator'].includes(c.get('user').role)) return c.json({ error: 'Permission denied' }, 403);
       const { error } = await c.get('db').rpc('admin_delete_coupon', { p_id: c.req.param('id') });
+      if (!error) {
+        await logAdminAudit(c, 'coupon.deleted', c.req.param('id'), 'Deleted discount coupon');
+      }
       return error ? c.json({ error: error.message }, 400) : c.json({ ok: true });
     });
 

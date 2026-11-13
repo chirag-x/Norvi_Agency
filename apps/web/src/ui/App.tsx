@@ -1,11 +1,12 @@
 import { AccountAuth, AccountSecurity } from './Accounts';
 import { ArrowUpRight, ArrowRight, Workflow, MessageSquare, Sparkles, ShieldCheck, KeyRound, Download, Check, Menu, X, Plus, Command, ChevronDown , Instagram, Youtube, Facebook, Twitter, Bot} from 'lucide-react';
-import { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, Component, type ReactNode, type ErrorInfo } from 'react';
 import { Catalog, Detail, PartnerProgram, About, Help, Contact, Legal, Checkout, NotFound } from './PublicPages';
 import { Workspace, OrderStatus } from './Workspace';
 import type { Product, Settings, User } from '../../../../packages/shared/model';
 import catalogSnapshot from '../../../../packages/shared/catalog.json';
 import { hasAdvertisingConsent, setAdvertisingConsent, getAdvertisingConsentPreference, trackMetaPageView } from './analytics';
+import { isEscalationNeeded } from './SupportChat';
 
 
 function ChatWidget() {
@@ -14,10 +15,12 @@ function ChatWidget() {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [hovered, setHovered] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatMessagesRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (chatMessagesRef.current) {
+      chatMessagesRef.current.scrollTop = chatMessagesRef.current.scrollHeight;
+    }
   }, [messages, open]);
 
   const send = async (e: any) => {
@@ -140,7 +143,7 @@ function ChatWidget() {
             <button onClick={() => setOpen(false)} style={{background: 'transparent', border: 'none', color: 'var(--text-light)', cursor: 'pointer'}}><X size={20}/></button>
           </div>
           
-          <div style={{flex: 1, overflowY: 'auto', padding: 16, display: 'flex', flexDirection: 'column', gap: 12}}>
+          <div ref={chatMessagesRef} style={{flex: 1, overflowY: 'auto', padding: 16, display: 'flex', flexDirection: 'column', gap: 12}}>
             {messages.map((m, i) => (
               <div key={i} style={{
                 alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start',
@@ -151,7 +154,7 @@ function ChatWidget() {
                 border: m.role === 'error' ? '1px solid var(--red)' : 'none'
               }}>
                 <p style={{margin: 0, whiteSpace: 'pre-wrap'}}>{m.content}</p>
-                {m.role === 'ai' && m.content.length > 30 && (
+                {(m.role === 'error' || (m.role === 'ai' && isEscalationNeeded(m.content))) && (
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8, paddingTop: 8, borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
                     <a
                       href="https://wa.me/919893534314?text=Hi%20NORVI%20Support%2C%20I%20have%20a%20question."
@@ -197,7 +200,6 @@ function ChatWidget() {
             {loading && messages[messages.length-1].role === 'user' && (
               <div style={{alignSelf: 'flex-start', background: 'var(--panel)', padding: '10px 14px', borderRadius: 12}}><span className="dot-typing">...</span></div>
             )}
-            <div ref={messagesEndRef} />
           </div>
 
           <form onSubmit={send} style={{display: 'flex', padding: 12, borderTop: '1px solid var(--border)', background: 'rgba(0, 0, 0, 0.2)'}}>
@@ -355,6 +357,59 @@ function CookieConsentBanner({ showModal, onClose }: { showModal: boolean; onClo
   );
 }
 
+interface ErrorBoundaryProps {
+  children: ReactNode;
+}
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error: Error | null;
+}
+export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error('ErrorBoundary caught an unhandled UI exception:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="container page" style={{ padding: '60px 20px', textAlign: 'center', maxWidth: 640, margin: '40px auto' }}>
+          <div style={{ background: '#181313', border: '1px solid rgba(239, 68, 68, 0.4)', borderRadius: 12, padding: 32 }}>
+            <h2 style={{ color: '#ef4444', marginTop: 0, marginBottom: 8, fontSize: 20 }}>Something went wrong loading this view</h2>
+            <p style={{ color: 'var(--text-light)', fontSize: 13, marginBottom: 24, lineHeight: 1.6 }}>
+              {this.state.error?.message || 'An unexpected runtime error occurred while displaying this page.'}
+            </p>
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                className="button primary"
+                onClick={() => {
+                  this.setState({ hasError: false, error: null });
+                  window.location.reload();
+                }}
+              >
+                Reload page
+              </button>
+              <a href="/" className="button secondary">
+                Return to homepage
+              </a>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 const initialProducts = (catalogSnapshot.products || []) as unknown as Product[];
 const initialSettings = catalogSnapshot.settings as unknown as Settings;
 
@@ -431,7 +486,7 @@ export default function App({ initialPath }: { initialPath: string }) {
         <span>{settings.bannerText}</span>
       </div>
     )}
-    {!workspace && <header className="header"><a className="brand" href="/"><img src="/logo.jpg?v=2" alt="NORVI Agency" style={{width: 34, height: 34, borderRadius: 4, objectFit: "contain", marginRight: 10}}/>{settings.name}</a><nav className={menu?'nav open':'nav'} aria-label="Main navigation"><a className={path.startsWith('/agents')?'active':''} href="/agents">Explore agents</a><a href="/partners">Partner Program</a><a href="/about">Our story</a><a href="/help">Resources</a></nav><div className="header-actions"><span style={{display:'inline-flex',alignItems:'center',justifyContent:'flex-end',minWidth:44,opacity:isAuthChecked?1:0,transition:'opacity 0.15s ease'}}>{user?<a href={user.role==='customer'?'/account':'/admin'} className="user-avatar-link" title="My Account" style={{display:'flex',textDecoration:'none'}}><span className="avatar">{user.name.slice(0,1).toUpperCase()}</span></a>:<a href="/login" className="login-link">Log in</a>}</span><a className="button button-small primary" href="/agents">Find your agent <ArrowUpRight size={16}/></a><button className="icon-button mobile-menu" aria-label="Toggle navigation" aria-expanded={menu} onClick={()=>setMenu(!menu)}>{menu?<X/>:<Menu/>}</button></div></header>}<main id="main-content">{content}</main>{!workspace&&<Footer settings={settings} onOpenConsent={()=>setShowConsentModal(true)}/>}<WhatsAppWidget /><ChatWidget /><CookieConsentBanner showModal={showConsentModal} onClose={()=>setShowConsentModal(false)} />
+    {!workspace && <header className="header"><a className="brand" href="/"><img src="/logo.jpg?v=2" alt="NORVI Agency" style={{width: 34, height: 34, borderRadius: 4, objectFit: "contain", marginRight: 10}}/>{settings.name}</a><nav className={menu?'nav open':'nav'} aria-label="Main navigation"><a className={path.startsWith('/agents')?'active':''} href="/agents">Explore agents</a><a href="/partners">Partner Program</a><a href="/about">Our story</a><a href="/help">Resources</a></nav><div className="header-actions"><span style={{display:'inline-flex',alignItems:'center',justifyContent:'flex-end',minWidth:44,opacity:isAuthChecked?1:0,transition:'opacity 0.15s ease'}}>{user?<a href={user.role==='customer'?'/account':'/admin'} className="user-avatar-link" title="My Account" style={{display:'flex',textDecoration:'none'}}><span className="avatar">{user.name.slice(0,1).toUpperCase()}</span></a>:<a href="/login" className="login-link">Log in</a>}</span><a className="button button-small primary" href="/agents">Find your agent <ArrowUpRight size={16}/></a><button className="icon-button mobile-menu" aria-label="Toggle navigation" aria-expanded={menu} onClick={()=>setMenu(!menu)}>{menu?<X/>:<Menu/>}</button></div></header>}<main id="main-content"><ErrorBoundary>{content}</ErrorBoundary></main>{!workspace&&<Footer settings={settings} onOpenConsent={()=>setShowConsentModal(true)}/>}<WhatsAppWidget /><ChatWidget /><CookieConsentBanner showModal={showConsentModal} onClose={()=>setShowConsentModal(false)} />
       {verified && (
         <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(0,0,0,0.85)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center', padding:'20px'}}>
           <div className="panel" style={{maxWidth: 420, width: '100%', textAlign:'center', padding:'40px 30px'}}>

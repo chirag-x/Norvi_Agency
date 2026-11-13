@@ -17,6 +17,28 @@ interface ChatMessage {
   content: string;
 }
 
+export function isEscalationNeeded(text: string): boolean {
+  if (!text) return false;
+  const lower = text.toLowerCase();
+  return (
+    lower.includes('whatsapp') ||
+    lower.includes('contact support') ||
+    lower.includes('contact us') ||
+    lower.includes('reach out') ||
+    lower.includes('human support') ||
+    lower.includes('support team') ||
+    lower.includes('submit a ticket') ||
+    lower.includes('support ticket') ||
+    lower.includes('contact form') ||
+    lower.includes("don't have this information") ||
+    lower.includes("cannot assist with") ||
+    lower.includes("unable to resolve") ||
+    lower.includes("outside my capability") ||
+    lower.includes("cannot answer") ||
+    lower.includes("don't know")
+  );
+}
+
 export function SupportChatBox({
   title = "Ask NORVI AI Support Assistant",
   subtitle = "Instant answers for setup, license activation, 1-day offline mode, and payments. If our AI cannot resolve your issue, it will connect you with our engineering team on WhatsApp or via support ticket.",
@@ -34,11 +56,11 @@ export function SupportChatBox({
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (messages.length > 0) {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
     }
   }, [messages, loading]);
 
@@ -215,6 +237,7 @@ export function SupportChatBox({
       {/* Chat Messages Log */}
       {messages.length > 0 && (
         <div
+          ref={chatContainerRef}
           style={{
             maxHeight: 380,
             overflowY: 'auto',
@@ -249,8 +272,8 @@ export function SupportChatBox({
               >
                 <div style={{ whiteSpace: 'pre-wrap' }}>{m.content}</div>
 
-                {/* Smart Action Buttons on AI Response */}
-                {!isUser && !isError && m.content.length > 30 && (
+                {/* Smart Action Buttons on AI Response — only when human assistance/escalation is needed */}
+                {!isUser && (isError || isEscalationNeeded(m.content)) && (
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10, paddingTop: 10, borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
                     <a
                       href={whatsappHref}
@@ -347,8 +370,6 @@ export function SupportChatBox({
               <span>Thinking &amp; analyzing knowledge base...</span>
             </div>
           )}
-
-          <div ref={messagesEndRef} />
         </div>
       )}
 
