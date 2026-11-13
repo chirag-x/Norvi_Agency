@@ -9,15 +9,16 @@ import { z } from 'zod';
 import catalog from '../../packages/shared/catalog.json';
 import { normalizeAgentAiPolicyPayload } from '../../packages/shared/agentAi';
 import { createAgentAiHandler, DEFAULT_MAX_BODY_BYTES, type AgentAiClient, type AgentAiHandlerDeps } from '../../packages/shared/agentAiProxy';
+import { createAgentSttHandler, DEFAULT_MAX_STT_BODY_BYTES, type AgentSttHandlerDeps } from '../../packages/shared/agentSttProxy';
 
-export type LiveEnv = { APP_ORIGIN?: string; SUPABASE_URL?: string; SUPABASE_ANON_KEY?: string; SUPABASE_SERVICE_ROLE_KEY?: string; AUTH_RATE_LIMITER?: { limit: (input: { key: string }) => Promise<{ success: boolean }> }; RAZORPAY_KEY_ID?: string; RAZORPAY_KEY_SECRET?: string; RAZORPAY_WEBHOOK_SECRET?: string; RESEND_API_KEY?: string; CRON_SECRET?: string; LICENSE_ENCRYPTION_KEY?: string; OPENROUTER_API_KEY?: string; EMAIL_FROM?: string; GITHUB_PAT?: string; GITHUB_REPO_OWNER?: string; GITHUB_REPO_NAME?: string; norvi_sales_and_orders?: string; norvi_downloads?: string; norvi_team_and_security?: string; norvi_system_alerts?: string; norvi_contact?: string; norvi_support?: string; };
-type Identity = { id: string; email: string; name: string; role: string; status: string; createdAt: string; lastLogin: string | null };
+export type LiveEnv = { APP_ORIGIN?: string; SUPABASE_URL?: string; SUPABASE_ANON_KEY?: string; SUPABASE_SERVICE_ROLE_KEY?: string; AUTH_RATE_LIMITER?: { limit: (input: { key: string }) => Promise<{ success: boolean }> }; RAZORPAY_KEY_ID?: string; RAZORPAY_KEY_SECRET?: string; RAZORPAY_WEBHOOK_SECRET?: string; RESEND_API_KEY?: string; CRON_SECRET?: string; LICENSE_ENCRYPTION_KEY?: string; OPENROUTER_API_KEY?: string; GROQ_API_KEY?: string; EMAIL_FROM?: string; GITHUB_PAT?: string; GITHUB_REPO_OWNER?: string; GITHUB_REPO_NAME?: string; norvi_sales_and_orders?: string; norvi_downloads?: string; norvi_team_and_security?: string; norvi_system_alerts?: string; norvi_contact?: string; norvi_support?: string; };
+type Identity = { id: string; email: string; name: string; role: string; status: string; createdAt: string; lastLogin: string | null; isImpersonated?: boolean; realAdminRole?: string };
 type AppEnv = { Bindings: LiveEnv; Variables: { db: SupabaseClient; user: Identity; mfaRequired: boolean } };
 type Factory = (c: Context<AppEnv>) => SupabaseClient;
 const credentials = z.object({ email: z.string().trim().email().max(254), password: z.string().min(1).max(128) });
 const password = z.string().min(12, 'Use at least 12 characters.').max(128);
 const licenseSecret = (env: LiveEnv) => env.LICENSE_ENCRYPTION_KEY || env.CRON_SECRET;
-const defaultPermissions: Record<string, string[]> = { owner: ['*'], administrator: ['', '/products', '/releases', '/categories', '/customers', '/licenses', '/orders', '/payments', '/support', '/subscriptions', '/announcements', '/content', '/activity'], product_manager: ['', '/products', '/releases', '/categories', '/announcements', '/content'], support: ['', '/customers', '/licenses', '/orders', '/payments', '/support', '/announcements'] };
+const defaultPermissions: Record<string, string[]> = { owner: ['*'], administrator: ['', '/products', '/releases', '/categories', '/customers', '/licenses', '/devices', '/orders', '/payments', '/support', '/subscriptions', '/announcements', '/content', '/activity'], product_manager: ['', '/products', '/releases', '/categories', '/announcements', '/content'], support: ['', '/customers', '/licenses', '/devices', '/orders', '/payments', '/support', '/announcements'] };
 
 async function sendDiscordLog(webhookUrl: string | undefined, content: string) {
   const url = (webhookUrl || '').trim().replace(/^["']|["']$/g, '');
@@ -64,13 +65,13 @@ const factory: Factory = c => {
   });
 };
 // Per-request clients; all database access uses the user's JWT, never a service-role key.
-export function createLiveApp(makeClient: Factory = factory, options: { upstreamRateLimit?: 'netlify'; agentAiDeps?: Partial<AgentAiHandlerDeps> } = {}) {
+export function createLiveApp(makeClient: Factory = factory, options: { upstreamRateLimit?: 'netlify'; agentAiDeps?: Partial<AgentAiHandlerDeps>; agentSttDeps?: Partial<AgentSttHandlerDeps> } = {}) {
   const app = new Hono<AppEnv>();
   app.use('/api/*', async (c, next) => {
     c.header('Cache-Control', 'no-store'); c.header('X-Content-Type-Options', 'nosniff'); c.header('Referrer-Policy', 'no-referrer');
     const allowedOrigin = (c.env.APP_ORIGIN || '').replace(/\/$/, '').replace(/^["']|["']$/g, '');
     const requestOrigin = (c.req.header('origin') || '').replace(/\/$/, '');
-    if (!['GET', 'HEAD'].includes(c.req.method) && c.req.path !== '/api/agent-ai' && !c.req.path.startsWith('/api/agent-ai/') && !c.req.path.startsWith('/api/agent/') && !c.req.path.startsWith('/api/agent-auth/') && !c.req.path.startsWith('/api/webhooks/') && !c.req.path.startsWith('/api/internal/') && requestOrigin !== allowedOrigin) return c.json({ error: 'Request origin is not allowed.' }, 403);
+    if (!['GET', 'HEAD'].includes(c.req.method) && c.req.path !== '/api/agent-ai' && !c.req.path.startsWith('/api/agent-ai/') && c.req.path !== '/api/agent-stt' && !c.req.path.startsWith('/api/agent-stt/') && !c.req.path.startsWith('/api/agent/') && !c.req.path.startsWith('/api/agent-auth/') && !c.req.path.startsWith('/api/webhooks/') && !c.req.path.startsWith('/api/internal/') && requestOrigin !== allowedOrigin) return c.json({ error: 'Request origin is not allowed.' }, 403);
     await next();
   });
   const regularBodyLimit = bodyLimit({ maxSize: 16384, onError: c => c.json({ error: 'Request is too large.' }, 413) });
@@ -100,7 +101,7 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
   });
   app.all('/api/preview/*', c => c.json({ error: 'Preview actions are disabled in account mode.' }, 404));
   app.use('/api/*', async (c, next) => {
-    if (c.req.path === '/api/contact' || c.req.path === '/api/agent-ai' || c.req.path.startsWith('/api/agent-ai/')) return next();
+    if (c.req.path === '/api/contact' || c.req.path === '/api/agent-ai' || c.req.path.startsWith('/api/agent-ai/') || c.req.path === '/api/agent-stt' || c.req.path.startsWith('/api/agent-stt/')) return next();
     if (!isConfigured(c.env)) return c.json({ error: 'Supabase account services need to be configured.' }, 503);
     c.set('db', makeClient(c)); await next();
   });
@@ -580,6 +581,21 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
   app.all('/api/agent-ai', handleAgentAi);
   app.all('/api/agent-ai/*', handleAgentAi);
 
+  const handleAgentStt = (c: Context<AppEnv>) => {
+    const proxyHandler = createAgentSttHandler({
+      getEnv: (key) => (c.env as Record<string, string | undefined>)[key],
+      createServiceClient: (supabaseUrl, serviceRoleKey) =>
+        createClient(supabaseUrl, serviceRoleKey, {
+          auth: { autoRefreshToken: false, persistSession: false },
+        }) as unknown as AgentAiClient,
+      awaitFinalize: true,
+      ...(options.agentSttDeps ?? {}),
+    });
+    return proxyHandler(c.req.raw);
+  };
+  app.all('/api/agent-stt', handleAgentStt);
+  app.all('/api/agent-stt/*', handleAgentStt);
+
   app.post('/api/contact', async c => {
     const input = z.object({
       name: z.string().trim().min(2, 'Name must be at least 2 characters.').max(100),
@@ -608,13 +624,28 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     let userObj: any = { id: data.user.id, email: data.user.email || '', name: profile.data.display_name, role, status: 'active', createdAt: profile.data.created_at, lastLogin: data.user.last_sign_in_at || null };
 
     const imp = getCookie(c, 'norvi_impersonate');
-    if (imp && role === 'owner') {
-      const [impProfile, impMembership] = await Promise.all([
-        db.from('profiles').select('id,display_name,created_at').eq('id', imp).single(),
-        db.from('staff_memberships').select('role').eq('user_id', imp).maybeSingle()
+    if (imp && (role === 'owner' || role === 'administrator')) {
+      const adminDb = (c.env.SUPABASE_SERVICE_ROLE_KEY && !c.env.SUPABASE_SERVICE_ROLE_KEY.includes('YOUR_'))
+        ? createClient(c.env.SUPABASE_URL!, c.env.SUPABASE_SERVICE_ROLE_KEY!)
+        : db;
+      const [impProfile, impMembership, impUser] = await Promise.all([
+        adminDb.from('profiles').select('id,display_name,created_at').eq('id', imp).single(),
+        adminDb.from('staff_memberships').select('role').eq('user_id', imp).maybeSingle(),
+        adminDb.auth?.admin ? adminDb.auth.admin.getUserById(imp).catch(() => ({ data: { user: null } })) : Promise.resolve({ data: { user: null } })
       ]);
       if (impProfile.data) {
-        userObj = { id: imp, email: 'impersonated@hidden', name: impProfile.data.display_name, role: impMembership.data?.role || 'customer', status: 'active', createdAt: impProfile.data.created_at, lastLogin: null, isImpersonated: true };
+        const customerEmail = impUser?.data?.user?.email || 'customer@norvi.agency';
+        userObj = {
+          id: imp,
+          email: customerEmail,
+          name: impProfile.data.display_name || customerEmail,
+          role: impMembership.data?.role || 'customer',
+          status: 'active',
+          createdAt: impProfile.data.created_at,
+          lastLogin: null,
+          isImpersonated: true,
+          realAdminRole: role
+        };
       }
     }
     
@@ -646,11 +677,19 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     await next();
   });
   app.use('/api/admin/*', async (c, next) => {
+    // Unconditionally allow stopping impersonation so admins are never trapped
+    if (c.req.path.startsWith('/api/admin/impersonate') && (c.req.method === 'DELETE' || c.req.path.endsWith('/stop'))) {
+      return next();
+    }
     const user = c.get('user');
+    const effectiveRole = user.realAdminRole || user.role;
+    if (c.req.path === '/api/admin/impersonate' && ['owner', 'administrator'].includes(effectiveRole)) {
+      return next();
+    }
     if (user.role === 'customer') return c.json({ error: 'Staff permission required.' }, 403);
     if (user.role === 'owner') return next();
     const first = c.req.path.slice('/api/admin'.length).split('/').filter(Boolean)[0] || '';
-    const section = first === 'analytics' ? '' : '/' + first;
+    const section = first === 'analytics' ? '' : first === 'devices' ? '/licenses' : first === 'impersonate' ? '/customers' : '/' + first;
     const settings = await c.get('db').rpc('get_site_settings');
     const permissions = settings.data?.permissions || defaultPermissions;
     if (!(permissions[user.role] || []).includes(section)) return c.json({ error: 'Your role cannot access this section.' }, 403);
@@ -678,7 +717,10 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     return error ? c.json({ error: 'Profile could not be saved.' }, 400) : c.json({ ok: true });
   });
   app.get('/api/account', async c => {
-    const db = c.get('db'), uid = c.get('user').id;
+    const user = c.get('user'), uid = user.id;
+    const db = (user.isImpersonated && c.env.SUPABASE_SERVICE_ROLE_KEY && !c.env.SUPABASE_SERVICE_ROLE_KEY.includes('YOUR_'))
+      ? createClient(c.env.SUPABASE_URL!, c.env.SUPABASE_SERVICE_ROLE_KEY!)
+      : c.get('db');
     const results = await Promise.all([
       db.from('licenses').select('id,product_id,status,key_suffix,created_at,expires_at').eq('user_id', uid),
       db.from('orders').select('id,product_id,status,amount_minor,currency,created_at').eq('user_id', uid),
@@ -735,15 +777,42 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     const { data, error } = await c.get('db').rpc('admin_list_customers');
     return error ? c.json({ error: 'Customers could not be loaded.' }, 503) : c.json(data);
   });
+  app.get('/api/admin/customers/:id/orders', async c => {
+    if (!['owner', 'administrator', 'support'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
+    const { data, error } = await c.get('db').rpc('admin_get_customer_orders', { p_customer_id: c.req.param('id') });
+    return error ? c.json({ error: 'Customer orders could not be loaded.' }, 503) : c.json(data);
+  });
+
   app.post('/api/admin/customers/:id/suspend', async c => {
     if (!['owner', 'administrator', 'support'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
     const { suspended } = z.object({ suspended: z.boolean() }).parse(await c.req.json());
     const { error } = await c.get('db').rpc('admin_set_customer_status', { p_customer_id: c.req.param('id'), p_suspended: suspended });
     return error ? c.json({ error: 'Status could not be updated.' }, 400) : c.json({ ok: true });
   });
+
+  app.post('/api/admin/customers/:id/delete', async c => {
+    if (!['owner', 'administrator'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
+    const customerId = c.req.param('id');
+    const { data, error } = await c.get('db').rpc('admin_delete_customer', { p_customer_id: customerId });
+    if (error || (data && !data.ok)) {
+      return c.json({ error: error?.message || 'Failed to delete customer account.' }, 400);
+    }
+    if (c.env.SUPABASE_SERVICE_ROLE_KEY && !c.env.SUPABASE_SERVICE_ROLE_KEY.includes('YOUR_')) {
+      try {
+        const adminDb = createClient(c.env.SUPABASE_URL!, c.env.SUPABASE_SERVICE_ROLE_KEY!);
+        await adminDb.auth.admin.deleteUser(customerId);
+      } catch {}
+    }
+    fireLog(c, c.env.norvi_team_and_security, `🗑️ **[Security Alert: Customer Account Deleted]**\n**Customer ID:** ${customerId}\n**Email:** ${data?.email || 'Unknown'}\n**Admin:** ${c.get('user').email}`);
+    return c.json({ ok: true });
+  });
   app.post('/api/admin/licenses/gift', async c => {
       if (!['owner', 'administrator', 'product_manager'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
-      const { email, productSlug, duration } = z.object({ email: z.string().email(), productSlug: z.string(), duration: z.string().optional().default('lifetime') }).parse(await c.req.json());
+      const { email, productSlug, duration } = z.object({
+        email: z.string().email(),
+        productSlug: z.string(),
+        duration: z.enum(['1_day', '1_month', '3_months', 'lifetime']).optional().default('lifetime')
+      }).parse(await c.req.json());
       const secret = licenseSecret(c.env);
       if (!secret) return c.json({ error: 'License encryption is not configured.' }, 503);
       const { error, data } = await c.get('db').rpc('admin_gift_license', { p_email: email, p_product_slug: productSlug, p_encryption_secret: secret, p_duration: duration });
@@ -763,13 +832,19 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
 
 
   app.post('/api/admin/impersonate', async c => { 
-    if (c.get('user').role !== 'owner') return c.json({ error: 'Permission denied.' }, 403); 
+    const effectiveRole = c.get('user').realAdminRole || c.get('user').role;
+    if (!['owner', 'administrator'].includes(effectiveRole)) return c.json({ error: 'Permission denied.' }, 403); 
     const { id } = await c.req.json(); 
     setCookie(c, 'norvi_impersonate', id, { path: '/' }); 
     return c.json({ ok: true }); 
   });
   
   app.delete('/api/admin/impersonate', c => { 
+    deleteCookie(c, 'norvi_impersonate', { path: '/' }); 
+    return c.json({ ok: true }); 
+  });
+
+  app.post('/api/admin/impersonate/stop', c => { 
     deleteCookie(c, 'norvi_impersonate', { path: '/' }); 
     return c.json({ ok: true }); 
   });
@@ -854,6 +929,62 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     
     fireLog(c, c.env.norvi_team_and_security, `🔄 **[Security Alert: Key Rotated]**\n**License ID:** ${c.req.param('id')}\n**Admin:** ${c.get('user').email}\n**Reason:** ${input.reason || 'Key rotation'}`);
     return c.json({ ok: true, version: res.version });
+  });
+
+  app.get('/api/admin/licenses/:id/telemetry', async c => {
+    if (!['owner', 'administrator', 'support'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
+    const { data, error } = await c.get('db').rpc('admin_get_license_telemetry', { p_license_id: c.req.param('id') });
+    if (error || (data && data.error)) return c.json({ error: error?.message || data?.error || 'Failed to load telemetry.' }, 400);
+    return c.json(data);
+  });
+
+  app.post('/api/admin/devices/:id/ban', async c => {
+    if (!['owner', 'administrator'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
+    const input = z.object({
+      duration: z.enum(['24h', '7d', '1m', 'lifetime']),
+      reason: z.string().max(250).optional()
+    }).parse(await c.req.json());
+
+    const { data, error } = await c.get('db').rpc('admin_ban_device', {
+      p_device_id: c.req.param('id'),
+      p_duration: input.duration,
+      p_reason: input.reason || 'Admin ban'
+    });
+
+    if (error || (data && !data.ok)) {
+      return c.json({ error: error?.message || data?.error || 'Failed to ban device.' }, 400);
+    }
+
+    fireLog(c, c.env.norvi_team_and_security, `🚫 **[Security Alert: Device Banned]**\n**Device ID:** ${c.req.param('id')}\n**HWID:** ${data.installation_id || 'Unknown'}\n**Duration:** ${input.duration}\n**Admin:** ${c.get('user').email}\n**Reason:** ${input.reason || 'Admin ban'}`);
+    return c.json({ ok: true, device: data });
+  });
+
+  app.post('/api/admin/devices/:id/unban', async c => {
+    if (!['owner', 'administrator'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
+    const { data, error } = await c.get('db').rpc('admin_unban_device', {
+      p_device_id: c.req.param('id')
+    });
+
+    if (error || (data && !data.ok)) {
+      return c.json({ error: error?.message || data?.error || 'Failed to unban device.' }, 400);
+    }
+
+    fireLog(c, c.env.norvi_team_and_security, `✅ **[Security Alert: Device Unbanned]**\n**Device ID:** ${c.req.param('id')}\n**HWID:** ${data.installation_id || 'Unknown'}\n**Admin:** ${c.get('user').email}`);
+    return c.json({ ok: true, device: data });
+  });
+
+  app.post('/api/admin/devices/:id/remove', async c => {
+    if (!['owner', 'administrator', 'support'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
+    const { data, error } = await c.get('db').rpc('admin_remove_device', {
+      p_device_id: c.req.param('id')
+    });
+
+    if (error || (data && !data.ok)) {
+      return c.json({ error: error?.message || data?.error || 'Failed to remove device.' }, 400);
+    }
+
+    fireLog(c, c.env.norvi_team_and_security, `🗑️ **[Device Unlinked]**\n**Device ID:** ${c.req.param('id')}\n**HWID:** ${data.installation_id || 'Unknown'}\n**Admin:** ${c.get('user').email}`);
+    return c.json({ ok: true, device: data });
   });
 
   app.get('/api/admin/analytics', async c => {
@@ -1013,6 +1144,13 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     return error ? c.json({ error: error.message }, 400) : c.json({ ok: true });
   });
 
+  app.post('/api/admin/products/:id/status', async c => {
+    if (!['owner', 'administrator', 'product_manager'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
+    const { status } = z.object({ status: z.enum(['draft', 'published', 'archived']) }).parse(await c.req.json());
+    const { data, error } = await c.get('db').rpc('admin_set_product_status', { p_product_id: c.req.param('id'), p_status: status });
+    return error ? c.json({ error: error.message }, 400) : c.json({ ok: true, ...(data || {}) });
+  });
+
   app.get('/api/admin/products/ai-policies', async c => {
     if (!['owner', 'administrator', 'product_manager'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
     const { data, error } = await c.get('db').rpc('admin_get_agent_ai_policies');
@@ -1040,6 +1178,12 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
       p_max_input_chars: p.maxInputChars,
       p_max_output_tokens: p.maxOutputTokens,
       p_enforce_zdr: p.enforceZdr,
+      p_stt_model: p.sttModel,
+      p_groq_fallback_enabled: p.groqFallbackEnabled,
+      p_stt_daily_limit: p.sttDailyLimit,
+      p_stt_weekly_limit: p.sttWeeklyLimit,
+      p_stt_monthly_limit: p.sttMonthlyLimit,
+      p_stt_trial_daily_limit: p.sttTrialDailyLimit,
     });
     return error ? c.json({ error: 'AI policy could not be saved: ' + error.message }, 400) : c.json({ ok: true });
   });
@@ -1941,9 +2085,21 @@ License generated successfully.`);
     app.post('/api/admin/coupons', async c => {
       if (!['owner', 'administrator', 'product_manager'].includes(c.get('user').role)) return c.json({ error: 'Permission denied' }, 403);
       const input = await c.req.json();
+      let maxUses: number | null = 50;
+      if (input.maxUses === null || input.maxUses === '' || input.maxUses === 'unlimited') {
+        maxUses = null;
+      } else if (input.maxUses !== undefined) {
+        const parsed = parseInt(String(input.maxUses), 10);
+        maxUses = isNaN(parsed) ? null : parsed;
+      }
       const { error } = await c.get('db').rpc('admin_upsert_coupon', { 
-        p_id: input.id || null, p_code: input.code, p_discount: input.discount, 
-        p_product_id: input.productId || null, p_duration: input.duration || null, p_expires_at: input.expiresAt || null 
+        p_id: input.id || null,
+        p_code: input.code,
+        p_discount: input.discount, 
+        p_product_id: input.productId || null,
+        p_duration: input.duration || null,
+        p_expires_at: input.expiresAt || null,
+        p_max_uses: maxUses
       });
       return error ? c.json({ error: error.message }, 400) : c.json({ ok: true });
     });

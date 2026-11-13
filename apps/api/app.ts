@@ -27,10 +27,96 @@ export function createApp(repo: Repository, encryptionKey: string, { preview = f
     app.post('/api/licenses/:id/device-reset', async c => { const result = await repo.change(s => { const user = c.get('user'); const l = s.licenses.find(l => l.id === c.req.param('id')); if (!l || (l.userId !== user.id && !permissions.devices.includes(user.role))) return false; l.device = null; audit(s, user, 'Reset device', l.id); return true; }); return result ? c.json({ ok: true }) : c.json({ error: 'License not found.' }, 404); });
     app.post('/api/licenses/:id/download', async c => { const s = await repo.read(); if (s.settings.maintenanceMode) return c.json({ error: 'Downloads are temporarily disabled for maintenance.' }, 503); return c.json({ error: 'No agent release has been uploaded yet. Add the actual agent files before enabling downloads.' }, 409); });
     app.post('/api/support', async c => { const data = z.object({ subject: z.string().trim().min(3).max(120), message: z.string().trim().min(10).max(3000) }).parse(await c.req.json()); await repo.change(s => s.tickets.unshift({ ...data, id: crypto.randomUUID(), userId: c.get('user').id, status: 'open', createdAt: new Date().toISOString() })); return c.json({ ok: true }); });
-    app.use('/api/admin/*', async (c, next) => { if (c.get('user').role === 'customer') return c.json({ error: 'Staff permission required.' }, 403); await next(); });
-    app.get('/api/admin/:section', async c => { const section = c.req.param('section'), user = c.get('user'); const s = await repo.read(); if (user.role !== 'owner' && !(s.settings.permissions[user.role] || []).includes('/' + section) && section !== 'team' && section !== 'analytics') return c.json({ error: 'Your role cannot access this section.' }, 403); if (section === 'analytics') { const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(); const recentOrders = s.orders.filter(o => o.createdAt >= thirtyDaysAgo); return c.json({ items: [], metrics: { revenue: recentOrders.length * 99, activeLicenses: s.licenses.filter(l => l.status === 'active').length, recentSales: recentOrders.length, totalCustomers: s.users.filter(u => u.role === 'customer').length } }); } if (section === 'customers') return c.json({ items: s.users.filter(u => u.role === 'customer').map(u => ({ ...u, purchases: s.orders.filter(o => o.userId === u.id && o.status === 'simulated').length, licenseCount: s.licenses.filter(l => l.userId === u.id).length })) }); if (section === 'licenses') return c.json({ items: s.licenses.map(({ keyHash, encryptedKey, ...l }) => ({ ...l, customer: s.users.find(u => u.id === l.userId)?.name, product: s.products.find(p => p.id === l.productId)?.name })) }); if (section === 'orders' || section === 'billing') return c.json({ items: s.orders.map(o => ({ ...o, customer: s.users.find(u => u.id === o.userId)?.name, product: s.products.find(p => p.id === o.productId)?.name })) }); if (section === 'products') return c.json({ items: s.products }); if (section === 'team') return c.json({ items: s.users.filter(u => u.role !== 'customer'), invitations: s.invitations }); if (section === 'audit') return c.json({ items: s.audit, emails: s.emails }); if (section === 'settings' || section === 'content') return c.json({ settings: s.settings }); return c.json({ error: 'Not found' }, 404); });
+    app.use('/api/admin/*', async (c, next) => { if (c.req.path.startsWith('/api/admin/impersonate') && (c.req.method === 'DELETE' || c.req.path.endsWith('/stop'))) return next(); if (c.get('user').role === 'customer') return c.json({ error: 'Staff permission required.' }, 403); await next(); });
+    app.get('/api/admin/:section', async c => {
+      const section = c.req.param('section'), user = c.get('user');
+      const s = await repo.read();
+      if (user.role !== 'owner' && !(s.settings.permissions[user.role] || []).includes('/' + section) && section !== 'team' && section !== 'analytics' && section !== 'coupons') return c.json({ error: 'Your role cannot access this section.' }, 403);
+      if (section === 'analytics') {
+        const now = Date.now();
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+        const todayIso = todayStart.toISOString();
+        const sevenDaysAgo = new Date(now - 7 * 24 * 60 * 60 * 1000).toISOString();
+        const thirtyDaysAgo = new Date(now - 30 * 24 * 60 * 60 * 1000).toISOString();
+
+        const isCommercial = (o: typeof s.orders[0]) => {
+          const val = parseFloat(String(o.amount || '0').replace(/[^0-9.]/g, ''));
+          return (o.status === 'paid' || o.status === 'simulated') && val > 0;
+        };
+        const isTrial = (o: typeof s.orders[0]) => {
+          const val = parseFloat(String(o.amount || '0').replace(/[^0-9.]/g, ''));
+          return (o.status === 'paid' || o.status === 'simulated') && val === 0;
+        };
+
+        const paidOrders = s.orders.filter(isCommercial);
+        const trialOrders = s.orders.filter(isTrial);
+        const todayOrders = paidOrders.filter(o => o.createdAt >= todayIso);
+        const sevenDayOrders = paidOrders.filter(o => o.createdAt >= sevenDaysAgo);
+        const thirtyDayOrders = paidOrders.filter(o => o.createdAt >= thirtyDaysAgo);
+
+        const getRev = (ords: typeof paidOrders) => ords.reduce((sum, o) => {
+          const parsed = parseFloat(String(o.amount || '0').replace(/[^0-9.]/g, ''));
+          return sum + (isNaN(parsed) || parsed === 0 ? 99 : parsed);
+        }, 0);
+
+        const leaderboard = s.products.map(p => {
+          const pOrders = paidOrders.filter(o => o.productId === p.id);
+          const pTrials = trialOrders.filter(o => o.productId === p.id);
+          const rev = getRev(pOrders);
+          const activeLic = s.licenses.filter(l => l.productId === p.id && l.status === 'active').length;
+          return {
+            id: p.id,
+            name: p.name,
+            slug: p.slug,
+            status: p.status,
+            paidOrders: pOrders.length,
+            trialOrders: pTrials.length,
+            revenue: rev,
+            activeLicenses: activeLic
+          };
+        }).sort((a, b) => b.revenue - a.revenue);
+
+        return c.json({
+          items: s.audit.slice(0, 20),
+          metrics: {
+            revenue: getRev(thirtyDayOrders),
+            revenueToday: getRev(todayOrders),
+            salesToday: todayOrders.length,
+            revenue7d: getRev(sevenDayOrders),
+            sales7d: sevenDayOrders.length,
+            revenue30d: getRev(thirtyDayOrders),
+            sales30d: thirtyDayOrders.length,
+            revenueAllTime: getRev(paidOrders),
+            salesAllTime: paidOrders.length,
+            trialsAllTime: trialOrders.length,
+            activeLicenses: s.licenses.filter(l => l.status === 'active').length,
+            recentSales: thirtyDayOrders.length,
+            totalCustomers: s.users.filter(u => u.role === 'customer').length
+          },
+          leaderboard
+        });
+      }
+      if (section === 'coupons') {
+        return c.json([
+          { id: '00000000-0000-4000-8000-000000000001', code: 'LAUNCH100', discount_percentage: 100, product_id: null, duration_type: null, expires_at: null, max_uses: 50, used_count: 12 },
+          { id: '00000000-0000-4000-8000-000000000002', code: 'DEV50', discount_percentage: 50, product_id: null, duration_type: '1_month', expires_at: new Date(Date.now() + 7 * 86400000).toISOString(), max_uses: 100, used_count: 45 }
+        ]);
+      }
+      if (section === 'customers') return c.json({ items: s.users.filter(u => u.role === 'customer').map(u => ({ ...u, purchases: s.orders.filter(o => o.userId === u.id && o.status === 'simulated').length, licenseCount: s.licenses.filter(l => l.userId === u.id).length })) });
+      if (section === 'licenses') return c.json({ items: s.licenses.map(({ keyHash, encryptedKey, ...l }) => ({ ...l, customer: s.users.find(u => u.id === l.userId)?.name, product: s.products.find(p => p.id === l.productId)?.name })) });
+      if (section === 'orders' || section === 'billing') return c.json({ items: s.orders.map(o => ({ ...o, customer: s.users.find(u => u.id === o.userId)?.name, product: s.products.find(p => p.id === o.productId)?.name })) });
+      if (section === 'products') return c.json({ items: s.products });
+      if (section === 'team') return c.json({ items: s.users.filter(u => u.role !== 'customer'), invitations: s.invitations });
+      if (section === 'audit') return c.json({ items: s.audit, emails: s.emails });
+      if (section === 'settings' || section === 'content') return c.json({ settings: s.settings });
+      return c.json({ error: 'Not found' }, 404);
+    });
+    app.post('/api/admin/coupons', async c => c.json({ ok: true }));
+    app.delete('/api/admin/coupons/:id', async c => c.json({ ok: true }));
     app.post('/api/admin/products', async c => { const user = c.get('user'); if (!permissions.products.includes(user.role)) return c.json({ error: 'Permission denied.' }, 403); const input = z.object({ id: z.string().optional(), name: z.string().trim().min(2).max(80), slug: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Use lowercase words separated by hyphens.'), categoryId: z.string().min(1), category: z.object({ id: z.string(), slug: z.string(), name: z.string() }).optional(), tagline: z.string().min(3).max(140), description: z.string().min(5).max(2000), price: z.string().min(1).max(50), status: z.enum(['draft', 'published', 'archived']), releaseStatus: z.enum(['development', 'prelaunch', 'live']), logoUrl: z.string().nullable(), features: z.array(z.string().max(120)).max(8), requirements: z.string().max(400), version: z.string().max(40), workflowHeading: z.string().max(150), workflowDescription: z.string().max(2000), workflowMediaUrl: z.string().nullable(), workflowNote: z.string().max(500), extendedContent: z.any().optional(), trialActive: z.boolean().optional() }).parse(await c.req.json()); const result = await repo.change(s => { if (s.products.some(p => p.slug === input.slug && p.id !== input.id)) return { error: 'This URL is already used by another agent.' }; const p = { ...input, id: input.id || crypto.randomUUID(), updatedAt: new Date().toISOString() }; const index = s.products.findIndex(x => x.id === p.id); if (index >= 0) s.products[index] = p; else s.products.push(p); audit(s, user, 'Saved product (' + p.status + ')', p.name); return { product: p }; }); return c.json(result, 'error' in result ? 409 : 200); });
     app.post('/api/admin/products/:id/trial', async c => { const user = c.get('user'); if (!permissions.products.includes(user.role)) return c.json({ error: 'Permission denied.' }, 403); const { trialActive } = z.object({ trialActive: z.boolean() }).parse(await c.req.json()); const ok = await repo.change(s => { const p = s.products.find(p => p.id === c.req.param('id')); if (!p) return false; p.trialActive = trialActive; return true; }); return ok ? c.json({ ok: true }) : c.json({ error: 'Product not found.' }, 404); });
+    app.post('/api/admin/products/:id/status', async c => { const user = c.get('user'); if (!permissions.products.includes(user.role)) return c.json({ error: 'Permission denied.' }, 403); const { status } = z.object({ status: z.enum(['draft', 'published', 'archived']) }).parse(await c.req.json()); const ok = await repo.change(s => { const p = s.products.find(p => p.id === c.req.param('id')); if (!p) return false; p.status = status; return true; }); return ok ? c.json({ ok: true }) : c.json({ error: 'Product not found.' }, 404); });
     app.post('/api/admin/licenses/:id/:action', async c => { const user = c.get('user'); if (!permissions.manageLicenses.includes(user.role)) return c.json({ error: 'Permission denied.' }, 403); const { reason } = z.object({ reason: z.string().trim().min(5).max(250) }).parse(await c.req.json()); const action = z.enum(['revoke', 'restore', 'rotate']).parse(c.req.param('action')); const result = await repo.change(async s => { const l = s.licenses.find(l => l.id === c.req.param('id')); if (!l) return false; if (action === 'rotate') { const key = 'NORVI_' + secret(); l.keyHash = await hash(key); l.encryptedKey = await seal(key, encryptionKey); l.suffix = key.slice(-6); } else l.status = action === 'revoke' ? 'revoked' : 'active'; l.device = null; audit(s, user, action + ': ' + reason, l.id); return true; }); return result ? c.json({ ok: true }) : c.json({ error: 'License not found.' }, 404); });
     app.patch('/api/admin/settings', async c => { const user = c.get('user'); if (!permissions.settings.includes(user.role)) return c.json({ error: 'Owner permission required.' }, 403); const data = z.object({ name: z.string().trim().min(2).max(60).optional(), headline: z.string().max(150).optional(), description: z.string().max(500).optional(), email: z.string().max(100).optional(), company: z.string().max(100).optional(), domain: z.string().max(150).optional(), maintenanceMode: z.boolean().optional(), bannerText: z.string().optional().nullable(), socialInstagram: z.string().optional().nullable(), socialYoutube: z.string().optional().nullable(), socialFacebook: z.string().optional().nullable(), socialTwitter: z.string().optional().nullable() }).passthrough().parse(await c.req.json()); await repo.change(s => { s.settings = { ...s.settings, ...data, bannerText: data.bannerText || undefined, socialInstagram: data.socialInstagram || undefined, socialYoutube: data.socialYoutube || undefined, socialFacebook: data.socialFacebook || undefined, socialTwitter: data.socialTwitter || undefined, maintenanceMode: data.maintenanceMode || false }; audit(s, user, 'Updated business settings', data.name || 'Settings'); }); return c.json({ ok: true }); });
     app.patch('/api/admin/content', async c => { const user = c.get('user'); if (!permissions.content.includes(user.role)) return c.json({ error: 'Permission denied.' }, 403); const data = z.object({ headline: z.string().min(5).max(150), description: z.string().min(5).max(500) }).parse(await c.req.json()); await repo.change(s => { s.settings = { ...s.settings, ...data }; audit(s, user, 'Updated homepage content', 'Homepage'); }); return c.json({ ok: true }); });
@@ -43,6 +129,7 @@ export function createApp(repo: Repository, encryptionKey: string, { preview = f
     app.get('/api/admin/announcements/:audience', async c => { const s = await repo.read(); return c.json({ items: s.announcements.filter(a => a.audience === c.req.param('audience')).sort((a,b) => Date.parse(b.createdAt) - Date.parse(a.createdAt)) }); });
     app.post('/api/admin/impersonate', async c => { const user = c.get('user'); if (user.role !== 'owner') return c.json({ error: 'Permission denied.' }, 403); const { id } = await c.req.json(); setCookie(c, 'norvi_impersonate', id, { path: '/' }); return c.json({ ok: true }); });
     app.delete('/api/admin/impersonate', c => { deleteCookie(c, 'norvi_impersonate', { path: '/' }); return c.json({ ok: true }); });
+    app.post('/api/admin/impersonate/stop', c => { deleteCookie(c, 'norvi_impersonate', { path: '/' }); return c.json({ ok: true }); });
     app.post('/api/admin/announcements', async c => { const user = c.get('user'); if (user.role !== 'owner') return c.json({ error: 'Owner permission required.' }, 403); const { message, audience } = z.object({ message: z.string().min(1), audience: z.enum(['customer', 'team']) }).parse(await c.req.json()); await repo.change(s => { s.announcements.push({ id: crypto.randomUUID(), authorId: user.id, audience, message, createdAt: new Date().toISOString() }); audit(s, user, 'Created announcement', audience); }); return c.json({ ok: true }); });
     app.patch('/api/admin/permissions', async c => { const user = c.get('user'); if (user.role !== 'owner') return c.json({ error: 'Owner permission required.' }, 403); const data = await c.req.json(); await repo.change(s => { s.settings.permissions = data; audit(s, user, 'Updated dynamic role permissions', 'global'); }); return c.json({ ok: true }); });
     app.delete('/api/admin/announcements/:id', async c => { const user = c.get('user'); if (user.role !== 'owner') return c.json({ error: 'Owner permission required.' }, 403); const ok = await repo.change(s => { const idx = s.announcements.findIndex(a => a.id === c.req.param('id')); if (idx === -1) return false; s.announcements.splice(idx, 1); audit(s, user, 'Deleted announcement', c.req.param('id')); return true; }); return ok ? c.json({ ok: true }) : c.json({ error: 'Announcement not found.' }, 404); });

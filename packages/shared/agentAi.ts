@@ -14,6 +14,10 @@ export type AgentAiPolicyStats = {
   requests7d: number;
   requests30d: number;
   cost30dUsd: number;
+  sttRequests24h?: number;
+  sttRequests7d?: number;
+  sttRequests30d?: number;
+  sttMinutes30d?: number;
 };
 
 export type AgentAiPolicyInput = {
@@ -27,6 +31,12 @@ export type AgentAiPolicyInput = {
   maxInputChars: number;
   maxOutputTokens: number;
   enforceZdr: boolean;
+  sttModel: string;
+  groqFallbackEnabled: boolean;
+  sttDailyLimit: number;
+  sttWeeklyLimit: number;
+  sttMonthlyLimit: number;
+  sttTrialDailyLimit: number;
 };
 
 export type AgentAiPolicy = AgentAiPolicyInput & {
@@ -50,6 +60,12 @@ export const OPENROUTER_MODEL_PRESETS = [
   { id: 'google/gemma-4-26b-a4b-it:free', label: 'Gemma 4 26B A4B :free (Free Testing Only)' },
   { id: 'google/gemma-4-31b-it:free', label: 'Gemma 4 31B :free (Free Testing Only)' },
   { id: 'openrouter/free', label: 'OpenRouter Free Auto-Router (Random :free Model)' },
+] as const;
+
+export const GROQ_STT_MODEL_PRESETS = [
+  { id: 'whisper-large-v3-turbo', label: 'Whisper Large V3 Turbo (Fastest, Multilingual, Recommended)' },
+  { id: 'whisper-large-v3', label: 'Whisper Large V3 (Highest Accuracy, Multilingual)' },
+  { id: 'distil-whisper-large-v3-en', label: 'Distil Whisper V3 English (English-Only, Ultra-Fast)' },
 ] as const;
 
 export const DEFAULT_AGENT_TASKS_BY_SLUG: Record<string, AgentAiTaskModel[]> = {
@@ -150,8 +166,23 @@ export function createDefaultAgentAiPolicy(product: { id: string; slug: string; 
     maxInputChars: slug === 'nexus' ? 180000 : slug === 'rolvio' ? 80000 : 60000,
     maxOutputTokens: slug === 'nexus' ? 4096 : 2048,
     enforceZdr: true,
+    sttModel: 'whisper-large-v3-turbo',
+    groqFallbackEnabled: false,
+    sttDailyLimit: 0,
+    sttWeeklyLimit: 0,
+    sttMonthlyLimit: 0,
+    sttTrialDailyLimit: 0,
     updatedAt: null,
-    stats: { requests24h: 0, requests7d: 0, requests30d: 0, cost30dUsd: 0 },
+    stats: {
+      requests24h: 0,
+      requests7d: 0,
+      requests30d: 0,
+      cost30dUsd: 0,
+      sttRequests24h: 0,
+      sttRequests7d: 0,
+      sttRequests30d: 0,
+      sttMinutes30d: 0,
+    },
   };
 }
 
@@ -184,6 +215,28 @@ export function normalizeAgentAiPolicyPayload(
   if (!monthly.ok) return monthly;
   const trialDaily = parseNonNegInt(obj.trialDailyLimit ?? 0, 'Trial 1-Day limit', 1_000_000);
   if (!trialDaily.ok) return trialDaily;
+
+  const sttModelRaw =
+    typeof obj.sttModel === 'string'
+      ? obj.sttModel.trim()
+      : typeof obj.stt_model === 'string'
+        ? obj.stt_model.trim()
+        : '';
+  const sttModel = sttModelRaw || 'whisper-large-v3-turbo';
+  if (sttModel.length > 120 || /\s/.test(sttModel)) {
+    return { ok: false, error: 'Groq STT model ID must be a valid model slug without spaces (e.g. whisper-large-v3-turbo).' };
+  }
+
+  const groqFallbackEnabled = Boolean(obj.groqFallbackEnabled ?? obj.groq_fallback_enabled ?? false);
+
+  const sttDaily = parseNonNegInt(obj.sttDailyLimit ?? obj.stt_daily_limit ?? 0, 'STT 1-Day limit', 1_000_000);
+  if (!sttDaily.ok) return sttDaily;
+  const sttWeekly = parseNonNegInt(obj.sttWeeklyLimit ?? obj.stt_weekly_limit ?? 0, 'STT 1-Week limit', 10_000_000);
+  if (!sttWeekly.ok) return sttWeekly;
+  const sttMonthly = parseNonNegInt(obj.sttMonthlyLimit ?? obj.stt_monthly_limit ?? 0, 'STT 1-Month limit', 100_000_000);
+  if (!sttMonthly.ok) return sttMonthly;
+  const sttTrialDaily = parseNonNegInt(obj.sttTrialDailyLimit ?? obj.stt_trial_daily_limit ?? 0, 'STT Trial 1-Day limit', 1_000_000);
+  if (!sttTrialDaily.ok) return sttTrialDaily;
 
   const maxInputChars = Number(obj.maxInputChars ?? 60000);
   if (!Number.isInteger(maxInputChars) || maxInputChars < 1000 || maxInputChars > 2_000_000) {
@@ -262,6 +315,12 @@ export function normalizeAgentAiPolicyPayload(
       maxInputChars,
       maxOutputTokens,
       enforceZdr: obj.enforceZdr !== false,
+      sttModel,
+      groqFallbackEnabled,
+      sttDailyLimit: sttDaily.value,
+      sttWeeklyLimit: sttWeekly.value,
+      sttMonthlyLimit: sttMonthly.value,
+      sttTrialDailyLimit: sttTrialDaily.value,
     },
   };
 }

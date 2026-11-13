@@ -49,7 +49,7 @@ export function Workspace({ path, products, settings, onCatalogChange }: { path:
       console.log('ACTIVE NAV:', nav);
     const sectionAllowed = !admin || canAccessSlug(section);
     return <div className="workspace"><CommandPalette user={user} /><aside className="sidebar"><div className="workspace-label">{admin ? 'AGENCY WORKSPACE' : 'PERSONAL WORKSPACE'}</div><nav aria-label="Workspace navigation">{nav.map(([slug, label, Icon]) => <a key={slug} href={base + slug} className={section === slug ? 'selected' : ''}><Icon size={18} />{label}{section === slug && <span className="nav-indicator" />}</a>)}</nav><div className="sidebar-bottom"><div className="preview-box"><ShieldCheck size={18} /><b>{identity.preview ? 'Local preview' : 'NORVI account'}</b><p>{identity.preview ? 'Sample data. No live payments or emails.' : 'Verified account. Sales are not open yet.'}</p></div><a href="/" className="text-button">Back to website <ArrowUpRight size={15} /></a><button className="logout" onClick={async () => { try { await api('/auth/logout', { method: 'POST' }); location.href = admin ? '/admin/login' : '/login'; } catch (e: any) { setLogoutError(e.message); } }}><LogOut size={16} />{identity.preview ? 'Sign out of preview' : 'Sign out'}</button>{logoutError && <Notice kind="error">{logoutError}</Notice>}</div></aside><div className="workspace-main">
-        {(user as any).isImpersonated && <div style={{ background: '#f59e0b', color: 'black', padding: '12px 24px', fontWeight: 'bold', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>You are currently impersonating {user.name} ({user.role}).<button className="button primary" onClick={async () => { await api('/admin/impersonate', { method: 'DELETE' }); location.href = '/admin'; }}>Stop Impersonating</button></div>}
+        {(user as any).isImpersonated && <div style={{ background: '#eab308', color: '#1a1a1a', padding: '12px 24px', fontWeight: 600, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', flexWrap: 'wrap', borderBottom: '2px solid #ca8a04', zIndex: 100 }}><div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><ShieldCheck size={18} /><span>You are currently impersonating <b>{user.name}</b> {user.email ? `(${user.email})` : ''} · Role: <b>{user.role}</b></span></div><button type="button" className="button primary small" style={{ background: '#1c2418', color: '#fff', borderColor: '#1c2418', cursor: 'pointer' }} onClick={async () => { try { await api('/admin/impersonate', { method: 'DELETE' }); } catch { try { await api('/admin/impersonate/stop', { method: 'POST' }); } catch {} } document.cookie = 'norvi_impersonate=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT; Max-Age=0;'; window.location.href = '/admin/customers'; }}>Stop Impersonating</button></div>}
         <div className="workspace-topbar"><span>NORVI <span className="slash">/</span> {admin ? 'Agency workspace' : 'My account'}</span><div style={{display: 'flex', alignItems: 'center', gap: 15}}><a href="/" className="text-button" style={{fontSize: 13}}>Back to website <ArrowUpRight size={14} /></a><span className="user-chip"><span className="avatar">{user.name.slice(0, 1).toUpperCase()}</span>{user.name}<Badge>{user.role.replace('_', ' ')}</Badge></span></div></div>{!sectionAllowed ? <Notice kind="error">Your role cannot open this section.</Notice> : admin ? <Admin section={section} user={user} settings={settings} onCatalogChange={onCatalogChange} /> : <Customer section={section} products={products} user={user} />}</div></div>;
 }
 function Customer({ section, products, user }: { section: string; products: Product[]; user: User }) {
@@ -262,7 +262,7 @@ function AgentGuideModal({
     </Modal>
   );
 }
-function Stat({ label, value, icon }: { label: string; value: string | number; icon: ReactNode }) { return <div className="stat"><div><span>{label}</span>{icon}</div><b>{value}</b><small>Local preview data</small></div>; }
+function Stat({ label, value, icon, hint }: { label: string; value: string | number; icon: ReactNode; hint?: string }) { return <div className="stat"><div><span>{label}</span>{icon}</div><b>{value}</b><small>{hint ?? 'Local preview data'}</small></div>; }
 function ProfileForm({ user }: { user: User }) { const [name, setName] = useState(user.name), [message, setMessage] = useState(''); return <form className="panel" onSubmit={async e => { e.preventDefault(); try { await api('/me', { method: 'PATCH', body: JSON.stringify({ name }) }); setMessage('Profile saved.'); } catch (e: any) { setMessage(e.message); } }}><h3>Your profile</h3><Field label="Display name"><input required minLength={2} maxLength={80} value={name} onChange={e => setName(e.target.value)} /></Field><Field label="Email address" hint="Email changes are not supported in this phase."><input value={user.email} disabled /></Field><button className="button primary">Save profile <Check size={16} /></button>{message && <Notice>{message}</Notice>}</form>; }
 function SupportForm({ user, onSave }: { user?: User; onSave: () => void }) {
   const [message, setMessage] = useState('');
@@ -333,6 +333,133 @@ function SupportForm({ user, onSave }: { user?: User; onSave: () => void }) {
   );
 }
 function OrderTable({ items }: { items: any[] }) { return !items.length ? <Empty title="No orders just yet." description="Your purchase history will appear here after checkout." /> : <div className="table-wrap"><table><thead><tr><th>Order</th><th>Product</th><th>Date</th><th>Amount</th><th>Status</th></tr></thead><tbody>{items.map(o => <tr key={o.id}><td><code>{o.id.slice(0, 8)}</code>{o.customer && <small className="block">{o.customer}</small>}</td><td>{o.product || o.productId}</td><td>{date(o.createdAt)}</td><td>{o.amount}</td><td><Badge>{o.status}</Badge></td></tr>)}</tbody></table></div>; }
+export function AdminOrderTable({ items, onCopied }: { items: any[]; onCopied?: (msg: string) => void }) {
+  if (!items.length) {
+    return <Empty title="No matching orders." description="Try adjusting your search query or filters." />;
+  }
+  const copy = (text: string, label: string) => {
+    navigator.clipboard.writeText(text);
+    if (onCopied) onCopied(`Copied ${label}: ${text}`);
+  };
+  return (
+    <div className="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Order Ref</th>
+            <th>Customer</th>
+            <th>Agent</th>
+            <th>Payment ID</th>
+            <th>Amount</th>
+            <th>License Key</th>
+            <th>Date</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.map(o => (
+            <tr key={o.id}>
+              <td>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <code style={{ fontSize: '12px' }}>#{o.id.slice(0, 8)}</code>
+                  <button
+                    type="button"
+                    title="Copy full order ID"
+                    aria-label="Copy order ID"
+                    style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--text-light)' }}
+                    onClick={() => copy(o.id, 'order ID')}
+                  >
+                    <Copy size={12} />
+                  </button>
+                </div>
+              </td>
+              <td>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <b>{o.customer || 'Customer'}</b>
+                  </div>
+                  {o.email && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <small style={{ color: 'var(--text-light)' }}>{o.email}</small>
+                      <button
+                        type="button"
+                        title="Copy customer email"
+                        aria-label="Copy email"
+                        style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--lime, #98e038)' }}
+                        onClick={() => copy(o.email, 'email')}
+                      >
+                        <Copy size={11} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </td>
+              <td>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  <b>{o.product || o.productId}</b>
+                  {o.productSlug && (
+                    <a href={`/agents/${o.productSlug}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: '11px', color: 'var(--accent)', textDecoration: 'none' }}>
+                      /{o.productSlug} ↗
+                    </a>
+                  )}
+                </div>
+              </td>
+              <td>
+                {o.providerPaymentId ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <code style={{ fontSize: '11px', color: 'var(--lime, #98e038)' }}>{o.providerPaymentId}</code>
+                    <button
+                      type="button"
+                      title="Copy Razorpay payment ID"
+                      aria-label="Copy payment ID"
+                      style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--lime, #98e038)' }}
+                      onClick={() => copy(o.providerPaymentId, 'payment ID')}
+                    >
+                      <Copy size={12} />
+                    </button>
+                  </div>
+                ) : (
+                  <small style={{ color: 'var(--muted)' }}>—</small>
+                )}
+              </td>
+              <td>
+                <b>{o.amount}</b>
+              </td>
+              <td>
+                {o.licenseSuffix ? (
+                  <a href="/admin/licenses" className="badge" style={{ fontSize: '11px', textDecoration: 'none', padding: '2px 8px' }}>
+                    <KeyRound size={11} style={{ marginRight: 4, verticalAlign: 'middle' }} />
+                    ••••-{o.licenseSuffix}
+                  </a>
+                ) : (
+                  <small style={{ color: 'var(--muted)' }}>No license</small>
+                )}
+              </td>
+              <td>
+                <small className="block">{date(o.createdAt)}</small>
+              </td>
+              <td>
+                {o.status === 'trial' || String(o.providerPaymentId || '').startsWith('trial_') ? (
+                  <span className="badge" style={{ background: '#1e293b', color: '#93c5fd' }}>Free Trial</span>
+                ) : o.status === 'gift' || String(o.providerPaymentId || '').startsWith('gift_') ? (
+                  <span className="badge" style={{ background: '#2e1065', color: '#d8b4fe' }}>Gifted</span>
+                ) : o.status === 'free' || String(o.providerPaymentId || '').startsWith('free_') || (o.status === 'paid' && (o.amountMinor !== undefined ? Number(o.amountMinor) === 0 : parseFloat(String(o.amount || '0').replace(/[^0-9.]/g, '')) === 0)) ? (
+                  <span className="badge" style={{ background: '#14532d', color: '#86efac' }}>100% Promo</span>
+                ) : o.status === 'paid' ? (
+                  <span className="badge good">paid</span>
+                ) : o.status === 'refunded' ? (
+                  <span className="badge" style={{ background: '#3b2020', color: '#f87171' }}>refunded</span>
+                ) : (
+                  <Badge>{o.status}</Badge>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
 function Announcements({ user, items, action }: { user: User; items: any[]; action: (path: string, body?: object, method?: string) => Promise<void> }) { const isOwner = user.role === 'owner'; return <><div className="panel"><h3>Team Announcements</h3>{!items.length ? <p>No internal announcements yet.</p> : items.map(a => <div className="list-row" key={a.id}><Mail size={16} /><div className="grow" style={{ flex: 1, minWidth: 0 }}><p style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{a.message}</p></div><span className="small-note">{date(a.createdAt)}</span>{isOwner && <button className="text-button bare" onClick={() => action('/admin/announcements/' + a.id, {}, 'DELETE')}><X size={14}/></button>}</div>)}</div>{isOwner && <form className="panel" onSubmit={async e => { e.preventDefault(); const form = e.currentTarget; await action('/admin/announcements', { audience: 'team', message: new FormData(form).get('message') }); form.reset(); }}><h3>Post an announcement</h3><Field label="Message"><textarea name="message" required minLength={3} rows={3} placeholder="Tell your team what's new..." /></Field><button className="button primary">Broadcast to team</button></form>}</>; }
 function exportCsv(filename: string, headers: string[], rows: any[][]) { const csv = [headers.join(','), ...rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(','))].join('\n'); const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); a.download = filename; a.click(); }
 
@@ -646,7 +773,7 @@ function MarketingManager() {
 
 
 
-function CouponsManager() {
+export function CouponsManager() {
   const { data, error, reload } = useData('/admin/coupons');
   const { data: productsData } = useData('/admin/products');
   const [busy, setBusy] = useState(false);
@@ -667,31 +794,56 @@ function CouponsManager() {
               <th>Code</th>
               <th>Discount</th>
               <th>Target</th>
+              <th>Redemptions</th>
               <th>Expires</th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
-            {data.map((c: any) => (
-              <tr key={c.id}>
-                <td><b>{c.code}</b></td>
-                <td><Badge>{c.discount_percentage}% OFF</Badge></td>
-                 <td>
-                   <small className="block">Agent: {c.product_id ? productsData.items.find((p:any)=>p.id === c.product_id)?.name || c.product_id : 'All Agents'}</small>
-                   <small className="block">Duration: {c.duration_type === 'all' || !c.duration_type ? 'All Durations' : c.duration_type.split(',').map((d: string) => d.replace('_', ' ')).join(', ')}</small>
-                </td>
-                <td>{c.expires_at ? new Date(c.expires_at).toLocaleString() : 'Never'}</td>
-                <td>
-                  <button className="text-button bare" style={{color: 'var(--red)'}} onClick={async () => {
-                    if (window.confirm('Delete this coupon?')) {
-                      await api('/admin/coupons/' + c.id, { method: 'DELETE' });
-                      reload();
-                    }
-                  }}>Delete</button>
-                </td>
-              </tr>
-            ))}
-            {!data.length && <tr><td colSpan={5} style={{textAlign:'center'}}>No active coupons.</td></tr>}
+            {data.map((c: any) => {
+              const isExpired = c.expires_at && new Date(c.expires_at).getTime() < Date.now();
+              const isExhausted = c.max_uses !== null && c.max_uses !== undefined && (c.used_count || 0) >= c.max_uses;
+              return (
+                <tr key={c.id}>
+                  <td>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                      <b>{c.code}</b>
+                      {isExhausted && <span className="badge" style={{ background: '#3b2020', color: '#f87171' }}>Exhausted</span>}
+                      {isExpired && <span className="badge" style={{ background: '#3b2020', color: '#f87171' }}>Expired</span>}
+                    </div>
+                  </td>
+                  <td><Badge>{c.discount_percentage}% OFF</Badge></td>
+                  <td>
+                    <small className="block">Agent: {c.product_id ? productsData.items.find((p:any)=>p.id === c.product_id)?.name || c.product_id : 'All Agents'}</small>
+                    <small className="block">Duration: {c.duration_type === 'all' || !c.duration_type ? 'All Durations' : c.duration_type.split(',').map((d: string) => d.replace('_', ' ')).join(', ')}</small>
+                  </td>
+                  <td>
+                    <Badge>
+                      {c.used_count || 0} / {c.max_uses ? `${c.max_uses} uses` : 'Unlimited'}
+                    </Badge>
+                  </td>
+                  <td>
+                    {c.expires_at ? (
+                      <div>
+                        <span>{new Date(c.expires_at).toLocaleDateString()}</span>
+                        <small className="block" style={{ color: isExpired ? 'var(--red, #ef4444)' : 'var(--muted)', fontSize: 11 }}>
+                          {isExpired ? 'Expired' : new Date(c.expires_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </small>
+                      </div>
+                    ) : 'Never'}
+                  </td>
+                  <td>
+                    <button className="text-button bare" style={{color: 'var(--red)'}} onClick={async () => {
+                      if (window.confirm('Delete this coupon?')) {
+                        await api('/admin/coupons/' + c.id, { method: 'DELETE' });
+                        reload();
+                      }
+                    }}>Delete</button>
+                  </td>
+                </tr>
+              );
+            })}
+            {!data.length && <tr><td colSpan={6} style={{textAlign:'center'}}>No active coupons.</td></tr>}
           </tbody>
         </table>
       </div>
@@ -708,6 +860,9 @@ function CouponsManager() {
           ? null 
           : selectedDurations.join(',');
 
+        const maxUsesRaw = form.get('maxUses') as string;
+        const maxUses = maxUsesRaw ? parseInt(maxUsesRaw, 10) : null;
+
         try {
           await api('/admin/coupons', {
             method: 'POST',
@@ -716,6 +871,7 @@ function CouponsManager() {
               discount: parseInt(form.get('discount') as string),
               productId: form.get('productId') || null,
               duration,
+              maxUses,
               expiresAt: form.get('expiresAt') ? new Date(form.get('expiresAt') as string).toISOString() : null
             })
           });
@@ -728,6 +884,7 @@ function CouponsManager() {
       }}>
         <Field label="Coupon Code"><input name="code" required placeholder="e.g. LAUNCH100" style={{textTransform: 'uppercase'}} /></Field>
         <Field label="Discount %"><input name="discount" type="number" required min="1" max="100" placeholder="100" /></Field>
+        <Field label="Usage Limit (Max Redemptions)"><input name="maxUses" type="number" min="1" defaultValue="50" placeholder="e.g. 50 (leave empty for unlimited)" /></Field>
         <Field label="Specific Agent">
           <select name="productId">
             <option value="">All Agents</option>
@@ -1091,21 +1248,761 @@ function AffiliateManager() {
   );
 }
 
+export interface AdminDeviceItem {
+  id: string;
+  installation_id: string;
+  active: boolean;
+  last_seen_at?: string | null;
+  banned_until?: string | null;
+  ban_reason?: string | null;
+  is_banned?: boolean;
+}
+
+export interface AdminLicenseItem {
+  id: string;
+  product: string;
+  productSlug?: string;
+  customer: string;
+  email?: string;
+  status: string;
+  suffix: string;
+  maxDevices?: number;
+  expiresAt?: string | null;
+  device?: boolean;
+  devices?: AdminDeviceItem[];
+  createdAt?: string;
+}
+
+export function AdminLicenseCard({
+  license: l,
+  userRole,
+  onAction,
+  onBanDevice,
+  onUnbanDevice,
+  onRemoveDevice,
+  onShowTelemetry,
+  onLicenseAction,
+  onCopiedEmail,
+}: {
+  license: AdminLicenseItem;
+  userRole: string;
+  onAction: (path: string, body?: object, method?: string) => Promise<void>;
+  onBanDevice: (device: { id: string; installationId: string }) => void;
+  onUnbanDevice: (deviceId: string, installationId: string) => void;
+  onRemoveDevice: (deviceId: string, installationId: string) => void;
+  onShowTelemetry: (lic: { id: string; product: string; customer: string; email?: string }) => void;
+  onLicenseAction: (id: string, action: string) => void;
+  onCopiedEmail: (email: string) => void;
+}) {
+  const isExpired = l.expiresAt ? new Date(l.expiresAt) < new Date() : false;
+  const isOneDayTrial = l.expiresAt && Math.abs(new Date(l.expiresAt).getTime() - new Date(l.createdAt || l.expiresAt).getTime()) <= 86400000 * 1.5;
+
+  return (
+    <div className="panel" key={l.id} style={{ marginBottom: '1.5rem' }}>
+      <div className="panel-heading" style={{ alignItems: 'flex-start' }}>
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            <h3 style={{ margin: 0 }}>{l.product}</h3>
+            {isOneDayTrial ? (
+              <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: 12, background: 'rgba(234, 179, 8, 0.15)', color: '#eab308', border: '1px solid rgba(234, 179, 8, 0.3)', fontWeight: 600 }}>
+                1-Day Trial
+              </span>
+            ) : l.expiresAt ? (
+              <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: 12, background: isExpired ? 'rgba(239, 68, 68, 0.15)' : 'rgba(59, 130, 246, 0.15)', color: isExpired ? '#ef4444' : '#60a5fa', border: `1px solid ${isExpired ? 'rgba(239, 68, 68, 0.3)' : 'rgba(59, 130, 246, 0.3)'}`, fontWeight: 600 }}>
+                {isExpired ? 'Expired' : `Expires ${new Date(l.expiresAt).toLocaleDateString()}`}
+              </span>
+            ) : (
+              <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: 12, background: 'rgba(34, 197, 94, 0.15)', color: '#22c55e', border: '1px solid rgba(34, 197, 94, 0.3)', fontWeight: 600 }}>
+                Lifetime Key
+              </span>
+            )}
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginTop: '6px' }}>
+            <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)' }}>{l.customer}</span>
+            {l.email && (
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  background: 'var(--surface, #1e261a)',
+                  border: '1px solid var(--border, #3a4930)',
+                  borderRadius: '14px',
+                  padding: '2px 9px',
+                  fontSize: '12px',
+                  color: 'var(--text-light, #a4b494)'
+                }}
+              >
+                <Mail size={12} />
+                <span>{l.email}</span>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(l.email || '');
+                      onCopiedEmail(l.email || '');
+                    } catch {
+                      // fallback
+                    }
+                  }}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    padding: '2px',
+                    cursor: 'pointer',
+                    color: 'var(--lime, #98e038)',
+                    display: 'inline-flex',
+                    alignItems: 'center'
+                  }}
+                  title="Copy customer email"
+                  aria-label="Copy customer email"
+                >
+                  <Copy size={12} />
+                </button>
+              </span>
+            )}
+          </div>
+        </div>
+
+        <Badge>{l.status}</Badge>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', marginBottom: '12px' }}>
+        <code>NORVI-XXXX-XXXX-XXXX-{l.suffix}</code>
+        <span className="small-note">
+          Slot Capacity: {l.devices?.length || 0} / {l.maxDevices || 1} Device{l.maxDevices !== 1 ? 's' : ''}
+        </span>
+      </div>
+
+      {/* Connected Hardware IDs Subsection */}
+      <div
+        style={{
+          margin: '14px 0',
+          border: '1px solid var(--line, #2d3826)',
+          borderRadius: '8px',
+          padding: '12px 14px',
+          background: 'rgba(0,0,0,0.2)'
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+          <span style={{ fontSize: '13px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <Monitor size={15} style={{ color: 'var(--lime, #98e038)' }} />
+            Connected Hardware IDs ({l.devices?.length || 0} / {l.maxDevices || 1})
+          </span>
+          {l.devices && l.devices.length > 0 && (
+            <span className="small-note">Manage individual machines &amp; lockout durations</span>
+          )}
+        </div>
+
+        {!l.devices || l.devices.length === 0 ? (
+          <div style={{ fontSize: '12px', color: 'var(--muted)', fontStyle: 'italic', padding: '4px 0' }}>
+            No machines activated yet on this license key.
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {l.devices.map(d => {
+              const isBanned = d.is_banned || (d.banned_until && new Date(d.banned_until) > new Date()) || !d.active;
+              const isLifetimeBan = d.banned_until && new Date(d.banned_until).getUTCFullYear() >= 9999;
+              const banExpires = d.banned_until
+                ? isLifetimeBan
+                  ? 'Lifetime Ban'
+                  : `Banned until ${new Date(d.banned_until).toLocaleString()}`
+                : isBanned
+                ? 'Banned'
+                : null;
+
+              return (
+                <div
+                  key={d.id}
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    flexWrap: 'wrap',
+                    gap: '10px',
+                    padding: '8px 12px',
+                    background: isBanned ? 'rgba(239, 68, 68, 0.08)' : 'var(--surface, #1e261a)',
+                    border: isBanned ? '1px solid rgba(239, 68, 68, 0.35)' : '1px solid var(--line, #2d3826)',
+                    borderRadius: '6px'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                    <code style={{ fontSize: '12px', fontWeight: 600, color: isBanned ? 'var(--red, #ef4444)' : 'var(--lime, #98e038)' }}>
+                      {d.installation_id}
+                    </code>
+                    {isBanned ? (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: '#3b1c1c', border: '1px solid #7f2828', borderRadius: '12px', padding: '2px 8px', fontSize: '11px', color: '#fca5a5' }}>
+                        🚫 {banExpires}
+                      </span>
+                    ) : (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: '#1c331c', border: '1px solid #286028', borderRadius: '12px', padding: '2px 8px', fontSize: '11px', color: '#86efac' }}>
+                        🟢 Active {d.last_seen_at ? `(seen ${date(d.last_seen_at)})` : ''}
+                      </span>
+                    )}
+                    {d.ban_reason && (
+                      <span className="small-note" style={{ color: '#fca5a5' }}>
+                        Reason: {d.ban_reason}
+                      </span>
+                    )}
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                    <button
+                      type="button"
+                      className="button secondary small"
+                      title="Unlink this machine to free the license slot cleanly (does not ban the machine)"
+                      onClick={() => onRemoveDevice(d.id, d.installation_id)}
+                    >
+                      Unlink HWID
+                    </button>
+
+                    {isBanned ? (
+                      <button
+                        type="button"
+                        className="button primary small"
+                        style={{ background: '#22c55e', borderColor: '#22c55e', color: '#052e16' }}
+                        title="Lift ban immediately on this hardware ID"
+                        onClick={() => onUnbanDevice(d.id, d.installation_id)}
+                      >
+                        <Check size={13} style={{ marginRight: 4 }} /> Unban HWID
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="button secondary small"
+                        style={{ color: 'var(--red, #ef4444)', borderColor: 'var(--red, #ef4444)' }}
+                        title="Block this hardware ID for 24h, 7d, 1m, or Lifetime"
+                        onClick={() => onBanDevice({ id: d.id, installationId: d.installation_id })}
+                      >
+                        🚫 Ban HWID
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Row Actions */}
+      <div className="row-actions">
+        <button
+          type="button"
+          className="button primary small"
+          style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+          onClick={() => onShowTelemetry({ id: l.id, product: l.product, customer: l.customer, email: l.email })}
+        >
+          <Activity size={14} /> View Usage &amp; Limits
+        </button>
+
+        {userRole !== 'support' && (
+          <>
+            <button className="button secondary" onClick={() => onLicenseAction(l.id, l.status === 'active' ? 'revoke' : 'restore')}>
+              {l.status === 'active' ? 'Revoke access' : 'Restore access'}
+            </button>
+            <button className="button secondary" onClick={() => onLicenseAction(l.id, 'rotate')}>
+              Rotate key
+            </button>
+          </>
+        )}
+        <button
+          className="button secondary"
+          style={{ color: 'var(--red)', borderColor: 'var(--red)' }}
+          onClick={() => onLicenseAction(l.id, 'delete')}
+        >
+          Delete
+        </button>
+        {l.device && (
+          <button className="button secondary" onClick={() => onAction('/licenses/' + l.id + '/device-reset')}>
+            Reset devices
+          </button>
+        )}
+        {userRole === 'owner' && <OwnerReveal id={l.id} />}
+      </div>
+    </div>
+  );
+}
+
+export function BanDeviceModal({
+  device,
+  onClose,
+  onConfirmBan
+}: {
+  device: { id: string; installationId: string };
+  onClose: () => void;
+  onConfirmBan: (duration: string, reason?: string) => Promise<void>;
+}) {
+  const [duration, setDuration] = useState('24h');
+  const [reason, setReason] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  return (
+    <Modal title={`Ban Hardware ID: ${device.installationId}`} onClose={onClose}>
+      <p style={{ margin: '0 0 16px 0', fontSize: '14px', color: 'var(--text-light)' }}>
+        Select a lockout duration for hardware ID <code>{device.installationId}</code>. While banned, any agent instance attempting to activate licenses or make proxy calls from this machine will be blocked.
+      </p>
+
+      <form
+        onSubmit={async e => {
+          e.preventDefault();
+          setBusy(true);
+          try {
+            await onConfirmBan(duration, reason.trim() || undefined);
+            onClose();
+          } finally {
+            setBusy(false);
+          }
+        }}
+      >
+        <Field label="Lockout Duration">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '6px' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', padding: '8px 12px', background: duration === '24h' ? 'rgba(152, 224, 56, 0.1)' : 'var(--surface, #1e261a)', border: '1px solid var(--line, #2d3826)', borderRadius: '6px' }}>
+              <input type="radio" name="banDuration" value="24h" checked={duration === '24h'} onChange={() => setDuration('24h')} />
+              <div>
+                <b>24 Hours</b>
+                <span className="small-note block">Temporary 1-day lockout (auto-lifts in 24 hours)</span>
+              </div>
+            </label>
+
+            <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', padding: '8px 12px', background: duration === '7d' ? 'rgba(152, 224, 56, 0.1)' : 'var(--surface, #1e261a)', border: '1px solid var(--line, #2d3826)', borderRadius: '6px' }}>
+              <input type="radio" name="banDuration" value="7d" checked={duration === '7d'} onChange={() => setDuration('7d')} />
+              <div>
+                <b>7 Days</b>
+                <span className="small-note block">1-week lockout (auto-lifts in 7 days)</span>
+              </div>
+            </label>
+
+            <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', padding: '8px 12px', background: duration === '1m' ? 'rgba(152, 224, 56, 0.1)' : 'var(--surface, #1e261a)', border: '1px solid var(--line, #2d3826)', borderRadius: '6px' }}>
+              <input type="radio" name="banDuration" value="1m" checked={duration === '1m'} onChange={() => setDuration('1m')} />
+              <div>
+                <b>1 Month (30 Days)</b>
+                <span className="small-note block">30-day lockout (auto-lifts in 30 days)</span>
+              </div>
+            </label>
+
+            <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', padding: '8px 12px', background: duration === 'lifetime' ? 'rgba(239, 68, 68, 0.15)' : 'var(--surface, #1e261a)', border: duration === 'lifetime' ? '1px solid rgba(239, 68, 68, 0.4)' : '1px solid var(--line, #2d3826)', borderRadius: '6px' }}>
+              <input type="radio" name="banDuration" value="lifetime" checked={duration === 'lifetime'} onChange={() => setDuration('lifetime')} />
+              <div>
+                <b style={{ color: 'var(--red, #ef4444)' }}>Lifetime (Permanent)</b>
+                <span className="small-note block" style={{ color: '#fca5a5' }}>Permanent hardware ban until an administrator manually clicks Unban</span>
+              </div>
+            </label>
+          </div>
+        </Field>
+
+        <Field label="Ban Reason (Optional note for security audit log)">
+          <textarea
+            name="banReason"
+            placeholder="e.g. Rapid token abuse, unauthorized machine sharing"
+            rows={2}
+            maxLength={250}
+            value={reason}
+            onChange={e => setReason(e.target.value)}
+          />
+        </Field>
+
+        <div style={{ display: 'flex', gap: '10px', marginTop: '20px', justifyContent: 'flex-end' }}>
+          <button type="button" className="button secondary" disabled={busy} onClick={onClose}>
+            Cancel
+          </button>
+          <button
+            type="submit"
+            className="button primary"
+            disabled={busy}
+            style={{ background: 'var(--red, #ef4444)', borderColor: 'var(--red, #ef4444)', color: '#fff' }}
+          >
+            {busy ? 'Applying Ban...' : 'Confirm Hardware Ban'}
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+export function LicenseTelemetryModal({
+  license,
+  initialData,
+  onClose
+}: {
+  license: { id: string; product: string; customer: string; email?: string };
+  initialData?: any;
+  onClose: () => void;
+}) {
+  const fetched = useData(initialData ? '' : '/admin/licenses/' + license.id + '/telemetry');
+  const data = initialData || fetched.data;
+  const error = initialData ? '' : fetched.error;
+
+  return (
+    <Modal title={`Usage & Limits — ${license.product}`} onClose={onClose} wide>
+      <div style={{ marginBottom: '16px', paddingBottom: '12px', borderBottom: '1px solid var(--line, #2d3826)' }}>
+        <p style={{ margin: 0, fontSize: '14px' }}>
+          <b>Customer:</b> {license.customer} {license.email ? `(${license.email})` : ''}
+        </p>
+        <p style={{ margin: '4px 0 0', fontSize: '12px', color: 'var(--muted)' }}>
+          Live per-license telemetry tracked automatically by your backend proxy. Limits are hidden from customers.
+        </p>
+      </div>
+
+      {error ? (
+        <Notice kind="error">{error}</Notice>
+      ) : !data ? (
+        <Loading />
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
+          {/* Cloud AI Section */}
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+              <Bot size={18} style={{ color: 'var(--lime, #98e038)' }} />
+              <h4 style={{ margin: 0, fontSize: '15px' }}>OpenRouter Cloud AI Requests &amp; Limits</h4>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '12px' }}>
+              <div className="panel" style={{ padding: '14px', margin: 0, background: 'rgba(0,0,0,0.2)' }}>
+                <span className="eyebrow" style={{ fontSize: '10px' }}>24-Hour Rolling (Today)</span>
+                <div style={{ fontSize: '22px', fontWeight: 600, margin: '4px 0 2px' }}>
+                  {data.ai?.used_24h ?? 0} <span style={{ fontSize: '13px', color: 'var(--muted)' }}>/ {data.ai?.limit_24h === 0 ? '∞' : data.ai?.limit_24h} reqs</span>
+                </div>
+                <small style={{ color: data.ai?.left_24h === 0 ? 'var(--red, #ef4444)' : 'var(--lime, #98e038)' }}>
+                  {data.ai?.left_24h === -1 ? 'Unlimited requests' : `${data.ai?.left_24h} prompts remaining`}
+                </small>
+              </div>
+
+              <div className="panel" style={{ padding: '14px', margin: 0, background: 'rgba(0,0,0,0.2)' }}>
+                <span className="eyebrow" style={{ fontSize: '10px' }}>7-Day Rolling (Week)</span>
+                <div style={{ fontSize: '22px', fontWeight: 600, margin: '4px 0 2px' }}>
+                  {data.ai?.used_7d ?? 0} <span style={{ fontSize: '13px', color: 'var(--muted)' }}>/ {data.ai?.limit_7d === 0 ? '∞' : data.ai?.limit_7d} reqs</span>
+                </div>
+                <small style={{ color: data.ai?.left_7d === 0 ? 'var(--red, #ef4444)' : 'var(--text-light)' }}>
+                  {data.ai?.left_7d === -1 ? 'Unlimited requests' : `${data.ai?.left_7d} prompts remaining`}
+                </small>
+              </div>
+
+              <div className="panel" style={{ padding: '14px', margin: 0, background: 'rgba(0,0,0,0.2)' }}>
+                <span className="eyebrow" style={{ fontSize: '10px' }}>30-Day Rolling (Month)</span>
+                <div style={{ fontSize: '22px', fontWeight: 600, margin: '4px 0 2px' }}>
+                  {data.ai?.used_30d ?? 0} <span style={{ fontSize: '13px', color: 'var(--muted)' }}>/ {data.ai?.limit_30d === 0 ? '∞' : data.ai?.limit_30d} reqs</span>
+                </div>
+                <small style={{ color: data.ai?.left_30d === 0 ? 'var(--red, #ef4444)' : 'var(--text-light)' }}>
+                  {data.ai?.left_30d === -1 ? 'Unlimited requests' : `${data.ai?.left_30d} prompts remaining`}
+                </small>
+              </div>
+
+              <div className="panel" style={{ padding: '14px', margin: 0, background: 'rgba(0,0,0,0.2)' }}>
+                <span className="eyebrow" style={{ fontSize: '10px' }}>Tokens &amp; Real Dollar Cost</span>
+                <div style={{ fontSize: '22px', fontWeight: 600, margin: '4px 0 2px', color: 'var(--lime, #98e038)' }}>
+                  ${Number(data.ai?.total_cost_usd || 0).toFixed(4)} <span style={{ fontSize: '12px', color: 'var(--text-light)' }}>USD</span>
+                </div>
+                <small style={{ color: 'var(--muted)' }}>
+                  {(data.ai?.total_tokens ?? 0).toLocaleString()} tokens consumed
+                </small>
+              </div>
+            </div>
+          </div>
+
+          {/* Speech-to-Text Fallback Section */}
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+              <Activity size={18} style={{ color: '#60a5fa' }} />
+              <h4 style={{ margin: 0, fontSize: '15px' }}>Groq Speech-to-Text (STT) Server Fallback</h4>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '12px' }}>
+              <div className="panel" style={{ padding: '14px', margin: 0, background: 'rgba(0,0,0,0.2)' }}>
+                <span className="eyebrow" style={{ fontSize: '10px' }}>24-Hour STT Fallback</span>
+                <div style={{ fontSize: '22px', fontWeight: 600, margin: '4px 0 2px' }}>
+                  {data.stt?.used_24h ?? 0} <span style={{ fontSize: '13px', color: 'var(--muted)' }}>/ {data.stt?.limit_24h === 0 ? '∞' : data.stt?.limit_24h} chunks</span>
+                </div>
+                <small style={{ color: data.stt?.left_24h === 0 ? 'var(--red, #ef4444)' : '#60a5fa' }}>
+                  {data.stt?.left_24h === -1 ? 'Unlimited STT' : `${data.stt?.left_24h} chunks remaining`}
+                </small>
+              </div>
+
+              <div className="panel" style={{ padding: '14px', margin: 0, background: 'rgba(0,0,0,0.2)' }}>
+                <span className="eyebrow" style={{ fontSize: '10px' }}>7-Day STT Fallback</span>
+                <div style={{ fontSize: '22px', fontWeight: 600, margin: '4px 0 2px' }}>
+                  {data.stt?.used_7d ?? 0} <span style={{ fontSize: '13px', color: 'var(--muted)' }}>/ {data.stt?.limit_7d === 0 ? '∞' : data.stt?.limit_7d} chunks</span>
+                </div>
+                <small style={{ color: 'var(--text-light)' }}>
+                  {data.stt?.left_7d === -1 ? 'Unlimited STT' : `${data.stt?.left_7d} chunks remaining`}
+                </small>
+              </div>
+
+              <div className="panel" style={{ padding: '14px', margin: 0, background: 'rgba(0,0,0,0.2)' }}>
+                <span className="eyebrow" style={{ fontSize: '10px' }}>30-Day STT Fallback</span>
+                <div style={{ fontSize: '22px', fontWeight: 600, margin: '4px 0 2px' }}>
+                  {data.stt?.used_30d ?? 0} <span style={{ fontSize: '13px', color: 'var(--muted)' }}>/ {data.stt?.limit_30d === 0 ? '∞' : data.stt?.limit_30d} chunks</span>
+                </div>
+                <small style={{ color: 'var(--text-light)' }}>
+                  {data.stt?.left_30d === -1 ? 'Unlimited STT' : `${data.stt?.left_30d} chunks remaining`}
+                </small>
+              </div>
+            </div>
+          </div>
+
+          {/* Recent Prompt Turns (Last 10 turns) */}
+          <div>
+            <h4 style={{ margin: '0 0 10px 0', fontSize: '15px' }}>
+              📜 Recent Prompt Activity Log (Last 10 Requests)
+            </h4>
+            {!data.recent_logs || data.recent_logs.length === 0 ? (
+              <p className="small-note">No recent prompts logged for this license.</p>
+            ) : (
+              <div className="table-wrap" style={{ margin: 0, maxHeight: '240px', overflowY: 'auto' }}>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Time</th>
+                      <th>Task Slot</th>
+                      <th>Model Used</th>
+                      <th>Tokens (In / Out)</th>
+                      <th>Cost</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.recent_logs.map((log: any) => (
+                      <tr key={log.id}>
+                        <td>{date(log.created_at)}</td>
+                        <td><code>{log.task_key}</code></td>
+                        <td><small>{log.model_used?.split('/').pop() || log.model_used}</small></td>
+                        <td>{log.prompt_tokens} / {log.completion_tokens}</td>
+                        <td>${Number(log.cost_usd || 0).toFixed(5)}</td>
+                        <td><Badge>{log.status}</Badge></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </Modal>
+  );
+}
+
+export function CustomerOrdersModal({
+  customer,
+  initialData,
+  onClose
+}: {
+  customer: { id: string; name: string; email?: string };
+  initialData?: any;
+  onClose: () => void;
+}) {
+  const fetched = useData(initialData ? '' : '/admin/customers/' + customer.id + '/orders');
+  const data = initialData || fetched.data;
+  const error = initialData ? '' : fetched.error;
+
+  return (
+    <Modal title={`Purchase History — ${customer.name}`} onClose={onClose} wide>
+      <div style={{ marginBottom: '16px', paddingBottom: '12px', borderBottom: '1px solid var(--line, #2d3826)' }}>
+        <p style={{ margin: 0, fontSize: '14px' }}>
+          <b>Customer:</b> {customer.name} {customer.email ? `(${customer.email})` : ''}
+        </p>
+        <p style={{ margin: '4px 0 0', fontSize: '12px', color: 'var(--muted)' }}>
+          Verified payment records, order receipts, and associated activation keys.
+        </p>
+      </div>
+
+      {error ? (
+        <Notice kind="error">{error}</Notice>
+      ) : !data ? (
+        <Loading />
+      ) : !data.orders || data.orders.length === 0 ? (
+        <Empty
+          title="No purchase history."
+          description={`${customer.name} has not placed any paid orders or claimed free trials yet.`}
+        />
+      ) : (
+        <div className="table-wrap" style={{ margin: 0, maxHeight: '420px', overflowY: 'auto' }}>
+          <table>
+            <thead>
+              <tr>
+                <th>Order Reference</th>
+                <th>Agent / Product</th>
+                <th>Amount</th>
+                <th>Status</th>
+                <th>Gateway / Payment ID</th>
+                <th>Date</th>
+                <th>License Key</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.orders.map((o: any) => (
+                <tr key={o.id}>
+                  <td>
+                    <code>{o.id.slice(0, 8)}</code>
+                    {o.providerOrderId && <small className="block">{o.providerOrderId}</small>}
+                  </td>
+                  <td>
+                    <b>{o.product}</b>
+                    <small className="block">/{o.productSlug}</small>
+                  </td>
+                  <td>
+                    <b style={{ color: Number(o.amountMinor || 0) > 0 ? 'var(--lime, #98e038)' : 'var(--text-light)' }}>
+                      {o.amount}
+                    </b>
+                  </td>
+                  <td><Badge>{o.status}</Badge></td>
+                  <td>
+                    {o.providerPaymentId ? (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                        <code>{o.providerPaymentId}</code>
+                        <button
+                          type="button"
+                          style={{ padding: '2px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--lime, #98e038)', display: 'inline-flex', alignItems: 'center' }}
+                          title="Copy Payment ID"
+                          aria-label="Copy Payment ID"
+                          onClick={() => navigator.clipboard.writeText(o.providerPaymentId)}
+                        >
+                          <Copy size={12} />
+                        </button>
+                      </span>
+                    ) : (
+                      <small style={{ color: 'var(--muted)' }}>Direct / Free</small>
+                    )}
+                  </td>
+                  <td>{date(o.createdAt)}</td>
+                  <td>
+                    {o.licenseSuffix ? (
+                      <a
+                        href="/admin/licenses"
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', textDecoration: 'none', color: 'var(--lime, #98e038)', fontSize: '12px' }}
+                      >
+                        <KeyRound size={12} /> NORVI-••••-{o.licenseSuffix}
+                      </a>
+                    ) : (
+                      <small style={{ color: 'var(--muted)' }}>No license</small>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </Modal>
+  );
+}
+
 function Admin({ section, user, settings, onCatalogChange }: { section: string; user: User; settings: Settings; onCatalogChange: () => void }) {
-    const map: Record<string, string> = { '': 'analytics', '/products': 'products', '/releases': 'products', '/categories': 'categories', '/customers': 'customers', '/licenses': 'licenses', '/orders': 'orders', '/promotions': 'settings', '/team': 'team', '/announcements': 'announcements/team', '/content': 'content', '/activity': 'activity', '/settings': 'settings' }; const endpoint = section === '' && user.role === 'support' ? 'customers' : map[section] || 'products'; const { data, error, reload } = useData('/admin/' + endpoint); const [query, setQuery] = useState(''), [filter, setFilter] = useState('all'), [editing, setEditing] = useState<Product | null | undefined>(undefined), [feedback, setFeedback] = useState(''), [licenseAction, setLicenseAction] = useState<{ id: string; action: string } | null>(null), [giftModal, setGiftModal] = useState(false);
+    const map: Record<string, string> = { '': 'analytics', '/products': 'products', '/releases': 'products', '/categories': 'categories', '/customers': 'customers', '/licenses': 'licenses', '/orders': 'orders', '/promotions': 'settings', '/team': 'team', '/announcements': 'announcements/team', '/content': 'content', '/activity': 'activity', '/settings': 'settings' }; const endpoint = section === '' && user.role === 'support' ? 'customers' : map[section] || 'products'; const { data, error, reload } = useData('/admin/' + endpoint); const [query, setQuery] = useState(''), [filter, setFilter] = useState('all'), [editing, setEditing] = useState<Product | null | undefined>(undefined), [feedback, setFeedback] = useState(''), [licenseAction, setLicenseAction] = useState<{ id: string; action: string } | null>(null), [giftModal, setGiftModal] = useState(false), [banningDevice, setBanningDevice] = useState<{ id: string; installationId: string } | null>(null), [telemetryLicense, setTelemetryLicense] = useState<{ id: string; product: string; customer: string; email?: string } | null>(null), [viewingOrdersCustomer, setViewingOrdersCustomer] = useState<{ id: string; name: string; email?: string } | null>(null);
     const titles: Record<string, string> = { '': 'Your agency, at a glance.', '/products': 'Agent Collection & Content.', '/releases': 'Agent Releases & Commercial Deployment.', '/customers': 'The people behind the accounts.', '/licenses': 'Access, under your control.', '/orders': 'Every order, in one place.', '/promotions': 'Run sales and global announcements.', '/team': 'Good work takes a team.', '/announcements': 'Internal directives.', '/content': 'Make it sound like you.', '/activity': 'A clear record of every change.', '/settings': 'The details that make it yours.' };
-    const items = (data?.items || []) as any[]; const filtered = items.filter(item => JSON.stringify(item).toLowerCase().includes(query.toLowerCase()) && (filter === 'all' || (filter === 'nonbuyers' ? item.purchases === 0 : item.status === filter)));
+    const items = (data?.items || []) as any[];
+    const filtered = items.filter(item => {
+      const matchesQuery = JSON.stringify(item).toLowerCase().includes(query.toLowerCase());
+      if (!matchesQuery) return false;
+      if (filter === 'all') return true;
+      if (filter === 'nonbuyers') return item.purchases === 0;
+      if (section === '/orders') {
+        const isPaid = item.status === 'paid' && Number(item.amountMinor || 0) > 0 && !String(item.providerPaymentId || '').startsWith('trial_') && !String(item.providerPaymentId || '').startsWith('gift_') && !String(item.providerPaymentId || '').startsWith('free_');
+        const isTrial = item.status === 'trial' || String(item.providerPaymentId || '').startsWith('trial_');
+        const isGift = item.status === 'gift' || String(item.providerPaymentId || '').startsWith('gift_');
+        if (filter === 'paid') return isPaid;
+        if (filter === 'trial') return isTrial;
+        if (filter === 'gift') return isGift;
+        return item.status === filter;
+      }
+      return item.status === filter;
+    });
     async function action(path: string, body?: object, method: string = 'POST') { try { await api(path, { method, body: Object.keys(body || {}).length ? JSON.stringify(body) : undefined }); reload(); setFeedback('Action completed successfully.'); } catch (e: any) { setFeedback(e.message); } }
-    return <><PageHeading eyebrow={section === '' ? 'WELCOME TO YOUR WORKSPACE' : 'AGENCY MANAGEMENT'} title={titles[section] || 'Workspace'} description={section === '' ? 'Start with the essentials. Build your collection, get to know your customers, and keep things moving.' : undefined} action={section === '/products' ? <button className="button primary" onClick={() => setEditing(null)}><Plus size={17} />Add agent</button> : section === '/customers' ? <button className="button secondary" onClick={() => exportCsv('customers.csv', ['ID', 'Email', 'Name', 'Status', 'Registered'], items.map(u => [u.id, u.email, u.name, u.suspended ? 'suspended' : u.status || 'active', u.createdAt]))}><Download size={17} />Export CSV</button> : section === '/orders' ? <button className="button secondary" onClick={() => exportCsv('orders.csv', ['ID', 'Customer', 'Product', 'Amount', 'Date'], items.map(o => [o.id, o.customer, o.product, o.amount, o.createdAt]))}><Download size={17} />Export CSV</button> : section === '/licenses' && user.role !== 'support' ? <button className="button primary" onClick={() => setGiftModal(true)}><Plus size={17} />Gift License</button> : undefined} />{error ? <Notice kind="error">{error}</Notice> : !data ? <Loading /> : <>{feedback && <Notice>{feedback}</Notice>}
-        {section === '' && <><div className="stat-grid"><Stat label="Total Revenue (30d)" value={'₹' + (data?.metrics?.revenue || 0).toLocaleString()} icon={<CreditCard />} /><Stat label="Active Licenses" value={data?.metrics?.activeLicenses || 0} icon={<KeyRound />} /><Stat label="Recent Sales (30d)" value={data?.metrics?.recentSales || 0} icon={<Activity />} /></div><div className="workspace-welcome"><div><span className="eyebrow">A STRONG START</span><h2>Let’s make NORVI<br /><span className="serif">yours.</span></h2><p>Your website is taking shape. Add your product details and explore the customer journey.</p><a className="button primary" href={user.role === 'support' ? '/admin/customers' : '/admin/products'}>{user.role === 'support' ? 'Explore customers' : 'Manage your agents'}<ArrowUpRight size={17} /></a></div><div className="setup-list">{[['Website name', 'NORVI is ready', true], ['Product details', 'Names, features, prices, and releases', false], ['Secure accounts', 'Connect your authentication service', false], ['Payments & email', 'Connect your business accounts', false]].map(([title, desc, done]) => <div key={String(title)}><span className={done ? 'check-circle done' : 'check-circle'}>{done ? <Check size={14} /> : <span />}</span><div><b>{title}</b><small>{desc}</small></div></div>)}</div></div><div className="panel-heading"><h3>Find your next step</h3><a href="/" className="text-button">View website <ArrowUpRight size={15} /></a></div>{user.role !== 'support' && <SocialMediaForm settings={settings} onSave={onCatalogChange} />}
+    return <><PageHeading eyebrow={section === '' ? 'WELCOME TO YOUR WORKSPACE' : 'AGENCY MANAGEMENT'} title={titles[section] || 'Workspace'} description={section === '' ? 'Start with the essentials. Build your collection, get to know your customers, and keep things moving.' : undefined} action={section === '/products' ? <button className="button primary" onClick={() => setEditing(null)}><Plus size={17} />Add agent</button> : section === '/customers' ? <button className="button secondary" onClick={() => exportCsv('customers.csv', ['ID', 'Email', 'Name', 'Status', 'Registered'], items.map(u => [u.id, u.email, u.name, u.suspended ? 'suspended' : u.status || 'active', u.createdAt]))}><Download size={17} />Export CSV</button> : section === '/orders' ? <button className="button secondary" onClick={() => exportCsv('orders.csv', ['Order ID', 'Customer', 'Email', 'Product', 'Amount', 'Payment ID', 'Status', 'Date'], filtered.map(o => [o.id, o.customer, o.email || '', o.product, o.amount, o.providerPaymentId || '', o.status, o.createdAt]))}><Download size={17} />Export CSV</button> : section === '/licenses' && user.role !== 'support' ? <button className="button primary" onClick={() => setGiftModal(true)}><Plus size={17} />Gift License</button> : undefined} />{error ? <Notice kind="error">{error}</Notice> : !data ? <Loading /> : <>{feedback && <Notice>{feedback}</Notice>}
+        {section === '' && <>
+          <div className="stat-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', marginBottom: 16 }}>
+            <Stat label="Revenue (Today)" value={'₹' + (data?.metrics?.revenueToday ?? 0).toLocaleString()} icon={<CreditCard />} hint={(data?.metrics?.salesToday ?? 0) + ' paid orders'} />
+            <Stat label="Revenue (7 Days)" value={'₹' + (data?.metrics?.revenue7d ?? 0).toLocaleString()} icon={<CreditCard />} hint={(data?.metrics?.sales7d ?? 0) + ' paid orders'} />
+            <Stat label="Revenue (30 Days)" value={'₹' + (data?.metrics?.revenue30d ?? data?.metrics?.revenue ?? 0).toLocaleString()} icon={<CreditCard />} hint={(data?.metrics?.sales30d ?? data?.metrics?.recentSales ?? 0) + ' paid orders'} />
+            <Stat label="Revenue (All-Time)" value={'₹' + (data?.metrics?.revenueAllTime ?? 0).toLocaleString()} icon={<CreditCard />} hint={(data?.metrics?.salesAllTime ?? 0) + ' paid orders'} />
+          </div>
+          <div className="stat-grid" style={{ marginBottom: 20 }}>
+            <Stat label="Active Licenses" value={data?.metrics?.activeLicenses || 0} icon={<KeyRound />} hint="Deployed machines" />
+            <Stat label="Total Customers" value={data?.metrics?.totalCustomers || 0} icon={<Users />} hint="Registered accounts" />
+            <Stat label="Total Orders (Paid)" value={data?.metrics?.salesAllTime ?? data?.metrics?.recentSales ?? 0} icon={<Activity />} hint={data?.metrics?.trialsAllTime ? `+${data.metrics.trialsAllTime} trials & gifts` : 'Commercial sales'} />
+          </div>
+          <div className="panel" style={{ marginBottom: 24 }}>
+            <div className="panel-heading" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <h3 style={{ margin: 0 }}>Top-Selling Agents Leaderboard</h3>
+                <small style={{ color: 'var(--muted)' }}>Ranked by commercial revenue and active deployment licenses</small>
+              </div>
+              <a href="/admin/releases" className="text-button" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                Manage Releases <ArrowUpRight size={14} />
+              </a>
+            </div>
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Rank</th>
+                    <th>Agent</th>
+                    <th>Status</th>
+                    <th>Paid Orders</th>
+                    <th>Trials & Gifts</th>
+                    <th>Active Licenses</th>
+                    <th>Total Revenue</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(data?.leaderboard && data.leaderboard.length > 0) ? (
+                    data.leaderboard.map((agent: any, idx: number) => (
+                      <tr key={agent.id || agent.slug || idx}>
+                        <td>
+                          <span style={{ 
+                            fontWeight: 700, 
+                            color: idx === 0 ? 'var(--lime, #98e038)' : idx === 1 ? '#60a5fa' : idx === 2 ? '#c084fc' : 'var(--text-light)',
+                            fontSize: 13 
+                          }}>
+                            #{idx + 1}
+                          </span>
+                        </td>
+                        <td>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <b>{agent.name}</b>
+                            <a href={`/agents/${agent.slug}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: 'var(--lime, #98e038)', textDecoration: 'none' }}>
+                              /{agent.slug} ↗
+                            </a>
+                          </div>
+                        </td>
+                        <td><Badge>{agent.status || 'published'}</Badge></td>
+                        <td>
+                          <b style={{ color: Number(agent.paidOrders || 0) > 0 ? 'var(--lime, #98e038)' : 'inherit' }}>
+                            {agent.paidOrders || 0}
+                          </b>
+                        </td>
+                        <td>
+                          <small style={{ color: Number(agent.trialOrders || 0) > 0 ? 'var(--text-light)' : 'var(--muted)' }}>
+                            {agent.trialOrders || 0} {agent.trialOrders === 1 ? 'activation' : 'activations'}
+                          </small>
+                        </td>
+                        <td>{agent.activeLicenses || 0}</td>
+                        <td style={{ color: Number(agent.revenue || 0) > 0 ? 'var(--lime, #98e038)' : 'inherit', fontWeight: 600 }}>
+                          ₹{Number(agent.revenue || 0).toLocaleString()}
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={7} style={{ textAlign: 'center', padding: '16px', color: 'var(--muted)' }}>
+                        No commercial sales recorded yet. Leaderboard updates in real-time as orders arrive.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div className="workspace-welcome"><div><span className="eyebrow">A STRONG START</span><h2>Let’s make NORVI<br /><span className="serif">yours.</span></h2><p>Your website is taking shape. Add your product details and explore the customer journey.</p><a className="button primary" href={user.role === 'support' ? '/admin/customers' : '/admin/products'}>{user.role === 'support' ? 'Explore customers' : 'Manage your agents'}<ArrowUpRight size={17} /></a></div><div className="setup-list">{[['Website name', 'NORVI is ready', true], ['Product details', 'Names, features, prices, and releases', false], ['Secure accounts', 'Connect your authentication service', false], ['Payments & email', 'Connect your business accounts', false]].map(([title, desc, done]) => <div key={String(title)}><span className={done ? 'check-circle done' : 'check-circle'}>{done ? <Check size={14} /> : <span />}</span><div><b>{title}</b><small>{desc}</small></div></div>)}</div></div><div className="panel-heading"><h3>Find your next step</h3><a href="/" className="text-button">View website <ArrowUpRight size={15} /></a></div>{user.role !== 'support' && <SocialMediaForm settings={settings} onSave={onCatalogChange} />}
           <div className="quick-links">{(user.role === 'support' ? [['Customers', 'Find accounts, including non-buyers', '/admin/customers', Users], ['Licenses', 'Help with devices and access', '/admin/licenses', KeyRound]] : [['Your products', 'Add, edit, and publish your agents', '/admin/products', Box], ['Website content', 'Edit your headline and description', '/admin/content', FileText]]).map(([title, desc, href, Icon]: any) => <a className="panel" href={href} key={title}><Icon size={22} /><h3>{title}</h3><p>{desc}</p><ArrowUpRight size={19} /></a>)}</div></>}
-        {['/products', '/releases', '/categories', '/customers', '/licenses'].includes(section) && <div className="catalog-toolbar"><label className="search"><Search size={17} /><input aria-label="Search records" placeholder={section === '/customers' ? 'Search name or email…' : 'Search records…'} value={query} onChange={e => setQuery(e.target.value)} /></label><select aria-label="Filter records" value={filter} onChange={e => setFilter(e.target.value)}><option value="all">All records</option>{['/products', '/releases'].includes(section) ? <><option value="published">Published</option><option value="draft">Drafts</option><option value="archived">Archived</option></> : section === '/customers' ? <option value="nonbuyers">No purchases</option> : <><option value="active">Active</option><option value="revoked">Revoked</option></>}</select></div>}
+        {['/products', '/releases', '/categories', '/customers', '/licenses', '/orders', '/activity'].includes(section) && <div className="catalog-toolbar"><label className="search"><Search size={17} /><input aria-label="Search records" placeholder={section === '/customers' ? 'Search name or email…' : section === '/orders' ? 'Search order ID, customer, email, payment ID…' : section === '/activity' ? 'Search action or actor…' : 'Search records…'} value={query} onChange={e => setQuery(e.target.value)} /></label>{section !== '/activity' && <select aria-label="Filter records" value={filter} onChange={e => setFilter(e.target.value)}><option value="all">All records</option>{['/products', '/releases'].includes(section) ? <><option value="published">Published</option><option value="draft">Drafts</option><option value="archived">Archived</option></> : section === '/customers' ? <option value="nonbuyers">No purchases</option> : section === '/orders' ? <><option value="paid">Paid (Commercial)</option><option value="trial">Free Trials</option><option value="gift">Gifted Licenses</option><option value="pending">Pending</option><option value="refunded">Refunded</option></> : <><option value="active">Active</option><option value="revoked">Revoked</option></>}</select>}</div>}
         {section === '/categories' && <CategoriesAdmin categories={data.categories} onSave={() => { reload(); onCatalogChange(); }} />}
-        {section === '/products' && <><CatalogNoticeEditor settings={settings} onSave={onCatalogChange} /><div className="admin-products">{filtered.map((p: Product) => <div className="panel admin-product" key={p.id}><ProductIcon product={p} /><div className="grow" style={{ flex: 1, minWidth: 0 }}><h3>{p.name}</h3><p>{p.tagline}</p><span className="small-note">/{p.slug} · {p.price}</span></div><Badge>{p.status}</Badge><div style={{display:"flex", gap: 8}}><button className="button secondary" onClick={() => setEditing(p)}>Edit Content & SEO <ArrowUpRight size={15} /></button><button className="button secondary" style={{color: "var(--red)", borderColor: "var(--red)"}} onClick={() => { if(window.confirm("Are you sure you want to permanently delete this agent?")) { action("/admin/products/" + p.id, {}, "DELETE"); } }}>Delete</button></div></div>)}</div>{!filtered.length && <Empty title="No products match." description="Change your filters or add your first agent." />}</>}
+        {section === '/products' && <><CatalogNoticeEditor settings={settings} onSave={onCatalogChange} /><div className="admin-products">{filtered.map((p: Product) => <div className="panel admin-product" key={p.id}><ProductIcon product={p} /><div className="grow" style={{ flex: 1, minWidth: 0 }}><div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}><h3>{p.name}</h3><select aria-label="Change agent status" value={p.status} style={{ width: 'auto', padding: '2px 8px', fontSize: '12px', borderRadius: '4px', background: 'var(--surface, #1e261a)', color: p.status === 'published' ? 'var(--lime, #98e038)' : 'var(--text-light)', border: '1px solid var(--border)' }} onChange={async e => { await action('/admin/products/' + p.id + '/status', { status: e.target.value }); onCatalogChange(); }}><option value="published">Published</option><option value="draft">Draft</option><option value="archived">Archived</option></select></div><p>{p.tagline}</p><span className="small-note">/{p.slug} · {p.price}</span></div><div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}><a href={`/agents/${p.slug}`} target="_blank" rel="noopener noreferrer" className="button secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '6px 12px', fontSize: '13px' }}>View Page <ExternalLink size={14} /></a><button className="button secondary" onClick={() => setEditing(p)}>Edit Content & SEO <ArrowUpRight size={15} /></button><button className="button secondary" style={{color: "var(--red)", borderColor: "var(--red)"}} onClick={() => { if(window.confirm("Are you sure you want to permanently delete this agent?")) { action("/admin/products/" + p.id, {}, "DELETE"); } }}>Delete</button></div></div>)}</div>{!filtered.length && <Empty title="No products match." description="Change your filters or add your first agent." />}</>}
         {section === '/releases' && <AgentReleasesAdmin products={filtered} onSave={() => { reload(); onCatalogChange(); }} />}
-        {section === '/customers' && <><div className="table-wrap"><table><thead><tr><th>Customer</th><th>Registered</th><th>Purchases</th><th>Licenses</th><th>Status</th><th>Actions</th></tr></thead><tbody>{filtered.map(u => <tr key={u.id}><td><b>{u.name || 'Unnamed'}</b><small className="block">{u.email}</small></td><td>{date(u.createdAt)}</td><td>{u.orderCount || u.purchases || 0}</td><td>{u.activeLicenses || u.licenseCount || 0}</td><td><Badge>{u.suspended ? 'suspended' : u.status || 'active'}</Badge></td><td><div className="row-actions"><button className="button secondary" onClick={() => action('/admin/customers/' + u.id + '/suspend', { suspended: !(u.suspended || u.status === 'suspended') })}>{(u.suspended || u.status === 'suspended') ? 'Restore account' : 'Suspend account'}</button>{user.role === 'owner' && <button className="button secondary" onClick={async () => { await action('/admin/impersonate', { id: u.id }); window.location.href = u.role === 'customer' ? '/account' : '/admin'; }}>Login As</button>}</div></td></tr>)}</tbody></table></div>{!filtered.length && <Empty title="No matching customers." description="Try a different search or filter." />}</>}
-        {section === '/licenses' && (!filtered.length ? <Empty title="No licenses issued yet." description="Open a customer preview and simulate a purchase. The resulting license will appear here." href="/login" label="Explore customer flow" /> : <div className="license-list">{filtered.map(l => <div className="panel" key={l.id}><div className="panel-heading"><div><h3>{l.product}</h3><p>{l.customer}</p></div><Badge>{l.status}</Badge></div><code>NORVI-XXXX-XXXX-XXXX-{l.suffix}</code><div className="row-actions">{user.role !== 'support' && <><button className="button secondary" onClick={() => setLicenseAction({ id: l.id, action: l.status === 'active' ? 'revoke' : 'restore' })}>{l.status === 'active' ? 'Revoke access' : 'Restore access'}</button><button className="button secondary" onClick={() => setLicenseAction({ id: l.id, action: 'rotate' })}>Rotate key</button></>}<button className="button secondary" style={{color: 'var(--red)', borderColor: 'var(--red)'}} onClick={() => setLicenseAction({ id: l.id, action: 'delete' })}>Delete</button><button className="button secondary" disabled={!l.device} onClick={() => action('/licenses/' + l.id + '/device-reset')}>Reset device</button>{user.role === 'owner' && <OwnerReveal id={l.id} />}</div></div>)}</div>)}
-        {section === '/orders' && <><OrderTable items={items} /></>}
+        {section === '/customers' && <><div className="table-wrap"><table><thead><tr><th>Customer</th><th>Registered</th><th>Purchases & Spend</th><th>Licenses</th><th>Status</th><th>Actions</th></tr></thead><tbody>{filtered.map(u => <tr key={u.id}><td><div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><b>{u.name || 'Unnamed'}</b>{u.email && <button type="button" title="Copy email" aria-label="Copy customer email" style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--lime, #98e038)' }} onClick={() => { navigator.clipboard.writeText(u.email); setFeedback(`Copied email ${u.email}`); }}><Copy size={12} /></button>}</div><small className="block">{u.email}</small></td><td>{date(u.createdAt)}</td><td><div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}><div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}><b style={{ color: Number(u.totalSpent || 0) > 0 ? 'var(--lime, #98e038)' : 'var(--text-light)' }}>{Number(u.totalSpent || 0) > 0 ? `₹${Number(u.totalSpent).toLocaleString()}` : (u.orderCount > 0 ? 'Free / Trial' : '₹0')}</b><button type="button" className="button secondary small" style={{ padding: '2px 8px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }} onClick={() => setViewingOrdersCustomer({ id: u.id, name: u.name || 'Customer', email: u.email })}><CreditCard size={12} /> {u.orderCount || 0} {u.orderCount === 1 ? 'order' : 'orders'}</button></div>{u.purchasedProducts && u.purchasedProducts.length > 0 ? <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>{u.purchasedProducts.map((p: any) => <span key={p.slug || p.id} className="badge" style={{ fontSize: '10px', padding: '1px 6px' }}>{p.name}</span>)}</div> : <small style={{ color: 'var(--muted)', fontSize: '11px' }}>No purchases</small>}</div></td><td><b>{u.activeLicenses || u.licenseCount || 0}</b></td><td><Badge>{u.suspended ? 'suspended' : u.status || 'active'}</Badge></td><td><div className="row-actions"><button className="button secondary" onClick={() => action('/admin/customers/' + u.id + '/suspend', { suspended: !(u.suspended || u.status === 'suspended') })}>{(u.suspended || u.status === 'suspended') ? 'Restore account' : 'Suspend account'}</button>{(user.role === 'owner' || user.role === 'administrator') && <><button className="button secondary" onClick={async () => { await action('/admin/impersonate', { id: u.id }); window.location.href = u.role === 'customer' ? '/account' : '/admin'; }}>Login As</button><button className="button secondary" style={{ color: 'var(--red, #ef4444)', borderColor: 'var(--red, #ef4444)' }} onClick={() => { if (window.confirm(`⚠️ PERMANENT ACCOUNT DELETION\n\nAre you sure you want to permanently delete the account for "${u.name || u.email}"?\n\nThis will permanently destroy:\n• All licenses and key activations\n• All connected hardware devices\n• All orders and purchase receipts\n• Customer profile and login credentials\n\nThis action cannot be undone.`)) { action('/admin/customers/' + u.id + '/delete'); } }}>Delete account</button></>}</div></td></tr>)}</tbody></table></div>{!filtered.length && <Empty title="No matching customers." description="Try a different search or filter." />}</>}
+        {section === '/licenses' && (!filtered.length ? <Empty title="No licenses issued yet." description="Open a customer preview and simulate a purchase. The resulting license will appear here." href="/login" label="Explore customer flow" /> : <div className="license-list">{filtered.map(l => <AdminLicenseCard key={l.id} license={l} userRole={user.role} onAction={action} onBanDevice={dev => setBanningDevice(dev)} onUnbanDevice={async (deviceId, installationId) => { if (window.confirm(`Lift ban on hardware ID "${installationId}"?`)) { await action(`/admin/devices/${deviceId}/unban`); } }} onRemoveDevice={async (deviceId, installationId) => { if (window.confirm(`Unlink hardware ID "${installationId}" from this license?\n\nThis frees the slot cleanly so the customer can activate another machine.`)) { await action(`/admin/devices/${deviceId}/remove`); } }} onShowTelemetry={lic => setTelemetryLicense(lic)} onLicenseAction={(id, act) => setLicenseAction({ id, action: act })} onCopiedEmail={email => setFeedback(`Copied email ${email}`)} />)}</div>)}
+        {section === '/orders' && <><div className="stat-grid" style={{ marginBottom: 16 }}><Stat label="Total Orders" value={filtered.length} icon={<CreditCard />} /><Stat label="Paid Commercial Volume" value={'₹' + (filtered.filter(o => o.status === 'paid' && Number(o.amountMinor || (parseFloat(String(o.amount || '0').replace(/[^0-9.]/g, '')) * 100) || 0) > 0 && !String(o.providerPaymentId || '').startsWith('trial_') && !String(o.providerPaymentId || '').startsWith('gift_') && !String(o.providerPaymentId || '').startsWith('free_')).reduce((acc, o) => acc + (Number(o.amountMinor || (parseFloat(String(o.amount || '0').replace(/[^0-9.]/g, '')) * 100)) || 0) / 100, 0)).toLocaleString()} icon={<Activity />} /></div><AdminOrderTable items={filtered} onCopied={msg => setFeedback(msg)} /></>}
         {section === '/promotions' && <><PromotionsManager /><TrialManager /><CouponsManager /></>}
         {section === '/marketing' && <MarketingManager />}
           {section === '/ai-agent' && <AIAgentManager />}
@@ -1114,9 +2011,12 @@ function Admin({ section, user, settings, onCatalogChange }: { section: string; 
         {section === '/announcements' && <Announcements user={user} items={items} action={action} />}
         {section === '/content' && <SettingsForm initial={data.settings} contentOnly onSave={() => { reload(); onCatalogChange(); }} />}
         {section === '/settings' && <><SettingsForm initial={data.settings} onSave={() => { reload(); onCatalogChange(); }} /><div className="panel"><h3>Integration readiness</h3><div className="list-row"><span>Authentication · Supabase</span><Badge>Not connected</Badge></div><div className="list-row"><span>Payments · Razorpay</span><Badge>Not connected</Badge></div><div className="list-row"><span>Email · Resend</span><Badge>Not connected</Badge></div><p className="small-note">Provider secrets belong in protected server configuration, never in this form.</p></div></>}
-        {section === '/activity' && <><div className="panel"><h3>Activity log</h3>{!items.length ? <p>No changes recorded yet.</p> : items.map(a => <div className="list-row" key={a.id}><span className="activity-icon"><Activity size={16} /></span><div className="grow" style={{ flex: 1, minWidth: 0 }}><b>{a.action}</b><p>{a.actor} · {a.target}</p></div><span className="small-note">{date(a.createdAt)}</span></div>)}</div><div className="panel"><h3>Email delivery</h3>{!data.emails.length ? <p>No purchase email jobs yet.</p> : data.emails.map((e: any) => <div className="list-row" key={e.id}><Mail size={16} /><span className="grow">Purchase confirmation · {e.orderId.slice(0, 8)}</span><Badge>{e.status}</Badge></div>)}</div></>}
+        {section === '/activity' && <><div className="panel"><div className="panel-heading" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><h3>Activity log ({filtered.length})</h3></div>{!filtered.length ? <p>No changes match your filter.</p> : filtered.map(a => <div className="list-row" key={a.id}><span className="activity-icon"><Activity size={16} /></span><div className="grow" style={{ flex: 1, minWidth: 0 }}><b>{a.action}</b><p>{a.actor} · {a.target}</p></div><span className="small-note">{date(a.createdAt)}</span></div>)}</div><div className="panel"><h3>Email delivery</h3>{!data.emails.length ? <p>No purchase email jobs yet.</p> : data.emails.map((e: any) => <div className="list-row" key={e.id}><Mail size={16} /><span className="grow">Purchase confirmation · {e.orderId.slice(0, 8)}</span><Badge>{e.status}</Badge></div>)}</div></>}
     </>}{editing !== undefined && <Modal title={editing ? 'Edit agent' : 'Add an agent'} onClose={() => setEditing(undefined)} wide><ProductForm categories={data.categories} product={editing} onSave={() => { setEditing(undefined); reload(); onCatalogChange(); }} /></Modal>}{licenseAction && <Modal title={licenseAction.action === 'revoke' ? 'Revoke product access?' : licenseAction.action === 'rotate' ? 'Replace the activation key?' : licenseAction.action === 'delete' ? 'Permanently delete key?' : 'Restore product access?'} onClose={() => setLicenseAction(null)}><p>{licenseAction.action === 'delete' ? 'WARNING: This permanently deletes the license and device records. This action cannot be undone.' : 'This changes the local preview license. Billing is separate. A reason is recorded in the audit log.'}</p><form onSubmit={async e => { e.preventDefault(); const reason = new FormData(e.currentTarget).get('reason'); await action('/admin/licenses/' + licenseAction.id + '/' + licenseAction.action, { reason }); setLicenseAction(null); }}><Field label="Reason"><textarea name="reason" required minLength={5} maxLength={250} rows={3} /></Field><button className="button primary">Confirm {licenseAction.action}</button></form></Modal>}
-    {giftModal && <Modal title="Gift a License" onClose={() => setGiftModal(false)}><p>Manually generate and send an active license to a customer's email address. They must have a registered account.</p><form onSubmit={async e => { e.preventDefault(); const d = new FormData(e.currentTarget); await action('/admin/licenses/gift', { email: d.get('email'), productSlug: d.get('productSlug'), duration: d.get('duration') }); setGiftModal(false); }}><Field label="Customer Email"><input name="email" type="email" required /></Field><Field label="Product Slug (URL)"><input name="productSlug" required placeholder="e.g. omnix-ai" /></Field><Field label="License Duration"><select name="duration"><option value="lifetime">Lifetime</option><option value="1_month">1 Month</option><option value="3_months">3 Months</option></select></Field><button className="button primary" style={{marginTop: '1rem'}}>Generate and Gift Key</button></form></Modal>}
+    {giftModal && <Modal title="Gift a License" onClose={() => setGiftModal(false)}><p>Manually generate and send an active license to a customer's email address. They must have a registered account.</p><form onSubmit={async e => { e.preventDefault(); const d = new FormData(e.currentTarget); await action('/admin/licenses/gift', { email: d.get('email'), productSlug: d.get('productSlug'), duration: d.get('duration') }); setGiftModal(false); }}><Field label="Customer Email"><input name="email" type="email" required /></Field><Field label="Product Slug (URL)"><input name="productSlug" required placeholder="e.g. omnix-ai" /></Field><Field label="License Duration"><select name="duration" defaultValue="1_month"><option value="1_day">1 Day (Trial Key)</option><option value="1_month">1 Month</option><option value="3_months">3 Months</option><option value="lifetime">Lifetime</option></select></Field><button className="button primary" style={{marginTop: '1rem'}}>Generate and Gift Key</button></form></Modal>}
+    {banningDevice && <BanDeviceModal device={banningDevice} onClose={() => setBanningDevice(null)} onConfirmBan={async (duration, reason) => { await action(`/admin/devices/${banningDevice.id}/ban`, { duration, reason }); }} />}
+    {telemetryLicense && <LicenseTelemetryModal license={telemetryLicense} onClose={() => setTelemetryLicense(null)} />}
+    {viewingOrdersCustomer && <CustomerOrdersModal customer={viewingOrdersCustomer} onClose={() => setViewingOrdersCustomer(null)} />}
     </>;
 }
 function OwnerReveal({ id }: { id: string }) { const [key, setKey] = useState(''), [error, setError] = useState(''); return <><button className="button secondary" onClick={async () => { try { setKey((await api('/licenses/' + id + '/reveal', { method: 'POST' })).key); } catch (e: any) { setError(e.message); } }}>Reveal key</button>{error && <span style={{color: 'var(--red)', fontSize: '13px'}}>{error}</span>}{key && <Modal title="Preview activation key" onClose={() => setKey('')}><code className="full-key">{key}</code><CopyButton text={key} /></Modal>}</>; }

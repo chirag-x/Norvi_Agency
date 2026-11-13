@@ -1,5 +1,6 @@
-import { Bot, Check, Plus, ShieldCheck, Trash2 } from 'lucide-react';
+import { Bot, Check, Mic, Plus, ShieldCheck, Trash2 } from 'lucide-react';
 import {
+  GROQ_STT_MODEL_PRESETS,
   OPENROUTER_MODEL_PRESETS,
   type AgentAiPolicy,
   type AgentAiSortMode,
@@ -29,6 +30,7 @@ export function AgentAiPolicySection({
     policy.defaultModel.trim() === 'openrouter/free' ||
     policy.taskModels.some(t => t.model.trim().endsWith(':free') || t.model.trim() === 'openrouter/free');
   const datalistId = `openrouter-presets-${productId}`;
+  const sttDatalistId = `groq-stt-presets-${productId}`;
 
   const updateTask = (index: number, patch: Partial<AgentAiTaskModel>) => {
     const nextTasks = policy.taskModels.map((item, i) => (i === index ? { ...item, ...patch } : item));
@@ -86,6 +88,14 @@ export function AgentAiPolicySection({
         ))}
       </datalist>
 
+      <datalist id={sttDatalistId}>
+        {GROQ_STT_MODEL_PRESETS.map(p => (
+          <option key={p.id} value={p.id}>
+            {p.label}
+          </option>
+        ))}
+      </datalist>
+
       <div
         style={{
           display: 'flex',
@@ -114,6 +124,9 @@ export function AgentAiPolicySection({
           <span className="badge" title="Admin-only usage metrics across all licenses">
             24h: {policy.stats.requests24h} · 7d: {policy.stats.requests7d} · 30d: {policy.stats.requests30d} reqs (~$
             {Number(policy.stats.cost30dUsd || 0).toFixed(4)})
+          </span>
+          <span className="badge" title="Admin-only STT fallback usage metrics across all licenses">
+            STT Fallback 24h: {policy.stats.sttRequests24h ?? 0} · 7d: {policy.stats.sttRequests7d ?? 0} · 30d: {policy.stats.sttRequests30d ?? 0} reqs (~{Number(policy.stats.sttMinutes30d ?? 0).toFixed(1)}m)
           </span>
           <button
             type="button"
@@ -395,6 +408,106 @@ export function AgentAiPolicySection({
           ))}
         </div>
       )}
+
+      <div
+        style={{
+          marginTop: '1.5rem',
+          paddingTop: '1.25rem',
+          borderTop: '1px solid var(--line)',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '0.25rem' }}>
+          <Mic size={17} className="accent" />
+          <h4 style={{ margin: 0, fontSize: '0.95rem' }}>Groq Speech-to-Text (STT) &amp; Server Fallback</h4>
+          <span className="badge good">
+            <ShieldCheck size={11} style={{ verticalAlign: 'middle', marginRight: 4 }} />
+            Admin Controlled
+          </span>
+        </div>
+        <p className="small-note" style={{ marginBottom: '1rem' }}>
+          Centralized Groq Whisper speech-to-text configuration. Applied across all users for this agent (even when users enter their own Groq API key). You can also allow NORVI's secret Netlify <code>GROQ_API_KEY</code> to serve as a seamless fallback when a user does not have their own key.
+        </p>
+
+        <div className="form-grid">
+          <Field
+            label="Groq STT Model ID"
+            hint="Applied across all users for this agent (even when users enter their own Groq API key)"
+          >
+            <input
+              list={sttDatalistId}
+              value={policy.sttModel}
+              onChange={e => onChange({ ...policy, sttModel: e.target.value })}
+              placeholder="whisper-large-v3-turbo"
+            />
+          </Field>
+
+          <Field
+            label="Allow NORVI Fallback Groq API Key"
+            hint="Uses Netlify's GROQ_API_KEY only when a desktop user has not entered their own key"
+          >
+            <select
+              value={policy.groqFallbackEnabled ? 'enabled' : 'disabled'}
+              onChange={e => onChange({ ...policy, groqFallbackEnabled: e.target.value === 'enabled' })}
+            >
+              <option value="enabled">Enabled (Allow NORVI Netlify GROQ_API_KEY fallback)</option>
+              <option value="disabled">Disabled (Require User Groq Key or Offline Whisper)</option>
+            </select>
+          </Field>
+        </div>
+
+        <h5 style={{ margin: '1rem 0 0.25rem 0', fontSize: '0.9rem' }}>
+          Hidden Per-License STT Fallback Limits (0 = Unlimited)
+        </h5>
+        <p className="small-note" style={{ marginBottom: '0.5rem' }}>
+          Enforced silently by your backend STT proxy per license key. Only counts fallback calls using NORVI's server key. Customers using their own Groq key bypass these limits completely.
+        </p>
+
+        <div className="form-grid">
+          <Field label="STT Fallback 1-Day Limit (24h)" hint="Max NORVI fallback transcriptions per license every 24h (0 = unlimited)">
+            <input
+              type="number"
+              min={0}
+              value={policy.sttDailyLimit}
+              onChange={e => onChange({ ...policy, sttDailyLimit: Math.max(0, parseInt(e.target.value || '0', 10) || 0) })}
+            />
+          </Field>
+
+          <Field label="STT Fallback 1-Week Limit (7 Days)" hint="Max NORVI fallback transcriptions per license in rolling 7 days (0 = unlimited)">
+            <input
+              type="number"
+              min={0}
+              value={policy.sttWeeklyLimit}
+              onChange={e => onChange({ ...policy, sttWeeklyLimit: Math.max(0, parseInt(e.target.value || '0', 10) || 0) })}
+            />
+          </Field>
+
+          <Field label="STT Fallback 1-Month Limit (30 Days)" hint="Max NORVI fallback transcriptions per license in rolling 30 days (0 = unlimited)">
+            <input
+              type="number"
+              min={0}
+              value={policy.sttMonthlyLimit}
+              onChange={e => onChange({ ...policy, sttMonthlyLimit: Math.max(0, parseInt(e.target.value || '0', 10) || 0) })}
+            />
+          </Field>
+
+          <Field label="STT Fallback Free Trial 1-Day Limit" hint="Stricter 24h fallback cap for 1-day trials (0 = uses STT Fallback 1-Day Limit)">
+            <input
+              type="number"
+              min={0}
+              value={policy.sttTrialDailyLimit}
+              onChange={e =>
+                onChange({ ...policy, sttTrialDailyLimit: Math.max(0, parseInt(e.target.value || '0', 10) || 0) })
+              }
+            />
+          </Field>
+        </div>
+
+        {policy.groqFallbackEnabled && policy.slug === 'nexus' && (
+          <Notice kind="info">
+            Note: For Nexus, videos with audio &gt;4 MB will be automatically split and transcribed in chunks client-side when using NORVI fallback so long videos succeed under Netlify payload limits.
+          </Notice>
+        )}
+      </div>
 
       {feedback && (
         <Notice kind={feedback.startsWith('Error') ? 'error' : 'success'}>
