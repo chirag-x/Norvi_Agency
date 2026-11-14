@@ -521,7 +521,7 @@ export function createAgentAiHandler(deps: AgentAiHandlerDeps) {
     let autoSuppressedReasoning = false;
     if (body.reasoning && typeof body.reasoning === 'object' && !Array.isArray(body.reasoning)) {
       openRouterPayload.reasoning = body.reasoning;
-    } else if (isLatencyCriticalTask && quota.sort !== 'price') {
+    } else if (isLatencyCriticalTask) {
       openRouterPayload.reasoning = { enabled: false };
       autoSuppressedReasoning = true;
     }

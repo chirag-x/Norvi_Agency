@@ -178,8 +178,8 @@
       "workflowHeading": "Engineered for calm, confident interviews.",
       "workflowDescription": "Voro sits unobtrusively in your system tray until your interview begins. As interviewers speak or display technical questions on screen, Voro extracts the core requirement, cross-references your uploaded resume, and projects bulletproof talking points onto your screen.",
       "workflowMediaUrl": "https://lpzqvziejdpzykwrhkmn.supabase.co/storage/v1/object/public/product-assets/400e959b-2aa1-424b-9fd2-854720b09969.mp4",
-      "workflowNote": "Windows 10/11 native installer. Includes automatic silent background updater and local model acceleration.",
-      "aiUsage": "Unlimited No Limit ",
+      "workflowNote": "Windows 10/11 native installer. Includes automatic silent background updater and ultra-low latency NORVI Cloud AI.",
+      "aiUsage": "Unlimited — Powered by NORVI Cloud AI",
       "deviceAllowance": "3 active device per license. Manage devices in your account.",
       "is_on_sale": true,
       "trialActive": false,
@@ -204,7 +204,7 @@
             "question": "Does Voro solve live LeetCode and coding problems?"
           },
           {
-            "answer": "Absolutely not. Norvi Agency enforces a strict zero-data-logging architecture. Everything runs locally on your PC with zero cloud tracking or audio storage.",
+            "answer": "Absolutely not. Norvi Agency enforces a strict zero-data-logging architecture. Voro captures your screen and routes audio natively on your machine, while AI reasoning queries are encrypted and processed through NORVI Cloud AI with zero tracking, logging, or audio storage.",
             "question": "Does Norvi Agency record or store my interview sessions?"
           },
           {
@@ -219,45 +219,45 @@
         "guide": {
           "sections": [
             {
-              "id": "section-1794562366355-u0pm",
-              "content": "1. In your NORVI Dashboard (https://nor-vi.in/account/agents), click the \"Download Installer\" button next to Nexus to get the official setup file (Nexus_Setup.exe).\n2. Open the downloaded file and follow the standard on-screen Windows installer steps.\n3. Once installed, open Nexus from your desktop shortcut or Windows Start menu.",
-              "heading": "Download & Install Nexus",
+              "id": "section-voro-step-1",
+              "content": "1. In your NORVI Dashboard (https://nor-vi.in/account/agents), click the \"Download Installer\" button next to Voro to get the official setup file (Voro_Setup.exe).\n2. Open the downloaded file and follow the standard on-screen Windows installer steps.\n3. Once installed, launch Voro from your desktop shortcut or Windows Start menu.",
+              "heading": "Download & Install Voro",
               "imageUrl": null
             },
             {
-              "id": "section-1794562366770-dn3z",
-              "content": "1. On your NORVI Dashboard, find Nexus and click \"View License\".\n2. Copy your unique activation key.\n3. In the Nexus application, paste your license key and click \"Activate\". Your lifetime license is immediately verified, giving you full access.",
+              "id": "section-voro-step-2",
+              "content": "1. On your NORVI Dashboard, find Voro and click \"View License\".\n2. Copy your unique activation key (starts with NORVI-VORO-).\n3. In the Voro application, paste your license key and click \"Activate\". Your license is verified immediately through the NORVI security gateway, giving you full access.",
               "heading": "Activate Your License Key",
               "imageUrl": null
             },
             {
-              "id": "section-1794562367196-2ucj",
-              "content": "Unlike older tools that require you to download huge 10GB files or install complex local software, Nexus connects to the NORVI Cloud AI brain automatically with your license.\n• Viral hook detection, engagement scoring, and title writing are 100% active immediately.\n• You can check your operational status at any time on the Nexus Dashboard.",
+              "id": "section-voro-step-3",
+              "content": "Unlike older tools that require you to configure Ollama, install Python, or download massive 10GB models, Voro connects to the NORVI Cloud AI brain automatically.\n• Real-time interview reasoning, coding solutions, and answer distillation are 100% active immediately.\n• Zero GPU requirements and minimal system resource usage—runs smoothly on standard laptops.\n• Check your operational status at any time in Voro Settings → System Readiness Summary.",
               "heading": "Instant Cloud AI Brain (Zero Setup Needed)",
               "imageUrl": null
             },
             {
-              "id": "section-1794562367664-ev6j",
-              "content": "For blazing-fast audio transcription (~3 seconds for a 20-minute video), we recommend connecting a free Groq key:\n1. Inside Nexus, click Help Center ➔ Quick Setup and click \"Get Free Groq API Key\" (or visit https://console.groq.com/keys).\n2. Sign up or log in (100% free with your Google or GitHub account, no card required).\n3. Click \"Create API Key\", name it \"Nexus\", and choose \"No Expiration\".\n4. Copy your key (starts with \"gsk_...\").\n5. Open Settings in Nexus, paste it into the \"Groq API Key\" field, and click \"Save Settings\".\n(Note: If you ever work offline, simply switch to \"Local (Faster-Whisper)\" in Settings to transcribe without internet).",
-              "heading": "Connect Free Fast Voice Recognition (3-Second Transcription)",
+              "id": "section-voro-step-4",
+              "content": "For ultra-fast ~200ms speech recognition, connect your free personal Groq API key:\n1. Inside Voro, open Settings → Audio tab.\n2. In Section 3 (Voice Recognition), click \"Get Free Key\" (or visit https://console.groq.com/keys).\n3. Sign up or log in (100% free with Google, no card required).\n4. Click \"Create API Key\", name it \"Voro\", and copy your key (starts with \"gsk_...\").\n5. Paste it into the \"Groq API Key\" field in Voro and click \"⚡ Test Key\".\n(Note: If you ever interview offline without internet, simply select an offline model from the dropdown and click \"Download\" for zero-internet backup).",
+              "heading": "Connect Fast Voice Recognition (~200ms Latency)",
               "imageUrl": null
             },
             {
-              "id": "section-1794562368131-8wn6",
-              "content": "Connect your social platforms once to unlock automated hands-free publishing:\n1. Go to Settings ➔ Social Media Accounts in Nexus.\n2. Click \"Connect\" next to YouTube to authorize your channel for Shorts uploads.\n3. Connect TikTok and choose your default visibility (Public, Friends, or Private).\n4. Add your Instagram account for automated Reels posting.\n5. All accounts remain safely encrypted on your computer.",
-              "heading": "Connect Your YouTube, TikTok & Instagram Channels",
+              "id": "section-voro-step-5",
+              "content": "Make your answers sound completely natural and grounded in your real background:\n1. Open Voro Settings → Profile tab.\n2. Paste your Resume / Work History detailing your past projects, tech stack, and experience.\n3. Paste the target Job Description of the role you are interviewing for.\n4. Click \"Save Settings\". Voro will now frame all behavioral and technical answers using your genuine past experience.",
+              "heading": "Personalize Answers with Your Resume & Target Job",
               "imageUrl": null
             },
             {
-              "id": "section-1794562368532-rhc4",
-              "content": "Ready to make your first clip? It takes just three simple steps:\n1. Pick your video: Use the \"Discover\" tab to search for YouTube videos, or go to \"Clip Lab\" and click \"📁 Import Local Video\" to select any video file on your PC.\n2. Choose your style: Select your desired clip length (30s, 60s, or 90s) and your favorite Caption Style (such as Hormozi Viral or MrBeast Explosive).\n3. Click \"Analyze with AI\": Nexus will extract the highest-scoring moments with instant vertical face centering and animated captions.\n4. Click \"Render Clip\" and send it to the \"Publishing Queue\" with your chosen date and time. Nexus will publish it automatically while you relax!",
-              "heading": "Create & Schedule Your First Viral Short",
+              "id": "section-voro-step-6",
+              "content": "Prepare your meeting audio and control Voro effortlessly with keyboard shortcuts:\n• Private Headphone Audio: In Settings → Audio, select your headphones/earpiece as the output device so only you hear Voro's voice.\n• 100% Invisible Screen Share: Voro uses Windows hardware display isolation (SetWindowDisplayAffinity) and is completely invisible to Zoom, Teams, and Google Meet even when sharing your entire desktop.\n• Key Shortcuts:\n  - Ctrl + Enter: Push-to-Answer (answers the technical question while filtering small talk).\n  - Ctrl + Shift + U: Toggle Auto-Answer (hands-free automatic answers).\n  - Ctrl + Shift + Q: Screen Vision (reads LeetCode/IDE code on screen and generates clean code + Big-O analysis).\n  - Ctrl + Shift + G: Emergency Stealth Cloak (instantly hides Voro in under 20ms).",
+              "heading": "Meeting Setup & Live Interview Hotkeys",
               "imageUrl": null
             }
           ],
           "videoUrl": null
         },
-        "badgeText": "⚡ Ultra-Low Latency | 100% Undetectable | Local & Cloud AI",
+        "badgeText": "⚡ Ultra-Low Latency | 100% Undetectable | Cloud AI Included",
         "comparison": {
           "rows": [
             {
@@ -419,7 +419,7 @@
       "requirements": "Windows 10 / Windows 11 (64-bit). Works on standard laptops and normal home/office PCs.",
       "releaseStatus": "prelaunch",
       "workflowHeading": "Automate Your Empire in 3 Simple Steps",
-      "workflowDescription": "Setting up your automated content pipeline with Nexus is effortless. First, use the 'Discover' tab to search for viral long-form videos by niche, duration, or direct URL. Second, let the 'Clip Lab' use local AI to instantly identify engaging highlights, auto-crop them for vertical viewing, and generate precise captions. Finally, head to the 'Publishing Queue' to let the AI write your titles and hashtags, pick your platforms, and set a schedule. The Nexus background daemon will handle the rest, silently publishing your content at the exact right time while and works if you close Nexus app.",
+      "workflowDescription": "Setting up your automated content pipeline with Nexus is effortless. First, use the 'Discover' tab to search for viral long-form videos by niche, duration, or direct URL. Second, let the 'Clip Lab' use NORVI Cloud AI to instantly identify engaging highlights, auto-crop them for vertical viewing, and generate precise captions. Finally, head to the 'Publishing Queue' to let the AI write your titles and hashtags, pick your platforms, and set a schedule. The Nexus background daemon will handle the rest, silently publishing your content at the exact right time while you relax.",
       "workflowMediaUrl": null,
       "workflowNote": "Nexus has no limit for usages your data and activation  keys are heavily encrypted and never leave your machine!",
       "aiUsage": "Unlimited — Powered by NORVI Cloud AI",
@@ -463,7 +463,7 @@
             "question": "I am not a professional video editor. Can a complete beginner use Nexus?"
           }
         ],
-        "badgeText": "⚡ 100% Local Execution | Autonomous 24/7 Publishing Daemon | Zero Cloud Subscriptions",
+        "badgeText": "⚡ Native Desktop Performance | Autonomous 24/7 Publishing Daemon | All AI Models & Tokens Included",
         "comparison": {
           "rows": [
             {

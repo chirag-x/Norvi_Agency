@@ -31,7 +31,113 @@ export async function uploadFile(file: File, bucket = 'product-assets'): Promise
 
   return publicUrl;
 }
-export function useData(path:string){const [data,setData]=useState<any>(null),[error,setError]=useState(''),[tick,setTick]=useState(0);useEffect(()=>{let active=true;setError('');api(path).then(d=>{if(active)setData(d);}).catch(e=>{if(active)setError(e.message);});return()=>{active=false;};},[path,tick]);return{data,error,reload:()=>setTick(v=>v+1)};}
+
+function getStorage(): Storage | null {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) return window.localStorage;
+    if (typeof localStorage !== 'undefined') return localStorage;
+  } catch {}
+  return null;
+}
+
+export function getCached<T>(key: string): T | null {
+  const storage = getStorage();
+  if (!storage) return null;
+  try {
+    const item = storage.getItem(key);
+    return item ? JSON.parse(item) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function setCached(key: string, data: any): void {
+  const storage = getStorage();
+  if (!storage) return;
+  try {
+    storage.setItem(key, JSON.stringify(data));
+  } catch {}
+}
+
+export function removeCached(key: string): void {
+  const storage = getStorage();
+  if (!storage) return;
+  try {
+    storage.removeItem(key);
+  } catch {}
+}
+
+export function clearAllCaches(): void {
+  const storage = getStorage();
+  if (!storage) return;
+  try {
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < storage.length; i++) {
+      const k = storage.key(i);
+      if (k && (k.startsWith('norvi_cache_') || k.startsWith('norvi_cache__'))) {
+        keysToRemove.push(k);
+      }
+    }
+    keysToRemove.forEach(k => storage.removeItem(k));
+  } catch {}
+}
+
+export function useData(path: string) {
+  const cacheKey = path ? `norvi_cache_${path.replace(/[^a-zA-Z0-9_]/g, '_')}` : undefined;
+  
+  const [data, setData] = useState<any>(() => {
+    if (!cacheKey) return null;
+    return getCached(cacheKey);
+  });
+  const [loading, setLoading] = useState<boolean>(() => {
+    if (!path) return false;
+    if (!cacheKey) return true;
+    return !getCached(cacheKey);
+  });
+  const [error, setError] = useState('');
+  const [tick, setTick] = useState(0);
+
+  useEffect(() => {
+    if (!path) {
+      setLoading(false);
+      return;
+    }
+    let active = true;
+    setError('');
+
+    // Background validation (Stale-While-Revalidate)
+    api(path)
+      .then(d => {
+        if (active) {
+          setData(d);
+          setLoading(false);
+          if (cacheKey) setCached(cacheKey, d);
+        }
+      })
+      .catch(e => {
+        if (active) {
+          setError(e.message);
+          setLoading(false);
+          // If unauthenticated or forbidden, clear stale cache
+          if (e.message && (e.message.includes('Sign in') || e.message.includes('permission') || e.message.includes('401'))) {
+            if (cacheKey) removeCached(cacheKey);
+            setData(null);
+          }
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [path, tick, cacheKey]);
+
+  return {
+    data,
+    loading,
+    error,
+    reload: () => setTick(v => v + 1)
+  };
+}
 export function Notice({children,kind='info'}:{children:ReactNode;kind?:'info'|'error'|'success'}){return <div className={'notice '+kind} role={kind==='error'?'alert':'status'}>{kind==='success'?<CheckCircle2 size={18}/>:<AlertCircle size={18}/>}<div>{children}</div></div>;}
 export function PageHeading({eyebrow,title,description,action}:{eyebrow?:string;title:string;description?:string;action?:ReactNode}){return <div className="page-heading"><div>{eyebrow&&<span className="eyebrow">{eyebrow}</span>}<h1>{title}</h1>{description&&<p>{description}</p>}</div>{action}</div>;}
 export function Empty({title,description,href,label='Explore agents'}:{title:string;description:string;href?:string;label?:string}){return <div className="empty"><span className="empty-mark">✳</span><h3>{title}</h3><p>{description}</p>{href&&<a className="button primary" href={href}>{label}<ArrowUpRight size={16}/></a>}</div>;}

@@ -91,6 +91,9 @@ const factory: Factory = c => {
   });
 };
 // Per-request clients; all database access uses the user's JWT, never a service-role key.
+let liveCatalogCache: { data: any; expiresAt: number } | null = null;
+export const invalidateLiveCatalogCache = () => { liveCatalogCache = null; };
+
 export function createLiveApp(makeClient: Factory = factory, options: { upstreamRateLimit?: 'netlify'; agentAiDeps?: Partial<AgentAiHandlerDeps>; agentSttDeps?: Partial<AgentSttHandlerDeps> } = {}) {
   const app = new Hono<AppEnv>();
   app.use('/api/*', async (c, next) => {
@@ -109,6 +112,13 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
   app.get('/api/auth/config', c => c.json({ mode: isConfigured(c.env) ? 'supabase' : 'unconfigured', preview: false, registration: isConfigured(c.env) }));
   app.get('/api/catalog', async c => {
     if (!isConfigured(c.env)) return c.json({ ...catalog, preview: false });
+
+    // In-memory cache check (30-second TTL for instant near-0ms response)
+    if (liveCatalogCache && Date.now() < liveCatalogCache.expiresAt) {
+      c.header('Cache-Control', 'public, max-age=15, stale-while-revalidate=60');
+      return c.json(liveCatalogCache.data);
+    }
+
     const supabase = (c.env.SUPABASE_SERVICE_ROLE_KEY && !c.env.SUPABASE_SERVICE_ROLE_KEY.includes('YOUR_'))
       ? createClient(c.env.SUPABASE_URL!, c.env.SUPABASE_SERVICE_ROLE_KEY!)
       : factory(c);
@@ -123,7 +133,14 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     const products = (productsResult.data || catalog.products).map(p => ({...p, extendedContent: (p as any).extendedContent || {}, subHeading: (p as any).subHeading || (p as any).extendedContent?.subHeading || undefined, category: (categoriesResult.data || catalog.categories).find(c => c.id === p.categoryId) || null}));
     const settings = settingsResult.data ? { ...settingsResult.data, maintenanceMode: settingsResult.data.maintenance_mode, bannerText: settingsResult.data.banner_text, saleActive: settingsResult.data.sale_active, salePercentage: settingsResult.data.sale_percentage, permissions: (Object.keys(settingsResult.data.permissions || {}).length > 0) ? settingsResult.data.permissions : defaultPermissions } : catalog.settings;
     const categories = categoriesResult.data || catalog.categories;
-    return c.json({ categories, products, settings, preview: false });
+
+    const catalogData = { categories, products, settings, preview: false };
+    liveCatalogCache = {
+      data: catalogData,
+      expiresAt: Date.now() + 30_000
+    };
+    c.header('Cache-Control', 'public, max-age=15, stale-while-revalidate=60');
+    return c.json(catalogData);
   });
   app.all('/api/preview/*', c => c.json({ error: 'Preview actions are disabled in account mode.' }, 404));
   app.use('/api/*', async (c, next) => {
@@ -772,17 +789,20 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
   });
   app.use('/api/admin/*', async (c, next) => {
     await next();
-    if (['POST', 'PATCH', 'DELETE'].includes(c.req.method) && c.get('user') && c.get('db')) {
-      const db = c.get('db');
-      const ip = c.req.header('cf-connecting-ip') || c.req.header('x-forwarded-for') || '';
-      // Fire and forget
-      db.rpc('log_action', {
-        p_action: c.req.method + ' ' + c.req.path.replace('/api/admin', ''),
-        p_target_id: c.req.path,
-        p_reason: 'Status: ' + c.res.status,
-        p_metadata: { status: c.res.status, method: c.req.method },
-        p_ip_address: ip
-      });
+    if (['POST', 'PATCH', 'DELETE'].includes(c.req.method)) {
+      invalidateLiveCatalogCache();
+      if (c.get('user') && c.get('db')) {
+        const db = c.get('db');
+        const ip = c.req.header('cf-connecting-ip') || c.req.header('x-forwarded-for') || '';
+        // Fire and forget
+        db.rpc('log_action', {
+          p_action: c.req.method + ' ' + c.req.path.replace('/api/admin', ''),
+          p_target_id: c.req.path,
+          p_reason: 'Status: ' + c.res.status,
+          p_metadata: { status: c.res.status, method: c.req.method },
+          p_ip_address: ip
+        });
+      }
     }
   });
 

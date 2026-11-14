@@ -50,7 +50,7 @@ function renderComparisonCell(val: boolean | string | undefined | null, isUs: bo
 }
 
 export function Detail({product, settings, isCatalogLoaded = true}:{product:Product|undefined; settings?:Settings; isCatalogLoaded?:boolean}){
-  const { data: account, reload } = useData('/account');
+  const { data: account, loading: accountLoading, reload } = useData('/account');
   const ownsProduct = account?.licenses?.some((l:any) => l.productId === product?.id && l.status === 'active');
   const [trialModal, setTrialModal] = useState(false);
   const [trialSuccess, setTrialSuccess] = useState(false);
@@ -251,7 +251,13 @@ export function Detail({product, settings, isCatalogLoaded = true}:{product:Prod
 
         <aside className="purchase-panel">
           <span className="eyebrow">MAKE IT PART OF YOUR WORKDAY</span>
-          {ownsProduct ? (
+          {accountLoading && !account ? (
+            <div className="purchase-skeleton" style={{ padding: '8px 0 12px 0' }}>
+              <div style={{ height: '30px', width: '55%', background: 'rgba(255,255,255,0.08)', borderRadius: 6, marginBottom: 12, animation: 'pulse 1.8s infinite ease-in-out' }} />
+              <div style={{ height: '16px', width: '75%', background: 'rgba(255,255,255,0.04)', borderRadius: 4, marginBottom: 18, animation: 'pulse 1.8s infinite ease-in-out' }} />
+              <div style={{ height: '42px', width: '100%', background: 'rgba(255,255,255,0.06)', borderRadius: 8, animation: 'pulse 1.8s infinite ease-in-out' }} />
+            </div>
+          ) : ownsProduct ? (
             <>
               <h2>Ready to go.</h2>
               <p>You already own a license for {product.name}.</p>
@@ -433,7 +439,7 @@ export function Detail({product, settings, isCatalogLoaded = true}:{product:Prod
           <dl>
             <dt>System requirements</dt><dd>{product.requirements}</dd>
             <dt>Current release</dt><dd>{product.version}</dd>
-            <dt>AI usage</dt><dd>{product.aiUsage || 'Unlimited local execution included. Zero cloud token markups.'}</dd>
+            <dt>AI usage</dt><dd>{product.aiUsage || 'Unlimited Cloud AI Usage Included · Zero Token Surcharges'}</dd>
             <dt>Device allowance</dt><dd>{product.deviceAllowance || 'Up to 3 active personal computers per license.'}</dd>
           </dl>
           <a href="/help" className="text-button">Installation &amp; activation <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></a>
@@ -466,7 +472,7 @@ export function Detail({product, settings, isCatalogLoaded = true}:{product:Prod
       <div className="agent-cta-banner">
         <div>
           <span className="eyebrow" style={{ color: 'var(--lime)', marginBottom: 8 }}>
-            {ownsProduct ? 'READY IN YOUR ACCOUNT' : 'GET STARTED TODAY'}
+            {accountLoading && !account ? 'CHECKING ACCESS' : ownsProduct ? 'READY IN YOUR ACCOUNT' : 'GET STARTED TODAY'}
           </span>
           <h2>Ready to deploy {product.name}?</h2>
           <p>
@@ -476,7 +482,9 @@ export function Detail({product, settings, isCatalogLoaded = true}:{product:Prod
           </p>
         </div>
         <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
-          {ownsProduct ? (
+          {accountLoading && !account ? (
+            <div style={{ height: '42px', width: '180px', background: 'rgba(255,255,255,0.06)', borderRadius: 8, animation: 'pulse 1.8s infinite ease-in-out' }} />
+          ) : ownsProduct ? (
             <a className="button primary" href="/account/agents">
               Download agent &amp; view key <ArrowUpRight size={18} />
             </a>
@@ -505,7 +513,7 @@ const helpItems=[
   ['Instant key delivery & retrieval','Your unique license key (NORVI-••••-••••) is generated instantly upon payment. You can find it anytime in your dashboard under "Keys & devices", where you can reveal or copy it with a single click.'],
   ['Installing on Windows & macOS','Download the installer from "My agents". On Windows, because agent builds are regularly updated, SmartScreen may show an alert—click "More info" followed by "Run anyway". On macOS, open the DMG and move the app to Applications.'],
   ['Multi-device management (up to 3 PCs)','Each license includes activation on up to 3 personal machines simultaneously. If you upgrade your PC or need to switch machines, open your "Keys & devices" dashboard and click "Release device" with zero hassle.'],
-  ['1-Day offline support','Our agents are built for local PC reliability. Once activated, your agent can run offline for up to 24 hours before performing a quick license check, so you can work comfortably on the go.'],
+  ['1-Day offline license lease','Our desktop apps are engineered for daily reliability. Once activated, your agent\'s license authorization remains valid on your machine for 24 hours before a background check, allowing uninterrupted workflow management.'],
   ['Payment methods & Razorpay security','We support instant checkout via UPI (Google Pay, PhonePe, Paytm), Credit/Debit cards, and Netbanking powered by Razorpay. Verified invoices are available in your Billing tab.'],
   ['Partner program & referral earnings','Earn 15% commission on every customer referral while giving your audience an exclusive 10% discount. Generate your unique referral code from the Partner tab in your account dashboard.'],
   ['Trouble activating or running an agent?','Ensure you are entering the key for the matching agent product and that your machine has an internet connection for initial verification. If you run into issues, message our WhatsApp support for live troubleshooting.']
@@ -717,10 +725,10 @@ export function About(){
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', fontSize: '14px', lineHeight: 1.7, color: 'var(--text-light)', borderTop: '1px solid var(--border)', paddingTop: '20px' }}>
           <p style={{ margin: 0 }}>
-            NORVI Agency was founded by <b>Chirag Sharma</b> with a single focused vision: to engineer autonomous desktop AI agents that work directly for you on your own PC, rather than trapping professionals in costly recurring cloud subscriptions or routing confidential work through remote third-party servers.
+            NORVI Agency was founded by <b>Chirag Sharma</b> with a single focused vision: to engineer autonomous desktop AI agents that combine native system-level capabilities (like invisible screen capture, earpiece whisper, and desktop automation) with powerful, fully managed cloud AI intelligence—without forcing professionals to pay per-token fees, configure complex models, or buy expensive GPUs.
           </p>
           <p style={{ margin: 0 }}>
-            Every product in the agency—including <b>Voro</b> (the discreet real-time coding copilot and interview assistant), <b>Rolvio</b> (the autonomous job application hunter), and <b>Nexus</b> (the 24/7 video-to-shorts content studio)—is personally designed, built, and maintained with a local-first, privacy-respecting architecture.
+            Every product in the agency—including <b>Voro</b> (the discreet real-time coding copilot and interview assistant), <b>Rolvio</b> (the autonomous job application hunter), and <b>Nexus</b> (the 24/7 video-to-shorts content studio)—is personally designed, built, and maintained with a privacy-respecting native desktop architecture.
           </p>
           <p style={{ margin: 0 }}>
             As the solo creator and lead architect behind the NORVI platform, Chirag actively oversees development, release hardening, and customer support. If you have questions, partnerships, or custom enterprise inquiries, reach out directly through the portfolio link or our contact center.

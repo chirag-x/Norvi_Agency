@@ -3,6 +3,7 @@ import { ArrowUpRight, ArrowRight, Workflow, MessageSquare, Sparkles, ShieldChec
 import React, { useEffect, useState, useRef, Component, type ReactNode, type ErrorInfo } from 'react';
 import { Catalog, Detail, PartnerProgram, About, Help, Contact, Legal, Checkout, NotFound } from './PublicPages';
 import { Workspace, OrderStatus } from './Workspace';
+import { getCached, setCached, removeCached } from './common';
 import type { Product, Settings, User } from '../../../../packages/shared/model';
 import catalogSnapshot from '../../../../packages/shared/catalog.json';
 import { hasAdvertisingConsent, setAdvertisingConsent, getAdvertisingConsentPreference, trackMetaPageView } from './analytics';
@@ -414,10 +415,17 @@ const initialProducts = (catalogSnapshot.products || []) as unknown as Product[]
 const initialSettings = catalogSnapshot.settings as unknown as Settings;
 
 export default function App({ initialPath }: { initialPath: string }) {
-  const [path,setPath] = useState(initialPath); const [products,setProducts] = useState<Product[]>(initialProducts); const [settings,setSettings] = useState<Settings>(initialSettings); const [menu,setMenu]=useState(false); const [user,setUser]=useState<User|null>(null);
+  const cachedCatalog = getCached<{ products: Product[]; settings: Settings }>('norvi_cache_catalog');
+  const cachedUser = getCached<User>('norvi_cache_user');
+
+  const [path, setPath] = useState(initialPath);
+  const [products, setProducts] = useState<Product[]>(() => cachedCatalog?.products || initialProducts);
+  const [settings, setSettings] = useState<Settings>(() => cachedCatalog?.settings || initialSettings);
+  const [menu, setMenu] = useState(false);
+  const [user, setUser] = useState<User | null>(() => cachedUser);
   const [verified, setVerified] = useState(false);
-  const [isDataLoaded, setIsDataLoaded] = useState(false);
-  const [isAuthChecked, setIsAuthChecked] = useState(false);
+  const [isDataLoaded, setIsDataLoaded] = useState(() => !!cachedCatalog);
+  const [isAuthChecked, setIsAuthChecked] = useState(() => !!cachedUser);
   const [showConsentModal, setShowConsentModal] = useState(false);
 
   useEffect(() => {
@@ -425,29 +433,97 @@ export default function App({ initialPath }: { initialPath: string }) {
       trackMetaPageView();
     }
   }, [path]);
-  useEffect(()=>{ 
-      setPath(location.pathname.replace(/\/$/,'') || '/'); 
-      const currentPath = location.pathname.replace(/\/$/, '') || '/';
-      if (currentPath !== '/update-password' && ((location.hash.includes('type=signup') && location.hash.includes('access_token=')) || location.search.includes('code='))) {
-          setVerified(true);
-          history.replaceState(null, '', location.pathname);
-      }
-      fetch('/api/me')
-        .then(r=>r.ok?r.json():null)
-        .then(meData => {
-          if(meData&&meData.user)setUser(meData.user);
-        })
-        .catch(()=>{})
-        .finally(()=>{setIsAuthChecked(true);});
-      fetch('/api/catalog')
-        .then(r=>r.ok?r.json():null)
-        .then(catalogData => {
-          if(catalogData){setProducts(catalogData.products);setSettings(catalogData.settings);}
-        })
-        .catch(()=>{})
-        .finally(()=>{setIsDataLoaded(true);});
-  },[]);
-  const refresh=()=>{fetch('/api/catalog').then(r=>r.json()).then(d=>{setProducts(d.products);setSettings(d.settings);}).catch(()=>{});};
+
+  useEffect(() => {
+    setPath(location.pathname.replace(/\/$/, '') || '/');
+    const currentPath = location.pathname.replace(/\/$/, '') || '/';
+    if (currentPath !== '/update-password' && ((location.hash.includes('type=signup') && location.hash.includes('access_token=')) || location.search.includes('code='))) {
+      setVerified(true);
+      history.replaceState(null, '', location.pathname);
+    }
+
+    // SPA Navigation: Handle browser forward/back buttons
+    const handlePopState = () => {
+      setPath(location.pathname.replace(/\/$/, '') || '/');
+    };
+    window.addEventListener('popstate', handlePopState);
+
+    // Global SPA Link Interception for 0ms transitions
+    const handleLinkClick = (e: MouseEvent) => {
+      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      const target = e.target as HTMLElement | null;
+      const anchor = target?.closest('a') as HTMLAnchorElement | null;
+      if (!anchor || !anchor.href) return;
+      if (anchor.target === '_blank' || anchor.hasAttribute('download')) return;
+
+      try {
+        const url = new URL(anchor.href, window.location.origin);
+        if (url.origin !== window.location.origin) return;
+
+        // Allow on-page hash jumps to proceed natively
+        if (url.pathname === window.location.pathname && url.hash) return;
+
+        // Don't intercept API endpoints or static asset downloads
+        if (url.pathname.startsWith('/api/') || /\.[a-z0-9]{2,5}$/i.test(url.pathname)) return;
+
+        e.preventDefault();
+        const nextPath = url.pathname.replace(/\/$/, '') || '/';
+        if (nextPath !== (location.pathname.replace(/\/$/, '') || '/') || url.search !== location.search) {
+          window.history.pushState({}, '', url.pathname + url.search + url.hash);
+          setPath(nextPath);
+          setMenu(false);
+          window.scrollTo(0, 0);
+        }
+      } catch {}
+    };
+    document.addEventListener('click', handleLinkClick);
+
+    // Stale-While-Revalidate: User session
+    fetch('/api/me')
+      .then(r => r.ok ? r.json() : null)
+      .then(meData => {
+        if (meData && meData.user) {
+          setUser(meData.user);
+          setCached('norvi_cache_user', meData.user);
+        } else {
+          setUser(null);
+          removeCached('norvi_cache_user');
+        }
+      })
+      .catch(() => {})
+      .finally(() => { setIsAuthChecked(true); });
+
+    // Stale-While-Revalidate: Catalog data
+    fetch('/api/catalog')
+      .then(r => r.ok ? r.json() : null)
+      .then(catalogData => {
+        if (catalogData && catalogData.products) {
+          setProducts(catalogData.products);
+          setSettings(catalogData.settings);
+          setCached('norvi_cache_catalog', catalogData);
+        }
+      })
+      .catch(() => {})
+      .finally(() => { setIsDataLoaded(true); });
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+      document.removeEventListener('click', handleLinkClick);
+    };
+  }, []);
+
+  const refresh = () => {
+    fetch('/api/catalog')
+      .then(r => r.json())
+      .then(d => {
+        if (d && d.products) {
+          setProducts(d.products);
+          setSettings(d.settings);
+          setCached('norvi_cache_catalog', d);
+        }
+      })
+      .catch(() => {});
+  };
   const workspace=(path.startsWith('/account')||path.startsWith('/admin'))&&path!=='/admin/login';
   const loadingScreen = (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', backgroundColor: 'var(--bg)', color: 'var(--fg)' }}>
@@ -568,5 +644,5 @@ export function ProductCard({product}:{product:Product}){
   );
 }
 
-function Home({products,settings}:{products:Product[];settings:Settings}){return <><section className="hero container"><div className="hero-copy"><div className="eyebrow"><span className="tiny-spark">✦</span> A NEW WAY TO GET THINGS DONE</div><h1>{settings.headline==="Less busywork.\\nMore possibility." || settings.headline==="Less busywork.\nMore possibility."?<>Less busywork.<br/>More <span className="serif">possibility.</span></>:<span className="customheadline" dangerouslySetInnerHTML={{__html: settings.headline.replace(/\\n|\n/g, '<br/>')}} />}</h1><p>{settings.description}</p><div className="hero-buttons"><a className="button primary" href="/agents">Explore the agents <ArrowUpRight size={19}/></a><a className="text-button" href="#how-it-works">See how it works <ArrowRight size={17}/></a></div><div className="hero-note"><ShieldCheck size={16}/><span>Your account. Your agents. Your access.</span></div><div className="hero-social-links" style={{display:'flex',gap:'1.5rem',marginTop:'1.5rem'}}>{settings.socialInstagram && <a href={settings.socialInstagram} target="_blank" rel="noreferrer" style={{color:'#E1306C'}}><Instagram size={22}/></a>}{settings.socialYoutube && <a href={settings.socialYoutube} target="_blank" rel="noreferrer" style={{color:'#FF0000'}}><Youtube size={22}/></a>}{settings.socialFacebook && <a href={settings.socialFacebook} target="_blank" rel="noreferrer" style={{color:'#1877F2'}}><Facebook size={22}/></a>}{settings.socialTwitter && <a href={settings.socialTwitter} target="_blank" rel="noreferrer" style={{color:'#1DA1F2'}}><Twitter size={22}/></a>}</div></div><div className="hero-console"><div className="console-top"><span><span className="console-dot"/> YOUR NEXT WORKFLOW</span><span>01 / 03</span></div><div className="workflow-title"><span className="mini-label">FROM TO-DO TO DONE</span><h2>Give the routine<br/>a new routine.</h2><p>A simpler way to put your agents to work.</p></div><div className="flow-line"><div className="flow-node"><span className="node-symbol"><Plus size={19}/></span><span><b>Choose your task</b><small>Start with what slows you down</small></span><span className="step-index">01</span></div><div className="connector"/><div className="flow-node selected"><span className="node-symbol"><Sparkles size={19}/></span><span><b>Meet your agent</b><small>The right tool for the right work</small></span><span className="step-index">02</span></div><div className="connector"/><div className="flow-node"><span className="node-symbol"><Check size={19}/></span><span><b>Make space for more</b><small>Bring your focus back to you</small></span><span className="step-index">03</span></div></div><div className="console-bottom"><span>Designed around your workflow</span><Workflow size={17}/></div></div></section><div className="value-ribbon"><div className="container" style={{display:'grid',gridTemplateColumns:'repeat(auto-fit, minmax(200px, 1fr))',gap:'16px',alignItems:'center'}}><span><Workflow size={18} style={{color:'var(--lime)'}}/> Autonomous Desktop AI Agents</span><span><ShieldCheck size={18} style={{color:'var(--lime)'}}/> 100% Private Local PC Execution</span><span><KeyRound size={18} style={{color:'var(--lime)'}}/> Instant License &amp; Key Activation</span><span><Sparkles size={18} style={{color:'var(--lime)'}}/> Transparent Pricing · Zero Hidden Fees</span></div></div><section className="section container" id="agents"><div className="section-heading"><div><span className="eyebrow">THE AGENT COLLECTION</span><h2>Small tools.<br/><span className="muted">Bigger possibilities.</span></h2></div><div className="section-aside"><p>Explore your next addition to the workday.<br/>One agent. One less thing on your list.</p><a className="text-button" href="/agents">View all agents <ArrowUpRight size={17}/></a></div></div><div className="product-grid">{products.slice(0,3).map(p=><ProductCard key={p.id} product={p}/>)}</div>{settings.bannerText ? <p className="fineprint">{settings.bannerText}</p> : null}</section><section className="how-section" id="how-it-works"><div className="container"><div className="section-heading"><div><span className="eyebrow">LESS SETUP. MORE MOMENTUM.</span><h2>A clear path to<br/>your next agent.</h2></div><p className="section-aside">From discovery to your desktop,<br/>everything has its place.</p></div><div className="steps">{[['01','Find your dedicated agent','Browse purpose-built agents like Voro (real-time interview & coding copilot), Rolvio (job hunter & tracker), or Nexus (viral content studio). Review transparent hardware specs, live demos, and capabilities.'],['02','Choose your license tier','Select flexible 1-Month, 3-Month, or Lifetime access with zero recurring surprise billing. Pay securely via Razorpay (UPI, Cards, Netbanking) for instant digital fulfillment.'],['03','Install & run locally','Download the lightweight native installer for Windows or macOS directly from your dashboard. Paste your activation key once to unlock full local PC execution with multi-device support.']].map(([n,t,d])=><div className="step" key={n}><span>{n}</span><h3>{t}</h3><p>{d}</p></div>)}</div></div></section><section className="section container"><div className="faq-layout"><div><span className="eyebrow">GOOD QUESTIONS</span><h2>A little clarity<br/>goes a long way.</h2><a className="text-button" href="/help">Visit the help center <ArrowUpRight size={16}/></a></div><div className="faqs">{[['What makes NORVI desktop AI agents different from web chatbots?','Unlike web-based chatbots or browser extensions that require constant cloud uploads, NORVI agents are native desktop applications (Windows 10/11 64-bit and macOS). They run locally on your machine, process screen context and audio with low latency, and keep your sensitive work and private data on your device.'],['How do licenses and device activations work?','Every purchased license allows simultaneous activation on up to 3 of your personal computers (e.g., your desktop and laptop). If you change machines, you can release or rotate your active devices anytime with 1 click directly from your Keys & Devices dashboard.'],['Where and how do I receive my activation key after purchase?','Delivery is instant. The moment your checkout completes via Razorpay, your unique activation key (NORVI-••••-••••) is displayed on screen, added to your /account/licenses dashboard, and emailed to you. You can copy it with one click and activate your agent immediately.'],['Do I have to pay ongoing cloud token fees or hidden markups?','No. All NORVI agents include unlimited local PC execution with zero token markups. For features using high-speed cloud intelligence (such as live transcription or speech models), generous quotas are included or direct transparent routing is provided—with no surprise bills.'],['Can I use my agent offline without an internet connection?','Yes. Once activated, your agent can operate completely offline for up to 24 hours (1 day) before performing a brief background check. You can continue using your tools on your machine even if you are traveling or lose internet connectivity.'],['Can I upgrade my plan from 1-Month or 3-Month to Lifetime later?','Yes. You can renew or upgrade your license tier at any time from your account dashboard. Upgrading to Lifetime access unlocks permanent software updates and priority technical support.']].map(([q,a])=><details key={q}><summary>{q}<Plus size={18}/></summary><p>{a}</p></details>)}</div></div></section><section className="cta container"><div><span className="eyebrow">MAKE ROOM FOR YOUR NEXT BIG THING</span><h2>Your workday.<br/>With a little more <span className="serif">possibility.</span></h2></div><a className="button dark" href="/agents">Find your agent <ArrowUpRight size={19}/></a></section></>;}
+function Home({products,settings}:{products:Product[];settings:Settings}){return <><section className="hero container"><div className="hero-copy"><div className="eyebrow"><span className="tiny-spark">✦</span> A NEW WAY TO GET THINGS DONE</div><h1>{settings.headline==="Less busywork.\\nMore possibility." || settings.headline==="Less busywork.\nMore possibility."?<>Less busywork.<br/>More <span className="serif">possibility.</span></>:<span className="customheadline" dangerouslySetInnerHTML={{__html: settings.headline.replace(/\\n|\n/g, '<br/>')}} />}</h1><p>{settings.description}</p><div className="hero-buttons"><a className="button primary" href="/agents">Explore the agents <ArrowUpRight size={19}/></a><a className="text-button" href="#how-it-works">See how it works <ArrowRight size={17}/></a></div><div className="hero-note"><ShieldCheck size={16}/><span>Your account. Your agents. Your access.</span></div><div className="hero-social-links" style={{display:'flex',gap:'1.5rem',marginTop:'1.5rem'}}>{settings.socialInstagram && <a href={settings.socialInstagram} target="_blank" rel="noreferrer" style={{color:'#E1306C'}}><Instagram size={22}/></a>}{settings.socialYoutube && <a href={settings.socialYoutube} target="_blank" rel="noreferrer" style={{color:'#FF0000'}}><Youtube size={22}/></a>}{settings.socialFacebook && <a href={settings.socialFacebook} target="_blank" rel="noreferrer" style={{color:'#1877F2'}}><Facebook size={22}/></a>}{settings.socialTwitter && <a href={settings.socialTwitter} target="_blank" rel="noreferrer" style={{color:'#1DA1F2'}}><Twitter size={22}/></a>}</div></div><div className="hero-console"><div className="console-top"><span><span className="console-dot"/> YOUR NEXT WORKFLOW</span><span>01 / 03</span></div><div className="workflow-title"><span className="mini-label">FROM TO-DO TO DONE</span><h2>Give the routine<br/>a new routine.</h2><p>A simpler way to put your agents to work.</p></div><div className="flow-line"><div className="flow-node"><span className="node-symbol"><Plus size={19}/></span><span><b>Choose your task</b><small>Start with what slows you down</small></span><span className="step-index">01</span></div><div className="connector"/><div className="flow-node selected"><span className="node-symbol"><Sparkles size={19}/></span><span><b>Meet your agent</b><small>The right tool for the right work</small></span><span className="step-index">02</span></div><div className="connector"/><div className="flow-node"><span className="node-symbol"><Check size={19}/></span><span><b>Make space for more</b><small>Bring your focus back to you</small></span><span className="step-index">03</span></div></div><div className="console-bottom"><span>Designed around your workflow</span><Workflow size={17}/></div></div></section><div className="value-ribbon"><div className="container" style={{display:'grid',gridTemplateColumns:'repeat(auto-fit, minmax(200px, 1fr))',gap:'16px',alignItems:'center'}}><span><Workflow size={18} style={{color:'var(--lime)'}}/> Autonomous Desktop AI Agents</span><span><ShieldCheck size={18} style={{color:'var(--lime)'}}/> 100% Private Native Desktop Apps · Cloud AI Included</span><span><KeyRound size={18} style={{color:'var(--lime)'}}/> Instant License &amp; Key Activation</span><span><Sparkles size={18} style={{color:'var(--lime)'}}/> Transparent Pricing · Zero Hidden Fees</span></div></div><section className="section container" id="agents"><div className="section-heading"><div><span className="eyebrow">THE AGENT COLLECTION</span><h2>Small tools.<br/><span className="muted">Bigger possibilities.</span></h2></div><div className="section-aside"><p>Explore your next addition to the workday.<br/>One agent. One less thing on your list.</p><a className="text-button" href="/agents">View all agents <ArrowUpRight size={17}/></a></div></div><div className="product-grid">{products.slice(0,3).map(p=><ProductCard key={p.id} product={p}/>)}</div>{settings.bannerText ? <p className="fineprint">{settings.bannerText}</p> : null}</section><section className="how-section" id="how-it-works"><div className="container"><div className="section-heading"><div><span className="eyebrow">LESS SETUP. MORE MOMENTUM.</span><h2>A clear path to<br/>your next agent.</h2></div><p className="section-aside">From discovery to your desktop,<br/>everything has its place.</p></div><div className="steps">{[['01','Find your dedicated agent','Browse purpose-built agents like Voro (real-time interview & coding copilot), Rolvio (job hunter & tracker), or Nexus (viral content studio). Review transparent hardware specs, live demos, and capabilities.'],['02','Choose your license tier','Select flexible 1-Month, 3-Month, or Lifetime access with zero recurring surprise billing. Pay securely via Razorpay (UPI, Cards, Netbanking) for instant digital fulfillment.'],['03','Install & activate in seconds','Download the lightweight native desktop app for Windows or macOS directly from your dashboard. Paste your activation key once to unlock full agent capabilities with zero complex setup, model downloads, or GPU requirements.']].map(([n,t,d])=><div className="step" key={n}><span>{n}</span><h3>{t}</h3><p>{d}</p></div>)}</div></div></section><section className="section container"><div className="faq-layout"><div><span className="eyebrow">GOOD QUESTIONS</span><h2>A little clarity<br/>goes a long way.</h2><a className="text-button" href="/help">Visit the help center <ArrowUpRight size={16}/></a></div><div className="faqs">{[['What makes NORVI desktop AI agents different from web chatbots?','Unlike web chatbots or browser extensions that require constant cloud uploads, NORVI agents are native desktop applications (Windows 10/11 64-bit and macOS) engineered to interact directly with your system—such as invisible screen capture on Zoom/Meet, private earpiece audio, and automated desktop workflows. All AI intelligence and models are seamlessly managed in the cloud by NORVI, so you never need heavy AI software, local models, or high-end hardware.'],['How do licenses and device activations work?','Every purchased license allows simultaneous activation on up to 3 of your personal computers (e.g., your desktop and laptop). If you change machines, you can release or rotate your active devices anytime with 1 click directly from your Keys & Devices dashboard.'],['Where and how do I receive my activation key after purchase?','Delivery is instant. The moment your checkout completes via Razorpay, your unique activation key (NORVI-••••-••••) is displayed on screen, added to your /account/licenses dashboard, and emailed to you. You can copy it with one click and activate your agent immediately.'],['Do I have to pay ongoing cloud token fees or hidden markups?','No. All AI models, intelligence, reasoning, vision, and transcription are fully hosted, managed, and covered by NORVI Agency. You never have to buy API keys, set up Ollama, pay per-token fees, or configure models. Everything works out of the box with zero hidden costs or extra bills.'],['Can I use my agent offline without an internet connection?','Once activated online, your desktop agent license remains active and valid on your PC for up to 24 hours without requiring a constant connection check. For live AI features (such as real-time interview answers or video AI analysis), an internet connection is used to reach NORVI\'s cloud AI brain.'],['Can I upgrade my plan from 1-Month or 3-Month to Lifetime later?','Yes. You can renew or upgrade your license tier at any time from your account dashboard. Upgrading to Lifetime access unlocks permanent software updates and priority technical support.']].map(([q,a])=><details key={q}><summary>{q}<Plus size={18}/></summary><p>{a}</p></details>)}</div></div></section><section className="cta container"><div><span className="eyebrow">MAKE ROOM FOR YOUR NEXT BIG THING</span><h2>Your workday.<br/>With a little more <span className="serif">possibility.</span></h2></div><a className="button dark" href="/agents">Find your agent <ArrowUpRight size={19}/></a></section></>;}
 function Footer({settings, onOpenConsent}:{settings:Settings; onOpenConsent?: () => void}){const brandLabel = settings.name === 'NORVI' ? 'NORVI Agency' : settings.name;return <footer className="footer container"><div className="footer-main"><div><a href="/" className="brand"><img src="/logo.jpg?v=2" alt="NORVI Agency" style={{width: 34, height: 34, borderRadius: 4, objectFit: "contain", marginRight: 10}}/>{settings.name}</a><p>A little less routine.<br/>A little more room for you.</p></div><div><b>Explore</b><a href="/agents">All agents</a><a href="/partners">Partner Program</a><a href="/about">Our story</a></div><div><b>Here to help</b><a href="/help">Help center</a><a href="/contact">Contact us</a><a href="/account">My account</a></div><div><b>The details</b><a href="/privacy">Privacy policy</a><a href="/terms">Terms of service</a><a href="/refunds">Refund policy</a><a href="/delivery">Shipping & delivery</a>{onOpenConsent && <button onClick={onOpenConsent} style={{background:'none',border:'none',padding:0,color:'inherit',font:'inherit',textAlign:'left',cursor:'pointer'}}>Cookie preferences</button>}</div></div><div className="footer-bottom"><span>© {new Date().getFullYear()} {brandLabel}. All rights reserved.</span><a href="/license">License agreement <ArrowUpRight size={13}/></a><span>Built for a better workday.</span></div></footer>;}
