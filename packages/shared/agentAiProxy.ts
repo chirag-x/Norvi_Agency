@@ -457,7 +457,13 @@ export function createAgentAiHandler(deps: AgentAiHandlerDeps) {
     });
 
     if (quotaErr || !quotaRaw) {
-      return jsonResponse({ error: 'Could not verify AI usage policy.' }, 503);
+      if (quotaErr) {
+        console.error('[agentAiProxy] consume_agent_ai_quota RPC error:', quotaErr);
+      }
+      return jsonResponse({
+        error: 'Could not verify AI usage policy.',
+        details: quotaErr?.message,
+      }, 503);
     }
 
     const quota = quotaRaw as QuotaConsumeResult;

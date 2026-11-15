@@ -3950,7 +3950,7 @@ export function CatalogNoticeEditor({ settings, onSave }: { settings: Settings; 
 
 export function AgentReleasesAdmin({ products, onSave, initialExpandedId }: { products: Product[]; onSave: () => void; initialExpandedId?: string | null }) {
   const { data: aiData, error: aiError, reload: reloadAi } = useData('/admin/products/ai-policies');
-  const { data: keysData, reload: reloadKeys } = useData('/api/admin/ai/keys');
+  const { data: keysData, reload: reloadKeys } = useData('/admin/ai/keys');
   const availableKeys = useMemo(
     () => ((keysData?.keys || []) as Array<{ id: string; provider: string; label: string; key_suffix: string; is_active: boolean }>),
     [keysData]

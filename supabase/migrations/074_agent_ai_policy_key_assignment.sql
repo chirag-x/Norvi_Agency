@@ -279,73 +279,132 @@ DECLARE
   v_device record;
   v_policy record;
   v_has_policy boolean := false;
-  v_task_elem jsonb;
+  v_task_key text;
+  v_task_match jsonb;
   v_model text;
   v_sort text := 'latency';
-  v_max_input_chars integer := 60000;
   v_max_output_tokens integer := 2048;
+  v_max_input_chars integer := 60000;
   v_enforce_zdr boolean := true;
-  v_allow_vision boolean := false;
+  v_allow_vision boolean := true;
+  v_is_trial boolean := false;
+  v_effective_daily integer := 0;
+  v_day_count integer := 0;
+  v_week_count integer := 0;
+  v_month_count integer := 0;
   v_usage_log_id bigint;
-  v_effective_daily integer;
-  v_day_count integer;
-  v_week_count integer;
-  v_month_count integer;
-  v_clean_task text := lower(trim(coalesce(p_task_key, 'default')));
 BEGIN
-  -- 1. Validate license exists and is active
-  SELECT l.id, l.user_id, l.product_id, l.status, l.duration
-  INTO v_license
-  FROM public.licenses l
-  WHERE l.id = p_license_id;
-
-  IF NOT FOUND THEN
-    RETURN jsonb_build_object('allowed', false, 'status_code', 404, 'reason', 'license_not_found', 'error', 'License not found.');
+  IF auth.role() IS DISTINCT FROM 'service_role' THEN
+    RAISE EXCEPTION 'Unauthorized';
   END IF;
 
-  IF v_license.status <> 'active' THEN
-    RETURN jsonb_build_object('allowed', false, 'status_code', 403, 'reason', 'license_inactive', 'error', 'License is ' || v_license.status || '.');
+  IF p_license_id IS NULL OR p_product_id IS NULL THEN
+    RETURN jsonb_build_object(
+      'allowed', false,
+      'status_code', 403,
+      'reason', 'license_invalid',
+      'error', 'License is invalid.'
+    );
+  END IF;
+
+  -- Serialize concurrent requests for the same license to prevent quota races
+  PERFORM pg_advisory_xact_lock(hashtext(p_license_id::text));
+
+  SELECT id, user_id, product_id, order_id, status, expires_at
+  INTO v_license
+  FROM public.licenses
+  WHERE id = p_license_id;
+
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object(
+      'allowed', false,
+      'status_code', 403,
+      'reason', 'license_invalid',
+      'error', 'License is invalid.'
+    );
   END IF;
 
   IF v_license.product_id <> p_product_id THEN
-    RETURN jsonb_build_object('allowed', false, 'status_code', 403, 'reason', 'product_mismatch', 'error', 'License does not grant access to this agent.');
+    RETURN jsonb_build_object(
+      'allowed', false,
+      'status_code', 403,
+      'reason', 'product_mismatch',
+      'error', 'License is not valid for this agent.'
+    );
   END IF;
 
-  -- 2. Verify customer account status
+  IF v_license.status <> 'active' THEN
+    RETURN jsonb_build_object(
+      'allowed', false,
+      'status_code', 403,
+      'reason', 'license_revoked',
+      'error', 'This license has been deactivated or revoked.'
+    );
+  END IF;
+
+  IF v_license.expires_at IS NOT NULL AND v_license.expires_at <= now() THEN
+    RETURN jsonb_build_object(
+      'allowed', false,
+      'status_code', 403,
+      'reason', 'license_expired',
+      'error', 'This license has expired.'
+    );
+  END IF;
+
   SELECT suspended INTO v_suspended
   FROM public.profiles
   WHERE id = v_license.user_id;
 
   IF coalesce(v_suspended, false) THEN
-    RETURN jsonb_build_object('allowed', false, 'status_code', 403, 'reason', 'account_suspended', 'error', 'Account access is suspended.');
+    RETURN jsonb_build_object(
+      'allowed', false,
+      'status_code', 403,
+      'reason', 'account_suspended',
+      'error', 'This account is suspended.'
+    );
   END IF;
 
-  -- 3. Verify hardware device authorization & timed ban status
-  IF p_device_id IS NOT NULL AND length(trim(p_device_id)) > 0 THEN
-    SELECT id, is_active, banned_until INTO v_device
+  IF nullif(trim(coalesce(p_device_id, '')), '') IS NOT NULL THEN
+    SELECT id, active, banned_until INTO v_device
     FROM public.devices
     WHERE license_id = v_license.id
-      AND device_id = trim(p_device_id);
+      AND installation_id = trim(p_device_id);
 
     IF NOT FOUND THEN
-      RETURN jsonb_build_object('allowed', false, 'status_code', 403, 'reason', 'device_not_registered', 'error', 'Device is not bound to this license.');
+      RETURN jsonb_build_object(
+        'allowed', false,
+        'status_code', 403,
+        'reason', 'device_blocked',
+        'error', 'This device is inactive or blocked.'
+      );
     END IF;
 
+    -- Check if device has an active timed ban
     IF v_device.banned_until IS NOT NULL AND v_device.banned_until > now() THEN
       RETURN jsonb_build_object(
         'allowed', false,
         'status_code', 403,
-        'reason', 'device_banned',
-        'error', 'Device access temporarily suspended until ' || to_char(v_device.banned_until, 'YYYY-MM-DD HH24:MI:SS UTC') || '.'
+        'reason', 'device_blocked',
+        'error',
+        CASE 
+          WHEN v_device.banned_until >= '9999-01-01'::timestamptz THEN 'This device has been permanently blocked by administrator.'
+          ELSE 'This device has been temporarily blocked until ' || to_char(v_device.banned_until AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI UTC') || ' by administrator.'
+        END
       );
     END IF;
 
-    IF NOT coalesce(v_device.is_active, true) THEN
-      RETURN jsonb_build_object('allowed', false, 'status_code', 403, 'reason', 'device_inactive', 'error', 'Device has been deactivated or disconnected.');
+    -- Check permanent ban or inactive without expired ban
+    IF NOT v_device.active AND (v_device.banned_until IS NULL OR v_device.banned_until >= '9999-01-01'::timestamptz) THEN
+      RETURN jsonb_build_object(
+        'allowed', false,
+        'status_code', 403,
+        'reason', 'device_blocked',
+        'error', 'This device is inactive or blocked.'
+      );
     END IF;
   END IF;
 
-  -- 4. Load AI policy for product
+  -- Load agent AI policy (fallback safely to defaults if unconfigured)
   SELECT * INTO v_policy
   FROM public.agent_ai_policies
   WHERE product_id = p_product_id;
@@ -353,36 +412,66 @@ BEGIN
   v_has_policy := FOUND;
 
   IF v_has_policy AND NOT v_policy.ai_enabled THEN
-    RETURN jsonb_build_object('allowed', false, 'status_code', 503, 'reason', 'ai_disabled', 'error', 'AI capabilities are temporarily paused for this agent.');
+    RETURN jsonb_build_object(
+      'allowed', false,
+      'status_code', 403,
+      'reason', 'ai_disabled',
+      'error', 'Cloud AI is currently disabled for this agent.'
+    );
   END IF;
 
-  -- Resolve model for task
+  v_task_key := lower(trim(coalesce(p_task_key, 'default')));
+  IF v_task_key = '' THEN
+    v_task_key := 'default';
+  END IF;
+
   IF v_has_policy THEN
     v_model := v_policy.default_model;
     v_max_input_chars := v_policy.max_input_chars;
     v_max_output_tokens := v_policy.max_output_tokens;
     v_enforce_zdr := v_policy.enforce_zdr;
 
-    IF v_policy.task_models IS NOT NULL AND jsonb_typeof(v_policy.task_models) = 'array' THEN
-      FOR v_task_elem IN SELECT * FROM jsonb_array_elements(v_policy.task_models) LOOP
-        IF lower(trim(coalesce(v_task_elem->>'task_key', ''))) = v_clean_task THEN
-          v_model := coalesce(nullif(trim(v_task_elem->>'model'), ''), v_model);
-          v_sort := coalesce(nullif(trim(v_task_elem->>'sort'), ''), v_sort);
-          v_max_output_tokens := coalesce((v_task_elem->>'max_output_tokens')::integer, v_max_output_tokens);
-          v_allow_vision := coalesce((v_task_elem->>'allow_vision')::boolean, false);
-          EXIT;
-        END IF;
-      END LOOP;
+    SELECT elem INTO v_task_match
+    FROM jsonb_array_elements(coalesce(v_policy.task_models, '[]'::jsonb)) AS elem
+    WHERE lower(coalesce(elem->>'task_key', '')) = v_task_key
+      AND nullif(trim(coalesce(elem->>'model', '')), '') IS NOT NULL
+    LIMIT 1;
+
+    IF v_task_match IS NOT NULL THEN
+      v_model := trim(v_task_match->>'model');
+      IF lower(coalesce(v_task_match->>'sort', '')) IN ('latency', 'price') THEN
+        v_sort := lower(v_task_match->>'sort');
+      END IF;
+      IF coalesce(v_task_match->>'max_output_tokens', '') ~ '^\d+$' THEN
+        v_max_output_tokens := greatest(64, least(32768, (v_task_match->>'max_output_tokens')::integer));
+      END IF;
+      IF v_task_match ? 'allow_vision' THEN
+        v_allow_vision := coalesce((v_task_match->>'allow_vision')::boolean, true);
+      END IF;
     END IF;
   ELSE
-    v_model := 'google/gemma-4-26b-a4b-it';
+    v_model := 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free';
   END IF;
 
-  -- 5. Hidden per-license limits
+  v_is_trial := EXISTS (
+    SELECT 1
+    FROM public.orders o
+    WHERE o.id = v_license.order_id
+      AND coalesce(o.provider_payment_id, '') LIKE 'trial_%'
+  ) AND NOT EXISTS (
+    SELECT 1
+    FROM public.orders r
+    WHERE r.user_id = v_license.user_id
+      AND r.product_id = v_license.product_id
+      AND r.status = 'paid'
+      AND coalesce(r.provider_payment_id, '') NOT LIKE 'trial_%'
+  );
+
   IF v_has_policy THEN
-    v_effective_daily := v_policy.daily_limit;
-    IF v_license.duration = '1_day' AND v_policy.trial_daily_limit > 0 THEN
+    IF v_is_trial AND v_policy.trial_daily_limit > 0 THEN
       v_effective_daily := v_policy.trial_daily_limit;
+    ELSE
+      v_effective_daily := coalesce(v_policy.daily_limit, 0);
     END IF;
 
     IF v_effective_daily > 0 OR v_policy.weekly_limit > 0 OR v_policy.monthly_limit > 0 THEN
@@ -423,7 +512,7 @@ BEGIN
     'max_output_tokens', v_max_output_tokens,
     'enforce_zdr', v_enforce_zdr,
     'allow_vision', v_allow_vision,
-    'ai_key_id', v_policy.ai_key_id
+    'ai_key_id', CASE WHEN v_has_policy THEN v_policy.ai_key_id ELSE NULL END
   );
 END;
 $$;
