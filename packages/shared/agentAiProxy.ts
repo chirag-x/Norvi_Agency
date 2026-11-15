@@ -18,6 +18,7 @@ export type AgentAiHandlerDeps = {
   maxBodyBytes?: number;
   maxImageBase64Chars?: number;
   nowSeconds?: () => number;
+  resolveApiKey?: (provider: string, keyId?: string | null) => Promise<string | null>;
 };
 
 type LeasePayload = {
@@ -41,6 +42,7 @@ type QuotaConsumeResult = {
   max_output_tokens?: number;
   enforce_zdr?: boolean;
   allow_vision?: boolean;
+  ai_key_id?: string | null;
 };
 
 const OPENROUTER_CHAT_URL = 'https://openrouter.ai/api/v1/chat/completions';
@@ -317,15 +319,24 @@ export function createAgentAiHandler(deps: AgentAiHandlerDeps) {
     const supabaseUrl = (deps.getEnv('SUPABASE_URL') || '').trim();
     const rawServiceKey = (deps.getEnv('SUPABASE_SERVICE_ROLE_KEY') || '').trim();
     const serviceRoleKey = rawServiceKey.includes('YOUR_') ? '' : rawServiceKey;
-    const openRouterKey = (deps.getEnv('OPENROUTER_API_KEY') || '').trim();
+    const envOpenRouterKey = (deps.getEnv('OPENROUTER_API_KEY') || '').trim();
     const leaseSecret = (deps.getEnv('LICENSE_ENCRYPTION_KEY') || deps.getEnv('CRON_SECRET') || '').trim();
+    let hasKeySource = Boolean(envOpenRouterKey);
+    if (!hasKeySource && deps.resolveApiKey) {
+      try {
+        const resolved = await deps.resolveApiKey('openrouter');
+        hasKeySource = Boolean(resolved);
+      } catch {
+        hasKeySource = false;
+      }
+    }
 
     if (req.method === 'GET' && isHealthPath(url.pathname)) {
       return jsonResponse({
         ok: true,
         service: 'norvi-agent-ai',
         runtime: 'netlify',
-        configured: Boolean(supabaseUrl && serviceRoleKey && openRouterKey && leaseSecret),
+        configured: Boolean(supabaseUrl && serviceRoleKey && hasKeySource && leaseSecret),
       });
     }
 
@@ -333,7 +344,7 @@ export function createAgentAiHandler(deps: AgentAiHandlerDeps) {
       return jsonResponse({ error: 'Not found.' }, 404);
     }
 
-    if (!supabaseUrl || !serviceRoleKey || !openRouterKey || !leaseSecret) {
+    if (!supabaseUrl || !serviceRoleKey || !hasKeySource || !leaseSecret) {
       return jsonResponse({ error: 'AI proxy service is not configured.' }, 503);
     }
 
@@ -527,6 +538,22 @@ export function createAgentAiHandler(deps: AgentAiHandlerDeps) {
     }
 
     // 7. Call OpenRouter
+    let openRouterKey = envOpenRouterKey;
+    if (deps.resolveApiKey) {
+      try {
+        const dynamicKey = await deps.resolveApiKey('openrouter', (quota as any).ai_key_id);
+        if (dynamicKey) {
+          openRouterKey = dynamicKey.trim();
+        }
+      } catch {
+        // Fall back to env key if resolution throws
+      }
+    }
+    if (!openRouterKey) {
+      await persistUsageFinalize(db, usageLogId, 'failed');
+      return jsonResponse({ error: 'No active AI API key found. Please configure an active key in Admin Panel.', upstream_status: 503 }, 503);
+    }
+
     const sendUpstream = () =>
       fetchFn(OPENROUTER_CHAT_URL, {
         method: 'POST',

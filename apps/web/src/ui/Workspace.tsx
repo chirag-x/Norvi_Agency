@@ -4,6 +4,7 @@ import { Activity, ArrowRight, ChevronDown, ChevronUp, Bot, ArrowUpRight, BookOp
 import type { Category, Product, Settings, User, AgentExtendedContent, FeaturePillar, MediaGalleryItem, ComparisonRow, AgentFaq, GuideSection, AgentGuide } from '../../../../packages/shared/model';
 import { createDefaultAgentAiPolicy, normalizeAgentAiPolicyPayload, type AgentAiPolicy } from '../../../../packages/shared/agentAi';
 import { AgentAiPolicySection } from './AgentAiPolicySection';
+import { AdminAiKeyManager } from './AdminAiKeyManager';
 import { ProductCard, ProductIcon } from './App';
 import { api, Badge, date, Empty, Field, Loading, Notice, PageHeading, uploadFile, useData, SmartVideoPlayer, parseYouTubeVideoId, clearAllCaches } from './common';
 import { SupportChatBox } from './SupportChat';
@@ -3949,6 +3950,15 @@ export function CatalogNoticeEditor({ settings, onSave }: { settings: Settings; 
 
 export function AgentReleasesAdmin({ products, onSave, initialExpandedId }: { products: Product[]; onSave: () => void; initialExpandedId?: string | null }) {
   const { data: aiData, error: aiError, reload: reloadAi } = useData('/admin/products/ai-policies');
+  const { data: keysData, reload: reloadKeys } = useData('/api/admin/ai/keys');
+  const availableKeys = useMemo(
+    () => ((keysData?.keys || []) as Array<{ id: string; provider: string; label: string; key_suffix: string; is_active: boolean }>),
+    [keysData]
+  );
+  const reloadAll = () => {
+    reloadAi();
+    reloadKeys();
+  };
   const [expandedIds, setExpandedIds] = useState<Record<string, boolean>>(() =>
     initialExpandedId ? { [initialExpandedId]: true } : {}
   );
@@ -3998,6 +4008,8 @@ export function AgentReleasesAdmin({ products, onSave, initialExpandedId }: { pr
         {aiError && <Notice kind="error">Could not load OpenRouter AI policies: {aiError}</Notice>}
       </div>
 
+      <AdminAiKeyManager onKeyChange={reloadAll} />
+
       {products.map(p => (
         <AgentReleaseCard
           key={p.id}
@@ -4006,7 +4018,8 @@ export function AgentReleasesAdmin({ products, onSave, initialExpandedId }: { pr
           expanded={!!expandedIds[p.id]}
           onToggle={() => toggleOne(p.id)}
           onSave={onSave}
-          onPolicySaved={reloadAi}
+          onPolicySaved={reloadAll}
+          availableKeys={availableKeys}
         />
       ))}
     </div>
@@ -4020,6 +4033,7 @@ export function AgentReleaseCard({
   onToggle,
   onSave,
   onPolicySaved,
+  availableKeys,
 }: {
   product: Product;
   initialPolicy: AgentAiPolicy;
@@ -4027,6 +4041,7 @@ export function AgentReleaseCard({
   onToggle?: () => void;
   onSave: () => void;
   onPolicySaved: () => void;
+  availableKeys?: Array<{ id: string; provider: string; label: string; key_suffix: string; is_active: boolean }>;
 }) {
   const [releaseStatus, setReleaseStatus] = useState(product.releaseStatus || 'development');
   const [status, setStatus] = useState(product.status || 'published');
@@ -4151,6 +4166,15 @@ export function AgentReleaseCard({
               <span className={aiPolicy.aiEnabled ? 'badge good' : 'badge'}>
                 {aiPolicy.aiEnabled ? 'AI Active' : 'AI Paused'}
               </span>
+              {aiPolicy.aiKeyId ? (
+                <span className="badge" style={{ borderColor: 'var(--lime, #98e038)', color: 'var(--lime, #98e038)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                  <KeyRound size={11} /> {aiPolicy.aiKeyLabel || 'Dedicated Key'}
+                </span>
+              ) : (
+                <span className="badge" style={{ opacity: 0.8, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                  <Globe size={11} /> Global Active Key
+                </span>
+              )}
             </div>
             <span style={{ fontSize: '13px', color: 'var(--text-light)' }}>
               /{product.slug} · <b>{version}</b> · {price} · AI: <code>{aiPolicy.defaultModel}</code> ({aiPolicy.taskModels.length} task{aiPolicy.taskModels.length === 1 ? '' : 's'})
@@ -4235,6 +4259,7 @@ export function AgentReleaseCard({
             productId={product.id}
             productName={product.name}
             policy={aiPolicy}
+            availableKeys={availableKeys}
             onChange={next => {
               setAiDirty(true);
               setAiPolicy(next);

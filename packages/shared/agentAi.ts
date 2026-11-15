@@ -37,6 +37,7 @@ export type AgentAiPolicyInput = {
   sttWeeklyLimit: number;
   sttMonthlyLimit: number;
   sttTrialDailyLimit: number;
+  aiKeyId?: string | null;
 };
 
 export type AgentAiPolicy = AgentAiPolicyInput & {
@@ -45,6 +46,8 @@ export type AgentAiPolicy = AgentAiPolicyInput & {
   name: string;
   updatedAt?: string | null;
   stats: AgentAiPolicyStats;
+  aiKeyLabel?: string | null;
+  aiKeySuffix?: string | null;
 };
 
 export const OPENROUTER_MODEL_PRESETS = [
@@ -172,6 +175,9 @@ export function createDefaultAgentAiPolicy(product: { id: string; slug: string; 
     sttWeeklyLimit: 0,
     sttMonthlyLimit: 0,
     sttTrialDailyLimit: 0,
+    aiKeyId: null,
+    aiKeyLabel: null,
+    aiKeySuffix: null,
     updatedAt: null,
     stats: {
       requests24h: 0,
@@ -302,6 +308,9 @@ export function normalizeAgentAiPolicyPayload(
     });
   }
 
+  const rawKeyId = typeof obj.aiKeyId === 'string' ? obj.aiKeyId.trim() : typeof (obj as any).ai_key_id === 'string' ? (obj as any).ai_key_id.trim() : null;
+  const aiKeyId = rawKeyId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawKeyId) ? rawKeyId : null;
+
   return {
     ok: true,
     data: {
@@ -321,6 +330,7 @@ export function normalizeAgentAiPolicyPayload(
       sttWeeklyLimit: sttWeekly.value,
       sttMonthlyLimit: sttMonthly.value,
       sttTrialDailyLimit: sttTrialDaily.value,
+      aiKeyId,
     },
   };
 }

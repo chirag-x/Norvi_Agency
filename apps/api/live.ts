@@ -10,6 +10,80 @@ import catalog from '../../packages/shared/catalog.json';
 import { normalizeAgentAiPolicyPayload } from '../../packages/shared/agentAi';
 import { createAgentAiHandler, DEFAULT_MAX_BODY_BYTES, type AgentAiClient, type AgentAiHandlerDeps } from '../../packages/shared/agentAiProxy';
 import { createAgentSttHandler, DEFAULT_MAX_STT_BODY_BYTES, type AgentSttHandlerDeps } from '../../packages/shared/agentSttProxy';
+import { seal, unseal } from './crypto';
+
+let cachedAiKeys: Record<string, { key: string; expiresAt: number }> = {};
+
+export function clearAiKeyCache() {
+  cachedAiKeys = {};
+}
+
+async function deriveKeyHex(secretStr: string): Promise<string> {
+  const hashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(secretStr));
+  return Array.from(new Uint8Array(hashBuffer), x => x.toString(16).padStart(2, '0')).join('');
+}
+
+export async function getActiveAiKey(
+  env: LiveEnv,
+  provider = 'openrouter',
+  clientFactory?: (url: string, key: string) => any,
+  specificKeyId?: string | null
+): Promise<string | null> {
+  const now = Date.now();
+  const cacheKey = specificKeyId ? `key:${specificKeyId}` : `provider:${provider}`;
+  const cached = cachedAiKeys[cacheKey];
+  if (cached && cached.expiresAt > now) {
+    return cached.key;
+  }
+
+  if (env.SUPABASE_URL && env.SUPABASE_SERVICE_ROLE_KEY && !env.SUPABASE_URL.includes('test-project') && !env.SUPABASE_URL.includes('your-project')) {
+    try {
+      const adminDb = clientFactory
+        ? clientFactory(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY)
+        : createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+      
+      let query = adminDb
+        .from('admin_ai_keys')
+        .select('encrypted_key');
+
+      if (specificKeyId) {
+        query = query.eq('id', specificKeyId);
+      } else {
+        query = query.eq('provider', provider).eq('is_active', true);
+      }
+
+      const res = await Promise.race([
+        query.maybeSingle(),
+        new Promise<any>((_, reject) => setTimeout(() => reject(new Error('timeout')), 2000)),
+      ]);
+
+      const data = res?.data;
+      if (data?.encrypted_key) {
+        const secret = licenseSecret(env);
+        if (secret) {
+          const keyHex = await deriveKeyHex(secret);
+          const decrypted = await unseal(data.encrypted_key, keyHex);
+          if (decrypted) {
+            cachedAiKeys[cacheKey] = { key: decrypted.trim(), expiresAt: now + 60_000 };
+            return decrypted.trim();
+          }
+        }
+      }
+    } catch {
+      // Fall through to environment variable or global active key
+    }
+  }
+
+  // If a specific assigned key was not found or failed to decrypt, fallback to global active key
+  if (specificKeyId) {
+    return getActiveAiKey(env, provider, clientFactory, null);
+  }
+
+  if (provider === 'openrouter') {
+    return env.OPENROUTER_API_KEY?.trim() || null;
+  }
+  return null;
+}
 
 export type LiveEnv = { APP_ORIGIN?: string; SUPABASE_URL?: string; SUPABASE_ANON_KEY?: string; SUPABASE_SERVICE_ROLE_KEY?: string; AUTH_RATE_LIMITER?: { limit: (input: { key: string }) => Promise<{ success: boolean }> }; RAZORPAY_KEY_ID?: string; RAZORPAY_KEY_SECRET?: string; RAZORPAY_WEBHOOK_SECRET?: string; RESEND_API_KEY?: string; CRON_SECRET?: string; LICENSE_ENCRYPTION_KEY?: string; OPENROUTER_API_KEY?: string; GROQ_API_KEY?: string; EMAIL_FROM?: string; GITHUB_PAT?: string; GITHUB_REPO_OWNER?: string; GITHUB_REPO_NAME?: string; norvi_sales_and_orders?: string; norvi_downloads?: string; norvi_team_and_security?: string; norvi_system_alerts?: string; norvi_contact?: string; norvi_support?: string; };
 type Identity = { id: string; email: string; name: string; role: string; status: string; createdAt: string; lastLogin: string | null; isImpersonated?: boolean; realAdminRole?: string };
@@ -610,13 +684,18 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
   });
 
   const handleAgentAi = (c: Context<AppEnv>) => {
+    const serviceClientFactory = options.agentAiDeps?.createServiceClient;
     const proxyHandler = createAgentAiHandler({
       getEnv: (key) => (c.env as Record<string, string | undefined>)[key],
-      createServiceClient: (supabaseUrl, serviceRoleKey) =>
+      createServiceClient: serviceClientFactory || ((supabaseUrl, serviceRoleKey) =>
         createClient(supabaseUrl, serviceRoleKey, {
           auth: { autoRefreshToken: false, persistSession: false },
-        }) as unknown as AgentAiClient,
+        }) as unknown as AgentAiClient
+      ),
       awaitFinalize: true,
+      resolveApiKey: async (provider, keyId) => {
+        return getActiveAiKey(c.env, provider, serviceClientFactory, keyId);
+      },
       ...(options.agentAiDeps ?? {}),
     });
     return proxyHandler(c.req.raw);
@@ -1506,7 +1585,11 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
       p_stt_weekly_limit: p.sttWeeklyLimit,
       p_stt_monthly_limit: p.sttMonthlyLimit,
       p_stt_trial_daily_limit: p.sttTrialDailyLimit,
+      p_ai_key_id: p.aiKeyId || null,
     });
+    if (!error) {
+      clearAiKeyCache();
+    }
     return error ? c.json({ error: 'AI policy could not be saved: ' + error.message }, 400) : c.json({ ok: true });
   });
 
@@ -2296,6 +2379,155 @@ License generated successfully.`);
       if (!['owner', 'administrator', 'product_manager'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
       const { error } = await c.get('db').rpc('admin_delete_kb', { p_id: c.req.param('id') });
       return error ? c.json({ error: error.message }, 400) : c.json({ ok: true });
+    });
+
+    // --- Phase 12: Database-Encrypted Multi-Key AI Manager ---
+    const getAdminAiDb = (c: Context<AppEnv>) => {
+      if (c.env.SUPABASE_URL && c.env.SUPABASE_SERVICE_ROLE_KEY && !c.env.SUPABASE_SERVICE_ROLE_KEY.includes('YOUR_') && !c.env.SUPABASE_URL.includes('test-project')) {
+        return createClient(c.env.SUPABASE_URL, c.env.SUPABASE_SERVICE_ROLE_KEY, {
+          auth: { autoRefreshToken: false, persistSession: false },
+        });
+      }
+      return c.get('db');
+    };
+
+    app.get('/api/admin/ai/keys', async c => {
+      if (!['owner', 'administrator', 'product_manager'].includes(c.get('user').role)) {
+        return c.json({ error: 'Permission denied.' }, 403);
+      }
+      const db = getAdminAiDb(c);
+      const { data, error } = await db
+        .from('admin_ai_keys')
+        .select('id, provider, label, key_suffix, is_active, created_at, updated_at')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        return c.json({ error: error.message }, 500);
+      }
+      return c.json({ keys: data || [] });
+    });
+
+    app.post('/api/admin/ai/keys', async c => {
+      if (!['owner', 'administrator'].includes(c.get('user').role)) {
+        return c.json({ error: 'Permission denied. Only owners and administrators can manage AI keys.' }, 403);
+      }
+      const body = await c.req.json();
+      const label = String(body.label || '').trim();
+      const rawKey = String(body.key || '').trim();
+      const provider = String(body.provider || 'openrouter').trim().toLowerCase();
+      const makeActive = body.make_active !== false;
+
+      if (!label || label.length > 100) {
+        return c.json({ error: 'A valid label (1 to 100 characters) is required.' }, 400);
+      }
+      if (!rawKey || rawKey.length < 15) {
+        return c.json({ error: 'Invalid API key format.' }, 400);
+      }
+
+      const secret = licenseSecret(c.env);
+      if (!secret) {
+        return c.json({ error: 'Server encryption key is not configured.' }, 500);
+      }
+
+      const keyHex = await deriveKeyHex(secret);
+      const encryptedKey = await seal(rawKey, keyHex);
+      const keySuffix = '...' + rawKey.slice(-4);
+
+      const db = getAdminAiDb(c);
+
+      // If making active, deactivate other keys for this provider
+      if (makeActive) {
+        await db
+          .from('admin_ai_keys')
+          .update({ is_active: false, updated_at: new Date().toISOString() })
+          .eq('provider', provider);
+      }
+
+      const { data: inserted, error } = await db
+        .from('admin_ai_keys')
+        .insert({
+          provider,
+          label,
+          encrypted_key: encryptedKey,
+          key_suffix: keySuffix,
+          is_active: makeActive,
+          updated_by: c.get('user').id,
+        })
+        .select('id, provider, label, key_suffix, is_active, created_at, updated_at')
+        .single();
+
+      if (error) {
+        return c.json({ error: error.message }, 400);
+      }
+
+      clearAiKeyCache();
+      await sendDiscordLog(c.env.norvi_system_alerts, `[Security Alert] New ${provider.toUpperCase()} AI key added: "${label}" (${keySuffix}) by ${c.get('user').email} (Active: ${makeActive})`);
+
+      return c.json({ ok: true, key: inserted });
+    });
+
+    app.post('/api/admin/ai/keys/:id/activate', async c => {
+      if (!['owner', 'administrator'].includes(c.get('user').role)) {
+        return c.json({ error: 'Permission denied.' }, 403);
+      }
+      const id = c.req.param('id');
+      const db = getAdminAiDb(c);
+
+      const { data: targetKey, error: findErr } = await db
+        .from('admin_ai_keys')
+        .select('id, provider, label, key_suffix')
+        .eq('id', id)
+        .single();
+
+      if (findErr || !targetKey) {
+        return c.json({ error: 'Key not found.' }, 404);
+      }
+
+      await db
+        .from('admin_ai_keys')
+        .update({ is_active: false, updated_at: new Date().toISOString() })
+        .eq('provider', targetKey.provider)
+        .neq('id', id);
+
+      const { error: actErr } = await db
+        .from('admin_ai_keys')
+        .update({ is_active: true, updated_at: new Date().toISOString() })
+        .eq('id', id);
+
+      if (actErr) {
+        return c.json({ error: actErr.message }, 400);
+      }
+
+      clearAiKeyCache();
+      await sendDiscordLog(c.env.norvi_system_alerts, `[Security Alert] Active ${targetKey.provider.toUpperCase()} AI key changed to "${targetKey.label}" (${targetKey.key_suffix}) by ${c.get('user').email}`);
+
+      return c.json({ ok: true });
+    });
+
+    app.delete('/api/admin/ai/keys/:id', async c => {
+      if (!['owner', 'administrator'].includes(c.get('user').role)) {
+        return c.json({ error: 'Permission denied.' }, 403);
+      }
+      const id = c.req.param('id');
+      const db = getAdminAiDb(c);
+
+      const { data: targetKey } = await db
+        .from('admin_ai_keys')
+        .select('id, provider, label, key_suffix, is_active')
+        .eq('id', id)
+        .maybeSingle();
+
+      const { error } = await db.from('admin_ai_keys').delete().eq('id', id);
+      if (error) {
+        return c.json({ error: error.message }, 400);
+      }
+
+      clearAiKeyCache();
+      if (targetKey) {
+        await sendDiscordLog(c.env.norvi_system_alerts, `[Security Alert] AI key deleted: "${targetKey.label}" (${targetKey.key_suffix}) by ${c.get('user').email}`);
+      }
+
+      return c.json({ ok: true });
     });
 
   

@@ -1,4 +1,4 @@
-import { Bot, Check, Mic, Plus, ShieldCheck, Trash2 } from 'lucide-react';
+import { Bot, Check, KeyRound, Mic, Plus, ShieldCheck, Trash2 } from 'lucide-react';
 import {
   GROQ_STT_MODEL_PRESETS,
   OPENROUTER_MODEL_PRESETS,
@@ -16,6 +16,7 @@ export function AgentAiPolicySection({
   onSavePolicy,
   saving,
   feedback,
+  availableKeys,
 }: {
   productId: string;
   productName: string;
@@ -24,6 +25,7 @@ export function AgentAiPolicySection({
   onSavePolicy: () => Promise<void>;
   saving: boolean;
   feedback?: string;
+  availableKeys?: Array<{ id: string; label: string; key_suffix: string; is_active: boolean }>;
 }) {
   const usesFreeModel =
     policy.defaultModel.trim().endsWith(':free') ||
@@ -161,6 +163,26 @@ export function AgentAiPolicySection({
             onChange={e => onChange({ ...policy, defaultModel: e.target.value })}
             placeholder="e.g. google/gemma-4-26b-a4b-it"
           />
+        </Field>
+
+        <Field
+          label="Upstream OpenRouter API Key"
+          hint="Assign a dedicated key for this agent or inherit the global active key"
+        >
+          <select
+            value={policy.aiKeyId || ''}
+            onChange={e => onChange({ ...policy, aiKeyId: e.target.value || null })}
+            style={{
+              borderColor: policy.aiKeyId ? 'var(--lime, #98e038)' : undefined,
+            }}
+          >
+            <option value="">🌐 Default (Inherit Global Active Key)</option>
+            {(availableKeys || []).map(k => (
+              <option key={k.id} value={k.id}>
+                🔑 {k.label} ({k.key_suffix}) {k.is_active ? '— [Active Global Default]' : ''}
+              </option>
+            ))}
+          </select>
         </Field>
       </div>
 
