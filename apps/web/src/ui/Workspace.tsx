@@ -5,6 +5,7 @@ import type { Category, Product, Settings, User, AgentExtendedContent, FeaturePi
 import { createDefaultAgentAiPolicy, normalizeAgentAiPolicyPayload, type AgentAiPolicy } from '../../../../packages/shared/agentAi';
 import { AgentAiPolicySection } from './AgentAiPolicySection';
 import { AdminAiKeyManager } from './AdminAiKeyManager';
+import { AdminSystemDiagnostics } from './AdminSystemDiagnostics';
 import { ProductCard, ProductIcon } from './App';
 import { api, Badge, date, Empty, Field, Loading, Notice, PageHeading, uploadFile, useData, SmartVideoPlayer, parseYouTubeVideoId, clearAllCaches } from './common';
 import { SupportChatBox } from './SupportChat';
@@ -3488,7 +3489,8 @@ function Admin({ section, user, settings, onCatalogChange }: { section: string; 
               </table>
             </div>
           </div>
-          <div className="workspace-welcome"><div><span className="eyebrow">A STRONG START</span><h2>Let’s make NORVI<br /><span className="serif">yours.</span></h2><p>Your website is taking shape. Add your product details and explore the customer journey.</p><a className="button primary" href={user.role === 'support' ? '/admin/customers' : '/admin/products'}>{user.role === 'support' ? 'Explore customers' : 'Manage your agents'}<ArrowUpRight size={17} /></a></div><div className="setup-list">{[['Website name', 'NORVI is ready', true], ['Product details', 'Names, features, prices, and releases', false], ['Secure accounts', 'Connect your authentication service', false], ['Payments & email', 'Connect your business accounts', false]].map(([title, desc, done]) => <div key={String(title)}><span className={done ? 'check-circle done' : 'check-circle'}>{done ? <Check size={14} /> : <span />}</span><div><b>{title}</b><small>{desc}</small></div></div>)}</div></div><div className="panel-heading"><h3>Find your next step</h3><a href="/" className="text-button">View website <ArrowUpRight size={15} /></a></div>{user.role !== 'support' && <SocialMediaForm settings={settings} onSave={onCatalogChange} />}
+          <AdminSystemDiagnostics />
+          <div className="panel-heading"><h3>Find your next step</h3><a href="/" className="text-button">View website <ArrowUpRight size={15} /></a></div>{user.role !== 'support' && <SocialMediaForm settings={settings} onSave={onCatalogChange} />}
           <div className="quick-links">{(user.role === 'support' ? [['Customers', 'Find accounts, including non-buyers', '/admin/customers', Users], ['Licenses', 'Help with devices and access', '/admin/licenses', KeyRound]] : [['Your products', 'Add, edit, and publish your agents', '/admin/products', Box], ['Website content', 'Edit your headline and description', '/admin/content', FileText]]).map(([title, desc, href, Icon]: any) => <a className="panel" href={href} key={title}><Icon size={22} /><h3>{title}</h3><p>{desc}</p><ArrowUpRight size={19} /></a>)}</div></>}
         {['/products', '/releases', '/categories', '/customers', '/licenses', '/orders', '/activity'].includes(section) && (
           <div className="catalog-toolbar">

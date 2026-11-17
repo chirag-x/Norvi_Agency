@@ -19,6 +19,34 @@ export function AdminAiKeyManager({ onKeyChange }: { onKeyChange?: () => void })
   const [feedback, setFeedback] = useState<string | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showList, setShowList] = useState(false);
+  const [testingMap, setTestingMap] = useState<Record<string, { testing: boolean; result?: any; error?: string }>>({});
+
+  const testKey = async (id: string) => {
+    setTestingMap(prev => ({ ...prev, [id]: { testing: true } }));
+    try {
+      const res = await fetch(`/api/admin/ai/keys/${id}/test`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.ok) {
+        setTestingMap(prev => ({
+          ...prev,
+          [id]: { testing: false, result: data },
+        }));
+      } else {
+        setTestingMap(prev => ({
+          ...prev,
+          [id]: { testing: false, error: data.error || 'Test failed' },
+        }));
+      }
+    } catch (err: any) {
+      setTestingMap(prev => ({
+        ...prev,
+        [id]: { testing: false, error: err.message || 'Network error' },
+      }));
+    }
+  };
 
   // New key form
   const [newLabel, setNewLabel] = useState('');
@@ -50,6 +78,12 @@ export function AdminAiKeyManager({ onKeyChange }: { onKeyChange?: () => void })
 
   const activeKey = keys.find(k => k.is_active);
 
+  useEffect(() => {
+    if (activeKey?.id && !testingMap[activeKey.id]) {
+      testKey(activeKey.id);
+    }
+  }, [activeKey?.id]);
+
   const handleActivate = async (id: string) => {
     try {
       setSwitching(true);
@@ -65,6 +99,7 @@ export function AdminAiKeyManager({ onKeyChange }: { onKeyChange?: () => void })
       setFeedback('Active AI key switched successfully (takes effect in 0ms).');
       setTimeout(() => setFeedback(null), 4000);
       await fetchKeys();
+      testKey(id);
       onKeyChange?.();
     } catch (err: any) {
       setError(err.message || 'Failed to activate key.');
@@ -305,22 +340,107 @@ export function AdminAiKeyManager({ onKeyChange }: { onKeyChange?: () => void })
         </div>
 
         {activeKey && (
-          <div
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '4px 10px',
-              borderRadius: '20px',
-              background: 'rgba(152, 224, 56, 0.15)',
-              border: '1px solid var(--lime, #98e038)',
-              color: 'var(--lime, #98e038)',
-              fontSize: '0.82rem',
-              fontWeight: 600,
-            }}
-          >
-            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--lime, #98e038)' }} />
-            Active: {activeKey.label} ({activeKey.key_suffix})
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {testingMap[activeKey.id]?.testing ? (
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '4px 12px',
+                  borderRadius: '20px',
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  border: '1px solid var(--line, #2a3824)',
+                  color: 'var(--text-light, #99a890)',
+                  fontSize: '0.82rem',
+                }}
+              >
+                <RefreshCw size={12} style={{ animation: 'spin 1s linear infinite' }} />
+                Testing {activeKey.label} ({activeKey.key_suffix})...
+              </span>
+            ) : testingMap[activeKey.id]?.result?.working ? (
+              <button
+                type="button"
+                onClick={() => testKey(activeKey.id)}
+                title="OpenRouter connection verified. Click to re-test anytime."
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '4px 12px',
+                  borderRadius: '20px',
+                  background: 'rgba(152, 224, 56, 0.15)',
+                  border: '1px solid var(--lime, #98e038)',
+                  color: 'var(--lime, #98e038)',
+                  fontSize: '0.82rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                <span
+                  style={{
+                    width: '7px',
+                    height: '7px',
+                    borderRadius: '50%',
+                    background: 'var(--lime, #98e038)',
+                    boxShadow: '0 0 8px var(--lime, #98e038)',
+                  }}
+                />
+                ✓ Working ({testingMap[activeKey.id]?.result?.latencyMs}ms): {activeKey.label} ({activeKey.key_suffix})
+              </button>
+            ) : testingMap[activeKey.id]?.error ? (
+              <button
+                type="button"
+                onClick={() => testKey(activeKey.id)}
+                title="Upstream test failed. Click to re-test."
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '4px 12px',
+                  borderRadius: '20px',
+                  background: 'rgba(239, 68, 68, 0.15)',
+                  border: '1px solid var(--red, #ef4444)',
+                  color: 'var(--red, #ef4444)',
+                  fontSize: '0.82rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                <AlertCircle size={13} />
+                ✗ Offline: {activeKey.label} ({testingMap[activeKey.id]?.error}) · Retry ↻
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => testKey(activeKey.id)}
+                title="Click to test connection to OpenRouter"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '4px 12px',
+                  borderRadius: '20px',
+                  background: 'rgba(152, 224, 56, 0.15)',
+                  border: '1px solid var(--lime, #98e038)',
+                  color: 'var(--lime, #98e038)',
+                  fontSize: '0.82rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                <span
+                  style={{
+                    width: '7px',
+                    height: '7px',
+                    borderRadius: '50%',
+                    background: 'var(--lime, #98e038)',
+                    boxShadow: '0 0 8px var(--lime, #98e038)',
+                  }}
+                />
+                Active: {activeKey.label} ({activeKey.key_suffix}) · Test ↻
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -372,6 +492,45 @@ export function AdminAiKeyManager({ onKeyChange }: { onKeyChange?: () => void })
                 </div>
 
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <button
+                    type="button"
+                    className="button secondary small"
+                    style={{
+                      fontSize: '0.78rem',
+                      padding: '3px 8px',
+                      borderColor: testingMap[k.id]?.result?.working
+                        ? 'var(--lime, #98e038)'
+                        : testingMap[k.id]?.error
+                        ? 'var(--red, #ef4444)'
+                        : undefined,
+                      color: testingMap[k.id]?.result?.working
+                        ? 'var(--lime, #98e038)'
+                        : testingMap[k.id]?.error
+                        ? 'var(--red, #ef4444)'
+                        : undefined,
+                    }}
+                    disabled={testingMap[k.id]?.testing}
+                    onClick={() => testKey(k.id)}
+                    title={
+                      testingMap[k.id]?.error
+                        ? testingMap[k.id]?.error
+                        : testingMap[k.id]?.result
+                        ? `Latency: ${testingMap[k.id]?.result?.latencyMs}ms`
+                        : 'Test key validity upstream'
+                    }
+                  >
+                    {testingMap[k.id]?.testing ? (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                        <RefreshCw size={10} style={{ animation: 'spin 1s linear infinite' }} /> Testing...
+                      </span>
+                    ) : testingMap[k.id]?.result?.working ? (
+                      `✓ Valid (${testingMap[k.id]?.result?.latencyMs}ms)`
+                    ) : testingMap[k.id]?.error ? (
+                      '✗ Error'
+                    ) : (
+                      '⚡ Test'
+                    )}
+                  </button>
                   {!k.is_active && (
                     <button
                       type="button"

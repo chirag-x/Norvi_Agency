@@ -2530,6 +2530,444 @@ License generated successfully.`);
       return c.json({ ok: true });
     });
 
+    app.post('/api/admin/ai/keys/:id/test', async c => {
+      if (!['owner', 'administrator', 'product_manager'].includes(c.get('user').role)) {
+        return c.json({ error: 'Permission denied.' }, 403);
+      }
+      const id = c.req.param('id');
+      const db = getAdminAiDb(c);
+      const fetchFn = (options.agentAiDeps?.fetchImpl as typeof fetch) || fetch;
+
+      let rawKey: string | null = null;
+      let label = 'Active Key';
+      let keySuffix = '••••';
+
+      if (id === 'active' || id === 'global') {
+        const { data: activeKey } = await db
+          .from('admin_ai_keys')
+          .select('id, provider, label, key_suffix, encrypted_key, is_active')
+          .eq('provider', 'openrouter')
+          .eq('is_active', true)
+          .maybeSingle();
+
+        if (activeKey) {
+          label = activeKey.label;
+          keySuffix = activeKey.key_suffix;
+          const secret = licenseSecret(c.env);
+          if (secret) {
+            const keyHex = await deriveKeyHex(secret);
+            rawKey = await unseal(activeKey.encrypted_key, keyHex);
+          }
+        } else if (c.env.OPENROUTER_API_KEY) {
+          rawKey = c.env.OPENROUTER_API_KEY.trim();
+          label = 'Netlify Env Key';
+          keySuffix = rawKey.slice(-4);
+        }
+      } else {
+        const { data: targetKey, error: findErr } = await db
+          .from('admin_ai_keys')
+          .select('id, provider, label, key_suffix, encrypted_key, is_active')
+          .eq('id', id)
+          .maybeSingle();
+
+        if (findErr || !targetKey) {
+          return c.json({ error: 'Key not found.' }, 404);
+        }
+        label = targetKey.label;
+        keySuffix = targetKey.key_suffix;
+        const secret = licenseSecret(c.env);
+        if (secret) {
+          const keyHex = await deriveKeyHex(secret);
+          rawKey = await unseal(targetKey.encrypted_key, keyHex);
+        }
+      }
+
+      if (!rawKey) {
+        return c.json({
+          ok: false,
+          working: false,
+          label,
+          keySuffix,
+          error: 'Could not decrypt key or no key configured.',
+        }, 400);
+      }
+
+      const startMs = Date.now();
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 4000);
+        const resp = await fetchFn('https://openrouter.ai/api/v1/auth/key', {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${rawKey.trim()}`,
+          },
+          signal: controller.signal,
+        });
+        clearTimeout(timeout);
+        const latencyMs = Date.now() - startMs;
+
+        if (resp.ok) {
+          const data = await resp.json().catch(() => ({}));
+          const keyData = data?.data || {};
+          return c.json({
+            ok: true,
+            working: true,
+            label,
+            keySuffix,
+            latencyMs,
+            usage: keyData.usage ?? null,
+            limit: keyData.limit ?? null,
+            isFreeTier: keyData.is_free_tier ?? null,
+          });
+        }
+
+        const errData = await resp.json().catch(() => ({}));
+        const errMsg = errData?.error?.message || `Upstream returned HTTP ${resp.status}`;
+        return c.json({
+          ok: false,
+          working: false,
+          label,
+          keySuffix,
+          latencyMs,
+          statusCode: resp.status,
+          error: errMsg,
+        });
+      } catch (err: any) {
+        const latencyMs = Date.now() - startMs;
+        const isTimeout = err.name === 'AbortError' || err.message?.includes('abort');
+        return c.json({
+          ok: false,
+          working: false,
+          label,
+          keySuffix,
+          latencyMs,
+          error: isTimeout ? 'Connection timed out (4000ms)' : (err.message || 'Network error pinging OpenRouter'),
+        });
+      }
+    });
+
+    app.get('/api/admin/system/health', async c => {
+      if (!['owner', 'administrator', 'product_manager', 'support'].includes(c.get('user').role)) {
+        return c.json({ error: 'Permission denied.' }, 403);
+      }
+      const fetchFn = (options.agentAiDeps?.fetchImpl as typeof fetch) || fetch;
+      const timeoutMs = 3000;
+      const runWithTimeout = async <T>(fn: () => Promise<T>, timeoutMessage = 'Timeout'): Promise<T> => {
+        return Promise.race([
+          fn(),
+          new Promise<T>((_, reject) => setTimeout(() => reject(new Error(timeoutMessage)), timeoutMs)),
+        ]);
+      };
+
+      const checks: Array<{
+        id: string;
+        name: string;
+        category: string;
+        status: 'ok' | 'warning' | 'error';
+        latencyMs?: number;
+        message: string;
+        details?: string;
+        actionUrl?: string;
+      }> = [];
+
+      // 1. Supabase Database & Auth Engine
+      const dbStart = Date.now();
+      try {
+        await runWithTimeout(async () => {
+          const { error } = await c.get('db').from('products').select('id', { count: 'exact', head: true });
+          if (error) throw error;
+        });
+        checks.push({
+          id: 'database',
+          name: 'Supabase Database & Auth',
+          category: 'core',
+          status: 'ok',
+          latencyMs: Date.now() - dbStart,
+          message: 'Operational · Connected',
+          actionUrl: '/admin/settings',
+        });
+      } catch (err: any) {
+        checks.push({
+          id: 'database',
+          name: 'Supabase Database & Auth',
+          category: 'core',
+          status: 'error',
+          latencyMs: Date.now() - dbStart,
+          message: 'Connection failed',
+          details: err.message,
+          actionUrl: '/admin/settings',
+        });
+      }
+
+      // 2. OpenRouter AI Provider (Active Key)
+      const aiStart = Date.now();
+      try {
+        const activeKey = await getActiveAiKey(c.env, 'openrouter', options.agentAiDeps?.createServiceClient, null);
+        if (!activeKey) {
+          checks.push({
+            id: 'openrouter',
+            name: 'OpenRouter AI Provider',
+            category: 'ai',
+            status: 'error',
+            message: 'No active AI key found',
+            details: 'Configure an active OpenRouter key in Releases.',
+            actionUrl: '/admin/releases',
+          });
+        } else {
+          const resp = await runWithTimeout(async () => {
+            return fetchFn('https://openrouter.ai/api/v1/auth/key', {
+              method: 'GET',
+              headers: { 'Authorization': `Bearer ${activeKey}` },
+            });
+          });
+          const latencyMs = Date.now() - aiStart;
+          if (resp.ok) {
+            checks.push({
+              id: 'openrouter',
+              name: 'OpenRouter AI Provider',
+              category: 'ai',
+              status: 'ok',
+              latencyMs,
+              message: 'Active Key Operational',
+              actionUrl: '/admin/releases',
+            });
+          } else {
+            checks.push({
+              id: 'openrouter',
+              name: 'OpenRouter AI Provider',
+              category: 'ai',
+              status: 'error',
+              latencyMs,
+              message: `Upstream rejected key (HTTP ${resp.status})`,
+              actionUrl: '/admin/releases',
+            });
+          }
+        }
+      } catch (err: any) {
+        checks.push({
+          id: 'openrouter',
+          name: 'OpenRouter AI Provider',
+          category: 'ai',
+          status: 'error',
+          latencyMs: Date.now() - aiStart,
+          message: 'Verification check failed',
+          details: err.message,
+          actionUrl: '/admin/releases',
+        });
+      }
+
+      // 3. Razorpay Payments Gateway
+      const razorpayId = c.env.RAZORPAY_KEY_ID;
+      const razorpaySecret = c.env.RAZORPAY_KEY_SECRET;
+      if (!razorpayId || !razorpaySecret || razorpayId.includes('YOUR_KEY')) {
+        checks.push({
+          id: 'payments',
+          name: 'Razorpay Payments Gateway',
+          category: 'commerce',
+          status: 'warning',
+          message: 'Credentials not configured',
+          actionUrl: '/admin/settings',
+        });
+      } else {
+        const payStart = Date.now();
+        try {
+          const authHeader = 'Basic ' + Buffer.from(`${razorpayId}:${razorpaySecret}`).toString('base64');
+          const resp = await runWithTimeout(async () => {
+            return fetchFn('https://api.razorpay.com/v1/payments?count=1', {
+              headers: { 'Authorization': authHeader },
+            });
+          });
+          const latencyMs = Date.now() - payStart;
+          if (resp.ok) {
+            const masked = razorpayId.slice(0, 8) + '...' + razorpayId.slice(-4);
+            checks.push({
+              id: 'payments',
+              name: 'Razorpay Payments Gateway',
+              category: 'commerce',
+              status: 'ok',
+              latencyMs,
+              message: `Operational · ${masked}`,
+              actionUrl: '/admin/settings',
+            });
+          } else {
+            checks.push({
+              id: 'payments',
+              name: 'Razorpay Payments Gateway',
+              category: 'commerce',
+              status: 'error',
+              latencyMs,
+              message: `Auth failed (HTTP ${resp.status})`,
+              actionUrl: '/admin/settings',
+            });
+          }
+        } catch (err: any) {
+          checks.push({
+            id: 'payments',
+            name: 'Razorpay Payments Gateway',
+            category: 'commerce',
+            status: 'error',
+            latencyMs: Date.now() - payStart,
+            message: 'Could not connect to Razorpay',
+            details: err.message,
+            actionUrl: '/admin/settings',
+          });
+        }
+      }
+
+      // 4. Resend Transactional Email Delivery
+      const resendKey = c.env.RESEND_API_KEY;
+      if (!resendKey || resendKey.includes('YOUR_API_KEY')) {
+        checks.push({
+          id: 'email',
+          name: 'License Email Delivery (Resend)',
+          category: 'notifications',
+          status: 'warning',
+          message: 'Resend API key missing',
+          actionUrl: '/admin/settings',
+        });
+      } else {
+        const emailStart = Date.now();
+        try {
+          const resp = await runWithTimeout(async () => {
+            return fetchFn('https://api.resend.com/api-keys', {
+              headers: { 'Authorization': `Bearer ${resendKey}` },
+            });
+          });
+          const latencyMs = Date.now() - emailStart;
+          if (resp.ok) {
+            checks.push({
+              id: 'email',
+              name: 'License Email Delivery (Resend)',
+              category: 'notifications',
+              status: 'ok',
+              latencyMs,
+              message: `Operational · ${c.env.EMAIL_FROM || 'support@nor-vi.in'}`,
+              actionUrl: '/admin/settings',
+            });
+          } else {
+            checks.push({
+              id: 'email',
+              name: 'License Email Delivery (Resend)',
+              category: 'notifications',
+              status: 'error',
+              latencyMs,
+              message: `Resend auth failed (HTTP ${resp.status})`,
+              actionUrl: '/admin/settings',
+            });
+          }
+        } catch (err: any) {
+          checks.push({
+            id: 'email',
+            name: 'License Email Delivery (Resend)',
+            category: 'notifications',
+            status: 'error',
+            latencyMs: Date.now() - emailStart,
+            message: 'Could not connect to Resend',
+            details: err.message,
+            actionUrl: '/admin/settings',
+          });
+        }
+      }
+
+      // 5. Groq STT Voice Engine
+      const groqKey = c.env.GROQ_API_KEY;
+      if (!groqKey || groqKey.includes('YOUR_')) {
+        checks.push({
+          id: 'groq_stt',
+          name: 'Groq STT Voice Engine',
+          category: 'ai',
+          status: 'warning',
+          message: 'STT fallback key not set',
+          actionUrl: '/admin/releases',
+        });
+      } else {
+        const groqStart = Date.now();
+        try {
+          const resp = await runWithTimeout(async () => {
+            return fetchFn('https://api.groq.com/openai/v1/models', {
+              headers: { 'Authorization': `Bearer ${groqKey}` },
+            });
+          });
+          const latencyMs = Date.now() - groqStart;
+          if (resp.ok) {
+            checks.push({
+              id: 'groq_stt',
+              name: 'Groq STT Voice Engine',
+              category: 'ai',
+              status: 'ok',
+              latencyMs,
+              message: 'Operational · whisper-large-v3-turbo',
+              actionUrl: '/admin/releases',
+            });
+          } else {
+            checks.push({
+              id: 'groq_stt',
+              name: 'Groq STT Voice Engine',
+              category: 'ai',
+              status: 'error',
+              latencyMs,
+              message: `Groq auth failed (HTTP ${resp.status})`,
+              actionUrl: '/admin/releases',
+            });
+          }
+        } catch (err: any) {
+          checks.push({
+            id: 'groq_stt',
+            name: 'Groq STT Voice Engine',
+            category: 'ai',
+            status: 'error',
+            latencyMs: Date.now() - groqStart,
+            message: 'Could not connect to Groq',
+            details: err.message,
+            actionUrl: '/admin/releases',
+          });
+        }
+      }
+
+      // 6. Commercial Agent Catalog
+      try {
+        const { count, error } = await c.get('db')
+          .from('products')
+          .select('id', { count: 'exact', head: true })
+          .neq('status', 'deleted');
+        if (error) throw error;
+        checks.push({
+          id: 'catalog',
+          name: 'Commercial Agent Catalog',
+          category: 'agents',
+          status: 'ok',
+          message: `${count || 0} Agents Live & Deployable`,
+          actionUrl: '/admin/products',
+        });
+      } catch (err: any) {
+        checks.push({
+          id: 'catalog',
+          name: 'Commercial Agent Catalog',
+          category: 'agents',
+          status: 'error',
+          message: 'Failed to query catalog',
+          details: err.message,
+          actionUrl: '/admin/products',
+        });
+      }
+
+      const hasErrors = checks.some(c => c.status === 'error');
+      const allOk = !hasErrors && checks.every(c => c.status === 'ok');
+
+      return c.json({
+        ok: true,
+        allOk,
+        hasErrors,
+        summary: allOk
+          ? 'All systems operational'
+          : hasErrors
+          ? 'Action required on critical services'
+          : 'Core systems active (optional integrations unconfigured)',
+        timestamp: new Date().toISOString(),
+        checks,
+      });
+    });
+
   
     app.post('/api/chat', async c => {
       const { message, history } = await c.req.json();
