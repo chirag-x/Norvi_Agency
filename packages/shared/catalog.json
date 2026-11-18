@@ -29,6 +29,12 @@
       "slug": "career-automation",
       "name": "Job Search & Career Automation",
       "createdAt": "2026-10-14T19:19:23.601167+00:00"
+    },
+    {
+      "id": "1c0b2692-f915-409f-a8b2-b195fc030119",
+      "slug": "test",
+      "name": "test",
+      "createdAt": "2026-11-18T21:01:18.906923+00:00"
     }
   ],
   "products": [
@@ -40,7 +46,7 @@
       "tagline": "Real-time AI interview assistant, screen-aware copilot & live coding companion.",
       "description": "Voro is an ultra-low latency, desktop copilot engineered to give you an undetectable unfair advantage during high-stakes technical or non technical interviews rounds. \nVoro remains 100% invisible on Zoom, Microsoft Teams, Google Meet, and browser proctoring tools—even during full-screen sharing. By fusing real-time multimodal screen perception with sub-second speech recognition.\nVoro silently reads live Screen problems, display optimal solutions, grounds behavioral answers in your actual resume, and whispers instant guidance directly into your private earpiece. Zero complex local setup, zero prompt data logging, and instant sub-second answers right when you need them most.",
       "price": "Pick Your Plan",
-      "price1m": 949,
+      "price1m": 899,
       "price3m": 2399,
       "price_lifetime": 9999,
       "status": "published",

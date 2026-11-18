@@ -107,7 +107,7 @@ export function Detail({product, settings, isCatalogLoaded = true}:{product:Prod
 
   if(!product) return <NotFound/>;
 
-  const ext = product.extendedContent;
+  const ext = (product.extendedContent || (product as any)?.extended_content) as AgentExtendedContent | undefined;
   const isVideo = ext?.heroMediaType === 'video' || (ext?.heroMediaUrl && (/\.(mp4|webm)$/i.test(ext.heroMediaUrl) || Boolean(parseYouTubeVideoId(ext.heroMediaUrl))));
 
   return (

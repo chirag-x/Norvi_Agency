@@ -5020,6 +5020,7 @@ export function ProductForm({ product, onSave, categories }: { product: Product 
     setError('');
     try {
       const updatedExtendedContent: AgentExtendedContent = {
+        ...(product?.extendedContent || {}),
         subHeading: subHeading.trim() || undefined,
         badgeText: badgeText || undefined,
         heroMediaType: heroUrl ? heroType : undefined,
@@ -5062,7 +5063,7 @@ export function ProductForm({ product, onSave, categories }: { product: Product 
         workflowNote,
         // Preserve release & pricing settings
         price: product?.price || 'Starting at ₹499',
-        price_1w: (product as any)?.price1w || null,
+        price_1w: (product as any)?.price1w != null && (product as any)?.price1w !== '' ? parseFloat(String((product as any).price1w)) : null,
         price_1m: product?.price1m || '0',
         price_3m: product?.price3m || '0',
         price_lifetime: product?.price_lifetime || '999',

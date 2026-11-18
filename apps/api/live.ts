@@ -1618,20 +1618,69 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
       p_trial_stt_model: p.trialSttModel || 'whisper-large-v3-turbo',
     });
 
-    if (error && typeof error.message === 'string' && error.message.includes('Could not find the function')) {
-      const fallback = await c.get('db').rpc('admin_upsert_agent_ai_policy', rpcParams);
-      error = fallback.error;
+    if (error && typeof error.message === 'string' && (error.message.includes('Could not find the function') || error.message.includes('schema cache'))) {
+      // Fallback 1: 24 params (migration 076 before p_trial_stt_model)
+      const fallback24 = await c.get('db').rpc('admin_upsert_agent_ai_policy', rpcParams);
+      if (fallback24.error && typeof fallback24.error.message === 'string' && (fallback24.error.message.includes('Could not find the function') || fallback24.error.message.includes('schema cache'))) {
+        // Fallback 2: 21 params (migration 075)
+        const { p_stt_key_id, p_trial_stt_key_id, p_trial_stt_fallback_enabled, ...legacy075Params } = rpcParams;
+        const fallback21 = await c.get('db').rpc('admin_upsert_agent_ai_policy', legacy075Params);
+        error = fallback21.error;
+      } else {
+        error = fallback24.error;
+      }
+    }
+
+    if (error && typeof error.message === 'string' && (error.message.includes('Could not find the function') || error.message.includes('schema cache'))) {
+      // Fallback 3: Direct table upsert on agent_ai_policies if RPC not found in schema cache
+      try {
+        const directPolicy = await c.get('db').from('agent_ai_policies').upsert({
+          product_id: productIdCheck.data,
+          ai_enabled: p.aiEnabled,
+          default_model: p.defaultModel,
+          task_models: p.taskModels,
+          daily_limit: p.dailyLimit,
+          weekly_limit: p.weeklyLimit,
+          monthly_limit: p.monthlyLimit,
+          trial_daily_limit: p.trialDailyLimit,
+          max_input_chars: p.maxInputChars,
+          max_output_tokens: p.maxOutputTokens,
+          enforce_zdr: p.enforceZdr,
+          stt_model: p.sttModel,
+          groq_fallback_enabled: p.groqFallbackEnabled,
+          stt_daily_limit: p.sttDailyLimit,
+          stt_weekly_limit: p.sttWeeklyLimit,
+          stt_monthly_limit: p.sttMonthlyLimit,
+          stt_trial_daily_limit: p.sttTrialDailyLimit,
+          ai_key_id: p.aiKeyId || null,
+          trial_ai_key_id: p.trialAiKeyId || null,
+          trial_default_model: p.trialDefaultModel,
+          trial_enforce_zdr: p.trialEnforceZdr,
+          stt_key_id: p.sttKeyId || null,
+          trial_stt_key_id: p.trialSttKeyId || null,
+          trial_stt_fallback_enabled: p.trialSttFallbackEnabled,
+          trial_stt_model: p.trialSttModel || 'whisper-large-v3-turbo',
+        }, { onConflict: 'product_id' });
+        if (!directPolicy.error) {
+          error = null;
+        }
+      } catch {}
     }
 
     if (!error) {
-      if (p.trialSttModel && c.env.SUPABASE_URL && c.env.SUPABASE_SERVICE_ROLE_KEY) {
+      if (c.env.SUPABASE_URL && c.env.SUPABASE_SERVICE_ROLE_KEY) {
         try {
           const adminDb = options.agentAiDeps?.createServiceClient
             ? options.agentAiDeps.createServiceClient(c.env)
             : createClient(c.env.SUPABASE_URL, c.env.SUPABASE_SERVICE_ROLE_KEY);
-          await adminDb.from('agent_ai_policies').update({
-            trial_stt_model: p.trialSttModel || 'whisper-large-v3-turbo',
-          }).eq('product_id', productIdCheck.data);
+          const updateData: Record<string, any> = {};
+          if (p.trialSttModel) updateData.trial_stt_model = p.trialSttModel;
+          if (p.sttKeyId !== undefined) updateData.stt_key_id = p.sttKeyId || null;
+          if (p.trialSttKeyId !== undefined) updateData.trial_stt_key_id = p.trialSttKeyId || null;
+          if (p.trialSttFallbackEnabled !== undefined) updateData.trial_stt_fallback_enabled = Boolean(p.trialSttFallbackEnabled);
+          if (Object.keys(updateData).length > 0) {
+            await adminDb.from('agent_ai_policies').update(updateData).eq('product_id', productIdCheck.data);
+          }
         } catch {
           // Non-critical if table already defaulted
         }
@@ -1644,21 +1693,57 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
   app.post('/api/admin/products', async c => {
     if (!['owner', 'administrator', 'product_manager'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
     const input = await c.req.json();
-    const { error } = await c.get('db').rpc('admin_upsert_product', {
+    const productParams = {
       p_id: input.id || null, p_slug: input.slug, p_name: input.name, p_category_id: input.categoryId,
       p_tagline: input.tagline, p_description: input.description, p_price_label: input.price,
       p_status: input.status, p_logo_url: input.logoUrl || null, p_features: input.features || [],
       p_version: input.version, p_requirements: input.requirements, p_release_status: input.releaseStatus,
       p_workflow_heading: input.workflowHeading || 'Built for your workflow.', p_workflow_description: input.workflowDescription || '',
       p_workflow_media_url: input.workflowMediaUrl || null, p_workflow_note: input.workflowNote || '',
-        p_price_1m: parseFloat(input.price_1m) || 0,
-        p_price_3m: parseFloat(input.price_3m) || 0,
-        p_price_lifetime: parseFloat(input.price_lifetime) || 999,
-        p_ai_usage: input.aiUsage || null,
-        p_device_allowance: input.deviceAllowance || null,
-        p_extended_content: input.extendedContent || {},
-        p_price_1w: input.price_1w != null && input.price_1w !== '' ? parseFloat(input.price_1w) : null
-      });
+      p_price_1m: parseFloat(input.price_1m) || 0,
+      p_price_3m: parseFloat(input.price_3m) || 0,
+      p_price_lifetime: parseFloat(input.price_lifetime) || 999,
+      p_ai_usage: input.aiUsage || null,
+      p_device_allowance: input.deviceAllowance || null,
+      p_extended_content: input.extendedContent || {},
+      p_price_1w: input.price_1w != null && input.price_1w !== '' ? parseFloat(input.price_1w) : null
+    };
+
+    let { error } = await c.get('db').rpc('admin_upsert_product', productParams);
+
+    // Fallback if PostgreSQL throws ambiguous candidate function or schema cache error
+    if (error && typeof error.message === 'string' && (error.message.includes('Could not choose the best candidate') || error.message.includes('not unique') || error.message.includes('schema cache'))) {
+      const productId = input.id || crypto.randomUUID();
+      const productPayload: Record<string, any> = {
+        id: productId,
+        slug: input.slug,
+        name: input.name,
+        category_id: input.categoryId,
+        tagline: input.tagline,
+        description: input.description,
+        price_label: input.price,
+        status: input.status,
+        logo_url: input.logoUrl || null,
+        features: input.features || [],
+        version: input.version,
+        requirements: input.requirements,
+        release_status: input.releaseStatus,
+        workflow_heading: input.workflowHeading || 'Built for your workflow.',
+        workflow_description: input.workflowDescription || '',
+        workflow_media_url: input.workflowMediaUrl || null,
+        workflow_note: input.workflowNote || '',
+        price_1m: parseFloat(input.price_1m) || 0,
+        price_3m: parseFloat(input.price_3m) || 0,
+        price_lifetime: parseFloat(input.price_lifetime) || 999,
+        ai_usage: input.aiUsage || null,
+        device_allowance: input.deviceAllowance || null,
+        extended_content: input.extendedContent || {},
+        price_1w: input.price_1w != null && input.price_1w !== '' ? parseFloat(input.price_1w) : null,
+      };
+      const direct = await c.get('db').from('products').upsert(productPayload, { onConflict: 'id' });
+      error = direct.error;
+    }
+
     if (!error) {
       await logAdminAudit(c, input.id ? 'product.updated' : 'product.created', input.slug, `${input.id ? 'Updated' : 'Created'} agent product: ${input.name}`, { slug: input.slug, status: input.status, releaseStatus: input.releaseStatus });
     }
