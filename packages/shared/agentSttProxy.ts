@@ -4,6 +4,7 @@ import { verifyNorviLeaseJwt } from './agentAiProxy';
 export type AgentSttHandlerDeps = {
   getEnv: (key: string) => string | undefined;
   createServiceClient: (supabaseUrl: string, serviceRoleKey: string) => AgentAiClient;
+  resolveApiKey?: (provider: string, keyId?: string | null) => Promise<string | null>;
   fetchImpl?: typeof fetch;
   waitUntil?: (promise: Promise<unknown>) => void;
   awaitFinalize?: boolean;
@@ -226,10 +227,6 @@ export function createAgentSttHandler(deps: AgentSttHandlerDeps) {
       return jsonResponse({ error: 'Audio payload must be smaller than 5.5 MB.' }, 413);
     }
 
-    if (!groqKey) {
-      return jsonResponse({ error: 'Cloud speech fallback is temporarily unavailable.' }, 503);
-    }
-
     let formData: FormData;
     try {
       formData = await req.formData();
@@ -263,6 +260,22 @@ export function createAgentSttHandler(deps: AgentSttHandlerDeps) {
         { error: quotaRaw.error || 'Access denied.' },
         quotaRaw.status_code || 403
       );
+    }
+
+    let activeGroqKey = groqKey;
+    if (deps.resolveApiKey) {
+      try {
+        const dynamicKey = await deps.resolveApiKey('groq', quotaRaw.stt_key_id);
+        if (dynamicKey) {
+          activeGroqKey = dynamicKey;
+        }
+      } catch (err) {
+        console.error('[agent-stt] Failed to dynamically resolve Groq STT key:', err);
+      }
+    }
+
+    if (!activeGroqKey) {
+      return jsonResponse({ error: 'Cloud speech fallback is temporarily unavailable.' }, 503);
     }
 
     const usageLogId = quotaRaw.usage_log_id;
@@ -305,7 +318,7 @@ export function createAgentSttHandler(deps: AgentSttHandlerDeps) {
       groqResp = await fetchImpl(GROQ_TRANSCRIPTIONS_URL, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${groqKey}`,
+          Authorization: `Bearer ${activeGroqKey}`,
         },
         body: outboundForm,
       });

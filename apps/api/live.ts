@@ -82,6 +82,9 @@ export async function getActiveAiKey(
   if (provider === 'openrouter') {
     return env.OPENROUTER_API_KEY?.trim() || null;
   }
+  if (provider === 'groq') {
+    return env.GROQ_API_KEY?.trim() || null;
+  }
   return null;
 }
 
@@ -198,7 +201,7 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
       : factory(c);
     const [productsResult, settingsResult, categoriesResult] = await Promise.all([
       supabase.from('products')
-        .select('id, slug, name, categoryId:category_id, tagline, description, price:price_label, price1m:price_1m, price3m:price_3m, price_lifetime:price_lifetime, status, logoUrl:logo_url, features, version, requirements, releaseStatus:release_status, workflowHeading:workflow_heading, workflowDescription:workflow_description, workflowMediaUrl:workflow_media_url, workflowNote:workflow_note, aiUsage:ai_usage, deviceAllowance:device_allowance, is_on_sale, trialActive:trial_active, extendedContent:extended_content')
+        .select('id, slug, name, categoryId:category_id, tagline, description, price:price_label, price1w:price_1w, price1m:price_1m, price3m:price_3m, price_lifetime:price_lifetime, status, logoUrl:logo_url, features, version, requirements, releaseStatus:release_status, workflowHeading:workflow_heading, workflowDescription:workflow_description, workflowMediaUrl:workflow_media_url, workflowNote:workflow_note, aiUsage:ai_usage, deviceAllowance:device_allowance, is_on_sale, trialActive:trial_active, extendedContent:extended_content')
         .in('status', ['published', 'archived'])
         .order('created_at', { ascending: true }),
       supabase.from('site_settings').select('name, headline, description, email, company, domain, maintenance_mode, permissions, banner_text, sale_active, sale_percentage, socialInstagram:social_instagram, socialYoutube:social_youtube, socialFacebook:social_facebook, socialTwitter:social_twitter').single(),
@@ -710,6 +713,9 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
         createClient(supabaseUrl, serviceRoleKey, {
           auth: { autoRefreshToken: false, persistSession: false },
         }) as unknown as AgentAiClient,
+      resolveApiKey: async (provider, specificKeyId) => {
+        return getActiveAiKey(c.env, provider, options.agentAiDeps?.createServiceClient, specificKeyId);
+      },
       awaitFinalize: true,
       ...(options.agentSttDeps ?? {}),
     });
@@ -1006,15 +1012,28 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
   });
   app.post('/api/admin/licenses/gift', async c => {
       if (!['owner', 'administrator', 'product_manager'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
-      const { email, productSlug, duration } = z.object({
+      const { email, productSlug, duration, sendEmail } = z.object({
         email: z.string().email(),
         productSlug: z.string(),
-        duration: z.enum(['1_day', '1_month', '3_months', 'lifetime']).optional().default('lifetime')
+        duration: z.enum(['1_day', '1_week', '1_week_trial', '1_month', '1_month_trial', '3_months', 'lifetime']).optional().default('lifetime'),
+        sendEmail: z.boolean().optional().default(false),
       }).parse(await c.req.json());
       const secret = licenseSecret(c.env);
       if (!secret) return c.json({ error: 'License encryption is not configured.' }, 503);
       const { error, data } = await c.get('db').rpc('admin_gift_license', { p_email: email, p_product_slug: productSlug, p_encryption_secret: secret, p_duration: duration });
-    return error ? c.json({ error: error.message }, 400) : c.json({ ok: true, licenseId: data });
+      if (error) return c.json({ error: error.message }, 400);
+
+      if (sendEmail && data) {
+        try {
+          await c.get('db').from('outbox').insert({
+            kind: 'order_receipt',
+            record_id: data,
+            idempotency_key: 'gift_email_' + data,
+          });
+        } catch {}
+      }
+
+      return c.json({ ok: true, licenseId: data });
   });
   app.get('/api/admin', async c => {
     if (!['owner', 'administrator', 'support'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
@@ -1567,7 +1586,7 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     if (!parsed.ok) return c.json({ error: parsed.error }, 400);
 
     const p = parsed.data;
-    const { error } = await c.get('db').rpc('admin_upsert_agent_ai_policy', {
+    const rpcParams: Record<string, any> = {
       p_product_id: productIdCheck.data,
       p_ai_enabled: p.aiEnabled,
       p_default_model: p.defaultModel,
@@ -1586,8 +1605,37 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
       p_stt_monthly_limit: p.sttMonthlyLimit,
       p_stt_trial_daily_limit: p.sttTrialDailyLimit,
       p_ai_key_id: p.aiKeyId || null,
+      p_trial_ai_key_id: p.trialAiKeyId || null,
+      p_trial_default_model: p.trialDefaultModel || 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free',
+      p_trial_enforce_zdr: Boolean(p.trialEnforceZdr),
+      p_stt_key_id: p.sttKeyId || null,
+      p_trial_stt_key_id: p.trialSttKeyId || null,
+      p_trial_stt_fallback_enabled: Boolean(p.trialSttFallbackEnabled),
+    };
+
+    let { error } = await c.get('db').rpc('admin_upsert_agent_ai_policy', {
+      ...rpcParams,
+      p_trial_stt_model: p.trialSttModel || 'whisper-large-v3-turbo',
     });
+
+    if (error && typeof error.message === 'string' && error.message.includes('Could not find the function')) {
+      const fallback = await c.get('db').rpc('admin_upsert_agent_ai_policy', rpcParams);
+      error = fallback.error;
+    }
+
     if (!error) {
+      if (p.trialSttModel && c.env.SUPABASE_URL && c.env.SUPABASE_SERVICE_ROLE_KEY) {
+        try {
+          const adminDb = options.agentAiDeps?.createServiceClient
+            ? options.agentAiDeps.createServiceClient(c.env)
+            : createClient(c.env.SUPABASE_URL, c.env.SUPABASE_SERVICE_ROLE_KEY);
+          await adminDb.from('agent_ai_policies').update({
+            trial_stt_model: p.trialSttModel || 'whisper-large-v3-turbo',
+          }).eq('product_id', productIdCheck.data);
+        } catch {
+          // Non-critical if table already defaulted
+        }
+      }
       clearAiKeyCache();
     }
     return error ? c.json({ error: 'AI policy could not be saved: ' + error.message }, 400) : c.json({ ok: true });
@@ -1608,7 +1656,8 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
         p_price_lifetime: parseFloat(input.price_lifetime) || 999,
         p_ai_usage: input.aiUsage || null,
         p_device_allowance: input.deviceAllowance || null,
-        p_extended_content: input.extendedContent || {}
+        p_extended_content: input.extendedContent || {},
+        p_price_1w: input.price_1w != null && input.price_1w !== '' ? parseFloat(input.price_1w) : null
       });
     if (!error) {
       await logAdminAudit(c, input.id ? 'product.updated' : 'product.created', input.slug, `${input.id ? 'Updated' : 'Created'} agent product: ${input.name}`, { slug: input.slug, status: input.status, releaseStatus: input.releaseStatus });
@@ -2535,30 +2584,38 @@ License generated successfully.`);
         return c.json({ error: 'Permission denied.' }, 403);
       }
       const id = c.req.param('id');
+      const body = await c.req.json().catch(() => ({}));
+      const requestedProvider = body?.provider === 'groq' || id === 'active-groq' ? 'groq' : 'openrouter';
       const db = getAdminAiDb(c);
       const fetchFn = (options.agentAiDeps?.fetchImpl as typeof fetch) || fetch;
 
       let rawKey: string | null = null;
       let label = 'Active Key';
       let keySuffix = '••••';
+      let keyProvider = requestedProvider;
 
-      if (id === 'active' || id === 'global') {
+      if (id === 'active' || id === 'global' || id === 'active-groq') {
         const { data: activeKey } = await db
           .from('admin_ai_keys')
           .select('id, provider, label, key_suffix, encrypted_key, is_active')
-          .eq('provider', 'openrouter')
+          .eq('provider', requestedProvider)
           .eq('is_active', true)
           .maybeSingle();
 
         if (activeKey) {
           label = activeKey.label;
           keySuffix = activeKey.key_suffix;
+          keyProvider = activeKey.provider;
           const secret = licenseSecret(c.env);
           if (secret) {
             const keyHex = await deriveKeyHex(secret);
             rawKey = await unseal(activeKey.encrypted_key, keyHex);
           }
-        } else if (c.env.OPENROUTER_API_KEY) {
+        } else if (requestedProvider === 'groq' && c.env.GROQ_API_KEY) {
+          rawKey = c.env.GROQ_API_KEY.trim();
+          label = 'Netlify Env Groq Key';
+          keySuffix = rawKey.slice(-4);
+        } else if (requestedProvider === 'openrouter' && c.env.OPENROUTER_API_KEY) {
           rawKey = c.env.OPENROUTER_API_KEY.trim();
           label = 'Netlify Env Key';
           keySuffix = rawKey.slice(-4);
@@ -2575,6 +2632,7 @@ License generated successfully.`);
         }
         label = targetKey.label;
         keySuffix = targetKey.key_suffix;
+        keyProvider = targetKey.provider || requestedProvider;
         const secret = licenseSecret(c.env);
         if (secret) {
           const keyHex = await deriveKeyHex(secret);
@@ -2588,33 +2646,83 @@ License generated successfully.`);
           working: false,
           label,
           keySuffix,
+          provider: keyProvider,
           error: 'Could not decrypt key or no key configured.',
         }, 400);
       }
 
+      const testModel = typeof body?.model === 'string' && body.model.trim().length > 0 ? body.model.trim() : null;
+
       const startMs = Date.now();
       try {
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 4000);
-        const resp = await fetchFn('https://openrouter.ai/api/v1/auth/key', {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${rawKey.trim()}`,
-          },
-          signal: controller.signal,
-        });
+        const timeout = setTimeout(() => controller.abort(), testModel ? 8000 : 4000);
+
+        let resp: Response;
+        if (keyProvider === 'groq') {
+          resp = await fetchFn('https://api.groq.com/openai/v1/models', {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${rawKey.trim()}`,
+            },
+            signal: controller.signal,
+          });
+        } else {
+          if (testModel) {
+            resp = await fetchFn('https://openrouter.ai/api/v1/chat/completions', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${rawKey.trim()}`,
+                'Content-Type': 'application/json',
+                'HTTP-Referer': 'https://nor-vi.in',
+                'X-Title': 'NORVI Agency Diagnostic Model Test',
+              },
+              body: JSON.stringify({
+                model: testModel,
+                messages: [{ role: 'user', content: 'ping' }],
+                max_tokens: 1,
+              }),
+              signal: controller.signal,
+            });
+          } else {
+            resp = await fetchFn('https://openrouter.ai/api/v1/auth/key', {
+              method: 'GET',
+              headers: {
+                'Authorization': `Bearer ${rawKey.trim()}`,
+              },
+              signal: controller.signal,
+            });
+          }
+        }
         clearTimeout(timeout);
         const latencyMs = Date.now() - startMs;
 
         if (resp.ok) {
           const data = await resp.json().catch(() => ({}));
+          if (keyProvider === 'groq') {
+            const modelsList = Array.isArray(data?.data) ? data.data.map((m: any) => m.id) : [];
+            const effectiveModel = testModel || 'whisper-large-v3-turbo';
+            const modelAvailable = modelsList.length === 0 || modelsList.some((m: string) => m.toLowerCase().includes(effectiveModel.toLowerCase()) || m.toLowerCase().includes('whisper'));
+            return c.json({
+              ok: true,
+              working: true,
+              label,
+              keySuffix,
+              provider: 'groq',
+              latencyMs,
+              testedModel: effectiveModel,
+              modelAvailable,
+            });
+          }
           const keyData = data?.data || {};
           return c.json({
             ok: true,
             working: true,
             label,
             keySuffix,
+            provider: 'openrouter',
             latencyMs,
+            testedModel: testModel,
             usage: keyData.usage ?? null,
             limit: keyData.limit ?? null,
             isFreeTier: keyData.is_free_tier ?? null,
@@ -2628,8 +2736,10 @@ License generated successfully.`);
           working: false,
           label,
           keySuffix,
+          provider: keyProvider,
           latencyMs,
           statusCode: resp.status,
+          testedModel: testModel,
           error: errMsg,
         });
       } catch (err: any) {
@@ -2640,8 +2750,10 @@ License generated successfully.`);
           working: false,
           label,
           keySuffix,
+          provider: keyProvider,
           latencyMs,
-          error: isTimeout ? 'Connection timed out (4000ms)' : (err.message || 'Network error pinging OpenRouter'),
+          testedModel: testModel,
+          error: isTimeout ? (testModel ? 'Model test timed out (8000ms)' : 'Connection timed out (4000ms)') : (err.message || `Network error pinging ${keyProvider}`),
         });
       }
     });
@@ -2684,7 +2796,7 @@ License generated successfully.`);
           status: 'ok',
           latencyMs: Date.now() - dbStart,
           message: 'Operational · Connected',
-          actionUrl: '/admin/settings',
+          actionUrl: 'https://supabase.com/dashboard',
         });
       } catch (err: any) {
         checks.push({
@@ -2695,7 +2807,7 @@ License generated successfully.`);
           latencyMs: Date.now() - dbStart,
           message: 'Connection failed',
           details: err.message,
-          actionUrl: '/admin/settings',
+          actionUrl: 'https://supabase.com/dashboard',
         });
       }
 
@@ -2766,7 +2878,7 @@ License generated successfully.`);
           category: 'commerce',
           status: 'warning',
           message: 'Credentials not configured',
-          actionUrl: '/admin/settings',
+          actionUrl: '/admin/orders',
         });
       } else {
         const payStart = Date.now();
@@ -2787,7 +2899,7 @@ License generated successfully.`);
               status: 'ok',
               latencyMs,
               message: `Operational · ${masked}`,
-              actionUrl: '/admin/settings',
+              actionUrl: '/admin/orders',
             });
           } else {
             checks.push({
@@ -2797,7 +2909,7 @@ License generated successfully.`);
               status: 'error',
               latencyMs,
               message: `Auth failed (HTTP ${resp.status})`,
-              actionUrl: '/admin/settings',
+              actionUrl: '/admin/orders',
             });
           }
         } catch (err: any) {
@@ -2809,7 +2921,7 @@ License generated successfully.`);
             latencyMs: Date.now() - payStart,
             message: 'Could not connect to Razorpay',
             details: err.message,
-            actionUrl: '/admin/settings',
+            actionUrl: '/admin/orders',
           });
         }
       }
@@ -2823,7 +2935,7 @@ License generated successfully.`);
           category: 'notifications',
           status: 'warning',
           message: 'Resend API key missing',
-          actionUrl: '/admin/settings',
+          actionUrl: '/admin/activity',
         });
       } else {
         const emailStart = Date.now();
@@ -2842,7 +2954,7 @@ License generated successfully.`);
               status: 'ok',
               latencyMs,
               message: `Operational · ${c.env.EMAIL_FROM || 'support@nor-vi.in'}`,
-              actionUrl: '/admin/settings',
+              actionUrl: '/admin/activity',
             });
           } else {
             checks.push({
@@ -2852,7 +2964,7 @@ License generated successfully.`);
               status: 'error',
               latencyMs,
               message: `Resend auth failed (HTTP ${resp.status})`,
-              actionUrl: '/admin/settings',
+              actionUrl: '/admin/activity',
             });
           }
         } catch (err: any) {
@@ -2864,13 +2976,13 @@ License generated successfully.`);
             latencyMs: Date.now() - emailStart,
             message: 'Could not connect to Resend',
             details: err.message,
-            actionUrl: '/admin/settings',
+            actionUrl: '/admin/activity',
           });
         }
       }
 
       // 5. Groq STT Voice Engine
-      const groqKey = c.env.GROQ_API_KEY;
+      const groqKey = await getActiveAiKey(c.env, 'groq', options.agentAiDeps?.createServiceClient, null);
       if (!groqKey || groqKey.includes('YOUR_')) {
         checks.push({
           id: 'groq_stt',

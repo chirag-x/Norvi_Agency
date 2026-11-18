@@ -1,7 +1,6 @@
-import { LiveAdmin } from './Accounts';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Activity, ArrowRight, ChevronDown, ChevronUp, Bot, ArrowUpRight, BookOpen, Box, Check, Copy, CreditCard, Download, Eye, FileText, KeyRound, LayoutDashboard, LifeBuoy, LogOut, Plus, Search, Settings as SettingsIcon, ShieldCheck, Users, X, Monitor, SlidersHorizontal, Mail, Megaphone, Globe, Sparkles, Video, Image as ImageIcon, HelpCircle, Layers, Trash2, Tag, ExternalLink, Printer, Phone, Clock, Share2, MessageSquare, Zap } from 'lucide-react';
-import type { Category, Product, Settings, User, AgentExtendedContent, FeaturePillar, MediaGalleryItem, ComparisonRow, AgentFaq, GuideSection, AgentGuide } from '../../../../packages/shared/model';
+import { Activity, ArrowRight, ChevronDown, ChevronUp, Bot, ArrowUpRight, BookOpen, Box, Check, Copy, CreditCard, Download, Eye, FileText, KeyRound, LayoutDashboard, LifeBuoy, LogOut, Plus, Search, Settings as SettingsIcon, ShieldCheck, Users, X, Monitor, SlidersHorizontal, Mail, Megaphone, Globe, Sparkles, Video, Image as ImageIcon, HelpCircle, Layers, Trash2, Tag, ExternalLink, Printer, Phone, Clock, Share2, MessageSquare, Zap, Mic, Rocket } from 'lucide-react';
+import { formatDurationLabel, formatPaymentReference, formatStatusLabel, getDefaultAgentPaidHighlights, getDefaultAgentTrialHighlights, getDefaultAgentTrialNotice, getDefaultAgentPlanConfigs, type Category, type Product, type Settings, type User, type AgentExtendedContent, type FeaturePillar, type MediaGalleryItem, type ComparisonRow, type AgentFaq, type GuideSection, type AgentGuide } from '../../../../packages/shared/model';
 import { createDefaultAgentAiPolicy, normalizeAgentAiPolicyPayload, type AgentAiPolicy } from '../../../../packages/shared/agentAi';
 import { AgentAiPolicySection } from './AgentAiPolicySection';
 import { AdminAiKeyManager } from './AdminAiKeyManager';
@@ -91,7 +90,7 @@ export function CustomerInvoiceModal({ order, user, onClose }: { order: any; use
           </div>
           <div style={{ textAlign: 'right' }}>
             <span className="badge good" style={{ fontSize: 12, padding: '4px 10px', textTransform: 'uppercase' }}>
-              {isPaid ? 'Paid & Verified' : order.status}
+              {isPaid ? 'Paid & Verified' : formatStatusLabel(order.status)}
             </span>
             <div style={{ fontSize: 12, color: 'var(--text-light)', marginTop: 8 }}>
               <b>Invoice Date:</b> {date(order.createdAt)}
@@ -111,9 +110,11 @@ export function CustomerInvoiceModal({ order, user, onClose }: { order: any; use
           <div>
             <div style={{ fontSize: 11, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Payment Gateway Reference</div>
             <div style={{ fontWeight: 600, fontSize: 13, marginTop: 2, fontFamily: 'monospace' }}>
-              {order.providerPaymentId || 'Verified Checkout'}
+              {order.providerPaymentId ? (order.providerPaymentId.startsWith('pay_') ? order.providerPaymentId : formatPaymentReference(order.providerPaymentId)) : 'Verified Checkout'}
             </div>
-            <div style={{ fontSize: 11, color: 'var(--text-light)' }}>Payment processed securely via Razorpay</div>
+            <div style={{ fontSize: 11, color: 'var(--text-light)' }}>
+              {order.providerPaymentId?.startsWith('pay_') ? 'Payment processed securely via Razorpay' : 'Instant digital license fulfillment'}
+            </div>
           </div>
         </div>
 
@@ -213,7 +214,7 @@ export function CustomerTicketModal({ ticket, onClose }: { ticket: any; onClose:
         <div style={{ fontSize: 12, color: 'var(--text-light)' }}>
           Submitted on <b>{date(ticket.createdAt)}</b>
         </div>
-        <Badge kind={isResolved ? 'good' : ''}>{ticket.status || 'open'}</Badge>
+        <Badge kind={isResolved ? 'good' : ''}>{formatStatusLabel(ticket.status || 'open')}</Badge>
       </div>
 
       <div style={{ background: 'var(--surface)', padding: 16, borderRadius: 8, border: '1px solid var(--border)', marginBottom: 16 }}>
@@ -449,10 +450,26 @@ function Customer({ section, products, user }: { section: string; products: Prod
                     </div>
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
-                    <Badge kind={l.status === 'active' ? 'good' : ''}>{l.status}</Badge>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                      {(l.is_trial || l.isTrial) ? (
+                        <span className="badge" style={{ background: 'rgba(96, 165, 250, 0.15)', color: '#60a5fa', border: '1px solid rgba(96, 165, 250, 0.3)', fontSize: 10, fontWeight: 600 }}>
+                          🎁 Free Trial Tier
+                        </span>
+                      ) : (
+                        <span className="badge" style={{ background: 'rgba(152, 224, 56, 0.15)', color: 'var(--lime, #98e038)', border: '1px solid var(--lime, #98e038)', fontSize: 10, fontWeight: 600 }}>
+                          👑 Paid Cloud AI
+                        </span>
+                      )}
+                      <Badge kind={l.status === 'active' ? 'good' : ''}>{formatStatusLabel(l.status)}</Badge>
+                    </div>
                     <span style={{ fontSize: 11, fontWeight: 600, color: l.expiresAt ? 'var(--text-light)' : 'var(--lime)' }}>
                       {l.expiresAt ? `Valid until ${date(l.expiresAt)}` : 'Lifetime Access'}
                     </span>
+                    {(l.is_trial || l.isTrial) && p?.slug && (
+                      <a href={`/checkout/${p.slug}`} style={{ fontSize: 11, color: 'var(--lime, #98e038)', textDecoration: 'none', fontWeight: 600 }}>
+                        Upgrade to Paid AI ↗
+                      </a>
+                    )}
                   </div>
                 </div>
 
@@ -508,8 +525,17 @@ function Customer({ section, products, user }: { section: string; products: Prod
                     <h3 style={{ margin: 0 }}>{p?.name || 'Archived agent'}</h3>
                     <small style={{ color: 'var(--text-light)', fontSize: 12 }}>Issued {date(l.createdAt)}</small>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <Badge kind={l.status === 'active' ? 'good' : ''}>{l.status}</Badge>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    {(l.is_trial || l.isTrial) ? (
+                      <span className="badge" style={{ background: 'rgba(96, 165, 250, 0.15)', color: '#60a5fa', border: '1px solid rgba(96, 165, 250, 0.3)', fontSize: 10, fontWeight: 600 }}>
+                        🎁 Free Trial Tier
+                      </span>
+                    ) : (
+                      <span className="badge" style={{ background: 'rgba(152, 224, 56, 0.15)', color: 'var(--lime, #98e038)', border: '1px solid var(--lime, #98e038)', fontSize: 10, fontWeight: 600 }}>
+                        👑 Paid Cloud AI
+                      </span>
+                    )}
+                    <Badge kind={l.status === 'active' ? 'good' : ''}>{formatStatusLabel(l.status)}</Badge>
                     <span className="badge good" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11 }}>
                       <Monitor size={12} /> {activeCount} / {maxCount} Slots Active
                     </span>
@@ -684,7 +710,7 @@ function Customer({ section, products, user }: { section: string; products: Prod
                         <p style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--text-light)' }}>{date(t.createdAt)}</p>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <Badge kind={t.status === 'resolved' || t.status === 'closed' ? 'good' : ''}>{t.status || 'open'}</Badge>
+                        <Badge kind={t.status === 'resolved' || t.status === 'closed' ? 'good' : ''}>{formatStatusLabel(t.status || 'open')}</Badge>
                         <ArrowRight size={14} style={{ color: 'var(--text-light)' }} />
                       </div>
                     </div>
@@ -1049,12 +1075,12 @@ export function OrderTable({ items, onViewInvoice, onCopied }: { items: any[]; o
               <td>
                 <b>{o.product || o.productId}</b>
                 <small className="block" style={{ color: 'var(--text-light)' }}>
-                  {o.amountMinor === 0 || String(o.amount || '').includes('₹0') ? 'Promotional Trial' : 'Commercial License'}
+                  {o.duration ? formatDurationLabel(o.duration) : (o.amountMinor === 0 || String(o.amount || '').includes('₹0') ? 'Promotional Trial' : 'Commercial License')}
                 </small>
               </td>
               <td>
                 <code style={{ fontSize: 11, color: 'var(--text-light)' }}>
-                  {o.providerPaymentId ? (o.providerPaymentId.startsWith('pay_') ? o.providerPaymentId.slice(0, 14) + '...' : o.providerPaymentId) : 'Verified Razorpay'}
+                  {formatPaymentReference(o.providerPaymentId)}
                 </code>
               </td>
               <td>{date(o.createdAt)}</td>
@@ -1064,7 +1090,7 @@ export function OrderTable({ items, onViewInvoice, onCopied }: { items: any[]; o
                 </b>
               </td>
               <td>
-                <Badge kind={o.status === 'paid' ? 'good' : ''}>{o.status}</Badge>
+                <Badge kind={o.status === 'paid' ? 'good' : ''}>{formatStatusLabel(o.status)}</Badge>
               </td>
               {onViewInvoice && (
                 <td>
@@ -1774,7 +1800,7 @@ export function CouponsManager() {
                   <td><Badge>{c.discount_percentage}% OFF</Badge></td>
                   <td>
                     <small className="block">Agent: {c.product_id ? productsData.items.find((p:any)=>p.id === c.product_id)?.name || c.product_id : 'All Agents'}</small>
-                    <small className="block">Duration: {c.duration_type === 'all' || !c.duration_type ? 'All Durations' : c.duration_type.split(',').map((d: string) => d.replace('_', ' ')).join(', ')}</small>
+                    <small className="block">Duration: {c.duration_type === 'all' || !c.duration_type ? 'All Durations' : c.duration_type.split(',').map((d: string) => formatDurationLabel(d)).join(', ')}</small>
                   </td>
                   <td>
                     <Badge>
@@ -1812,10 +1838,13 @@ export function CouponsManager() {
         setBusy(true); setErrorMsg('');
         const form = new FormData(e.currentTarget);
         const selectedDurations: string[] = [];
+        if (form.get('dur_1_week') === 'on') selectedDurations.push('1_week');
+        if (form.get('dur_1_week_trial') === 'on') selectedDurations.push('1_week_trial');
         if (form.get('dur_1_month') === 'on') selectedDurations.push('1_month');
+        if (form.get('dur_1_month_trial') === 'on') selectedDurations.push('1_month_trial');
         if (form.get('dur_3_months') === 'on') selectedDurations.push('3_months');
         if (form.get('dur_lifetime') === 'on') selectedDurations.push('lifetime');
-        const duration = (selectedDurations.length === 0 || selectedDurations.length === 3) 
+        const duration = (selectedDurations.length === 0 || selectedDurations.length === 6) 
           ? null 
           : selectedDurations.join(',');
 
@@ -1853,7 +1882,16 @@ export function CouponsManager() {
         <Field label="Applies to Durations (Select any, or leave unselected for All)">
           <div style={{display: 'flex', gap: '14px', flexWrap: 'wrap', alignItems: 'center', minHeight: '38px'}}>
             <label style={{display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '14px'}}>
-              <input type="checkbox" name="dur_1_month" /> 1 Month
+              <input type="checkbox" name="dur_1_week" /> 1 Week (Paid)
+            </label>
+            <label style={{display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '14px'}}>
+              <input type="checkbox" name="dur_1_week_trial" /> 1 Week Free Trial
+            </label>
+            <label style={{display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '14px'}}>
+              <input type="checkbox" name="dur_1_month" /> 1 Month (Paid)
+            </label>
+            <label style={{display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '14px'}}>
+              <input type="checkbox" name="dur_1_month_trial" /> 1 Month Free Trial
             </label>
             <label style={{display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '14px'}}>
               <input type="checkbox" name="dur_3_months" /> 3 Months
@@ -3678,8 +3716,32 @@ function Admin({ section, user, settings, onCatalogChange }: { section: string; 
           {section === '/affiliates' && <AffiliateManager />}
           {section === '/team' && <Team data={data} onAction={action} isOwner={user.role === 'owner'} settings={settings} user={user} onCatalogChange={onCatalogChange} />}
         {section === '/announcements' && <Announcements user={user} items={items} action={action} />}
-        {section === '/content' && <SettingsForm initial={data.settings} contentOnly onSave={() => { reload(); onCatalogChange(); }} />}
-        {section === '/settings' && <><SettingsForm initial={data.settings} onSave={() => { reload(); onCatalogChange(); }} /><div className="panel"><h3>Integration readiness</h3><div className="list-row"><span>Authentication · Supabase</span><Badge>Not connected</Badge></div><div className="list-row"><span>Payments · Razorpay</span><Badge>Not connected</Badge></div><div className="list-row"><span>Email · Resend</span><Badge>Not connected</Badge></div><p className="small-note">Provider secrets belong in protected server configuration, never in this form.</p></div></>}
+        {section === '/content' && (data?.settings ? <SettingsForm initial={data.settings} contentOnly onSave={() => { reload(); onCatalogChange(); }} /> : <Loading />)}
+        {section === '/settings' && (data?.settings ? (
+          <>
+            <SettingsForm initial={data.settings} onSave={() => { reload(); onCatalogChange(); }} />
+            <div className="panel">
+              <h3>Integration readiness</h3>
+              <div className="list-row">
+                <span>Authentication · Supabase</span>
+                <Badge kind={data?.system?.supabase ? 'good' : undefined}>{data?.system?.supabase ? 'Operational' : 'Not configured'}</Badge>
+              </div>
+              <div className="list-row">
+                <span>Payments · Razorpay</span>
+                <Badge kind={data?.system?.razorpay ? 'good' : undefined}>{data?.system?.razorpay ? 'Operational' : 'Not configured'}</Badge>
+              </div>
+              <div className="list-row">
+                <span>Email · Resend</span>
+                <Badge kind={data?.system?.resend ? 'good' : undefined}>{data?.system?.resend ? 'Operational' : 'Not configured'}</Badge>
+              </div>
+              <div className="list-row">
+                <span>Code Hosting · GitHub</span>
+                <Badge kind={data?.system?.github ? 'good' : undefined}>{data?.system?.github ? 'Connected' : 'Not configured'}</Badge>
+              </div>
+              <p className="small-note">Provider secrets belong in protected server configuration, never in this form.</p>
+            </div>
+          </>
+        ) : <Loading />)}
         {section === '/activity' && (
           <>
             <div style={{ display: 'flex', gap: '10px', marginBottom: '16px', borderBottom: '1px solid var(--border)', paddingBottom: '12px', flexWrap: 'wrap' }}>
@@ -3847,7 +3909,7 @@ function Admin({ section, user, settings, onCatalogChange }: { section: string; 
           </>
         )}
     </>}{editing !== undefined && <Modal title={editing ? 'Edit agent' : 'Add an agent'} onClose={() => setEditing(undefined)} wide><ProductForm categories={data.categories} product={editing} onSave={() => { setEditing(undefined); reload(); onCatalogChange(); }} /></Modal>}{licenseAction && <Modal title={licenseAction.action === 'revoke' ? 'Revoke product access?' : licenseAction.action === 'rotate' ? 'Replace the activation key?' : licenseAction.action === 'delete' ? 'Permanently delete key?' : 'Restore product access?'} onClose={() => setLicenseAction(null)}><p>{licenseAction.action === 'delete' ? 'WARNING: This permanently deletes the license and device records. This action cannot be undone.' : 'This updates the customer license status. A reason will be recorded in the security audit log.'}</p><form onSubmit={async e => { e.preventDefault(); const reason = new FormData(e.currentTarget).get('reason'); await action('/admin/licenses/' + licenseAction.id + '/' + licenseAction.action, { reason }); setLicenseAction(null); }}><Field label="Reason"><textarea name="reason" required minLength={5} maxLength={250} rows={3} /></Field><button className="button primary">Confirm {licenseAction.action}</button></form></Modal>}
-    {giftModal && <Modal title="Gift a License" onClose={() => setGiftModal(false)}><p>Manually generate and send an active license to a customer's email address. They must have a registered account.</p><form onSubmit={async e => { e.preventDefault(); const d = new FormData(e.currentTarget); await action('/admin/licenses/gift', { email: d.get('email'), productSlug: d.get('productSlug'), duration: d.get('duration') }); setGiftModal(false); }}><Field label="Customer Email"><input name="email" type="email" required /></Field><Field label="Product Slug (URL)"><input name="productSlug" required placeholder="e.g. omnix-ai" /></Field><Field label="License Duration"><select name="duration" defaultValue="1_month"><option value="1_day">1 Day (Trial Key)</option><option value="1_month">1 Month</option><option value="3_months">3 Months</option><option value="lifetime">Lifetime</option></select></Field><button className="button primary" style={{marginTop: '1rem'}}>Generate and Gift Key</button></form></Modal>}
+    {giftModal && <Modal title="Gift a License" onClose={() => setGiftModal(false)}><p>Manually generate and grant an active license to a customer's email address. They must have a registered account.</p><form onSubmit={async e => { e.preventDefault(); const d = new FormData(e.currentTarget); await action('/admin/licenses/gift', { email: d.get('email'), productSlug: d.get('productSlug'), duration: d.get('duration'), sendEmail: d.get('sendEmail') === 'on' }); setGiftModal(false); }}><Field label="Customer Email"><input name="email" type="email" required /></Field><Field label="Product Slug (URL)"><input name="productSlug" required placeholder="e.g. voro" /></Field><Field label="License Duration & AI Tier"><select name="duration" defaultValue="1_month"><option value="1_day">🎁 1-Day Free Trial (Trial Tier)</option><option value="1_week_trial">🎁 1-Week Free Trial (Gift — Trial Tier)</option><option value="1_month_trial">🎁 1-Month Free Trial (Gift — Trial Tier)</option><option value="1_week">👑 1-Week Full Access (Paid Tier)</option><option value="1_month">👑 1-Month Full Access (Paid Tier)</option><option value="3_months">👑 3-Months Full Access (Paid Tier)</option><option value="lifetime">👑 Lifetime Full Access (Paid Tier)</option></select></Field><label className="checkbox-row" style={{ marginTop: '0.75rem' }}><input type="checkbox" name="sendEmail" defaultChecked /><span>Send branded gift email to recipient with key &amp; download instructions</span></label><button className="button primary" style={{marginTop: '1rem'}}>Generate and Gift Key</button></form></Modal>}
     {banningDevice && <BanDeviceModal device={banningDevice} onClose={() => setBanningDevice(null)} onConfirmBan={async (duration, reason) => { await action(`/admin/devices/${banningDevice.id}/ban`, { duration, reason }); }} />}
     {telemetryLicense && <LicenseTelemetryModal license={telemetryLicense} onClose={() => setTelemetryLicense(null)} />}
     {viewingOrdersCustomer && <CustomerOrdersModal customer={viewingOrdersCustomer} onClose={() => setViewingOrdersCustomer(null)} />}
@@ -4036,6 +4098,7 @@ export function AgentReleaseCard({
   onSave,
   onPolicySaved,
   availableKeys,
+  initialOpenSections,
 }: {
   product: Product;
   initialPolicy: AgentAiPolicy;
@@ -4044,20 +4107,87 @@ export function AgentReleaseCard({
   onSave: () => void;
   onPolicySaved: () => void;
   availableKeys?: Array<{ id: string; provider: string; label: string; key_suffix: string; is_active: boolean }>;
+  initialOpenSections?: { pricing?: boolean; openrouter?: boolean; groq?: boolean; storefront?: boolean };
 }) {
   const [releaseStatus, setReleaseStatus] = useState(product.releaseStatus || 'development');
   const [status, setStatus] = useState(product.status || 'published');
   const [version, setVersion] = useState(product.version || 'v1.0.0');
   const [requirements, setRequirements] = useState(product.requirements || 'Windows 10+ 64-bit / macOS 12+');
   const [price, setPrice] = useState(product.price || 'Starting at ₹499');
+  const [price1w, setPrice1w] = useState((product as any).price1w || '');
   const [price1m, setPrice1m] = useState(product.price1m || '0');
   const [price3m, setPrice3m] = useState(product.price3m || '0');
   const [priceLifetime, setPriceLifetime] = useState(product.price_lifetime || '999');
   const [aiUsage, setAiUsage] = useState(product.aiUsage || 'Unlimited local usage. Bring your own API keys.');
   const [deviceAllowance, setDeviceAllowance] = useState(product.deviceAllowance || '1 active device per license');
   const [trialActive, setTrialActive] = useState<boolean>(product.trialActive !== false);
+  const ext = (product.extendedContent || {}) as AgentExtendedContent;
+  const [checkoutAgentDesc, setCheckoutAgentDesc] = useState(ext.checkout_agent_description || '');
+  const [checkoutDesc, setCheckoutDesc] = useState(ext.checkout_description || '');
+
+  const [openSections, setOpenSections] = useState({
+    pricing: initialOpenSections?.pricing ?? true,
+    openrouter: initialOpenSections?.openrouter ?? false,
+    groq: initialOpenSections?.groq ?? false,
+    storefront: initialOpenSections?.storefront ?? false,
+  });
+
+  const toggleSection = (key: 'pricing' | 'openrouter' | 'groq' | 'storefront') => {
+    setOpenSections(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+  const defaultAgentConfigs = getDefaultAgentPlanConfigs(product.slug);
+  const initialPaidHighlights = ext.paid_highlights && ext.paid_highlights.length > 0
+    ? ext.paid_highlights
+    : getDefaultAgentPaidHighlights(product.slug);
+  const [paidHighlightsText, setPaidHighlightsText] = useState(initialPaidHighlights.join('\n'));
+
+  const initialTrialHighlights = ext.trial_highlights && ext.trial_highlights.length > 0
+    ? ext.trial_highlights
+    : getDefaultAgentTrialHighlights(product.slug);
+  const [trialHighlightsText, setTrialHighlightsText] = useState(initialTrialHighlights.join('\n'));
+  const [trialNotice, setTrialNotice] = useState(ext.trial_notice || getDefaultAgentTrialNotice(product.slug));
+
+  const [featuredPlan, setFeaturedPlan] = useState<string>(ext.featured_plan || defaultAgentConfigs.featured_plan);
+  const [featuredRibbonText, setFeaturedRibbonText] = useState<string>(ext.featured_ribbon_text || defaultAgentConfigs.featured_ribbon_text);
+
+  const pc = ext.plan_configs || {};
+  const [plan1wSubtitle, setPlan1wSubtitle] = useState<string>(pc['1_week']?.subtitle ?? defaultAgentConfigs.plan_configs['1_week']?.subtitle ?? '');
+  const [plan1wBadge, setPlan1wBadge] = useState<string>(pc['1_week']?.badge ?? defaultAgentConfigs.plan_configs['1_week']?.badge ?? '');
+
+  const [plan1mSubtitle, setPlan1mSubtitle] = useState<string>(pc['1_month']?.subtitle ?? defaultAgentConfigs.plan_configs['1_month']?.subtitle ?? '');
+  const [plan1mBadge, setPlan1mBadge] = useState<string>(pc['1_month']?.badge ?? defaultAgentConfigs.plan_configs['1_month']?.badge ?? '');
+
+  const [plan3mSubtitle, setPlan3mSubtitle] = useState<string>(pc['3_months']?.subtitle ?? defaultAgentConfigs.plan_configs['3_months']?.subtitle ?? '');
+  const [plan3mBadge, setPlan3mBadge] = useState<string>(pc['3_months']?.badge ?? defaultAgentConfigs.plan_configs['3_months']?.badge ?? '');
+
+  const [planLifetimeSubtitle, setPlanLifetimeSubtitle] = useState<string>(pc['lifetime']?.subtitle ?? defaultAgentConfigs.plan_configs['lifetime']?.subtitle ?? '');
+  const [planLifetimeBadge, setPlanLifetimeBadge] = useState<string>(pc['lifetime']?.badge ?? defaultAgentConfigs.plan_configs['lifetime']?.badge ?? '');
+
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
+
+  const prefillPlanConfigs = () => {
+    const d = getDefaultAgentPlanConfigs(product.slug);
+    setFeaturedPlan(d.featured_plan);
+    setFeaturedRibbonText(d.featured_ribbon_text);
+    setPlan1wSubtitle(d.plan_configs['1_week']?.subtitle || '');
+    setPlan1wBadge(d.plan_configs['1_week']?.badge || '');
+    setPlan1mSubtitle(d.plan_configs['1_month']?.subtitle || '');
+    setPlan1mBadge(d.plan_configs['1_month']?.badge || '');
+    setPlan3mSubtitle(d.plan_configs['3_months']?.subtitle || '');
+    setPlan3mBadge(d.plan_configs['3_months']?.badge || '');
+    setPlanLifetimeSubtitle(d.plan_configs['lifetime']?.subtitle || '');
+    setPlanLifetimeBadge(d.plan_configs['lifetime']?.badge || '');
+  };
+
+  const prefillPaidHighlights = () => {
+    setPaidHighlightsText(getDefaultAgentPaidHighlights(product.slug).join('\n'));
+  };
+
+  const prefillTrialHighlights = () => {
+    setTrialHighlightsText(getDefaultAgentTrialHighlights(product.slug).join('\n'));
+    setTrialNotice(getDefaultAgentTrialNotice(product.slug));
+  };
 
   const [aiPolicy, setAiPolicy] = useState<AgentAiPolicy>(initialPolicy);
   const [aiDirty, setAiDirty] = useState(false);
@@ -4109,22 +4239,55 @@ export function AgentReleaseCard({
     setBusy(true);
     setMessage('');
     try {
+      const paidHighlightsArray = paidHighlightsText.split('\n').map(s => s.trim()).filter(Boolean);
+      const trialHighlightsArray = trialHighlightsText.split('\n').map(s => s.trim()).filter(Boolean);
+      const updatedExt = {
+        ...(product.extendedContent || {}),
+        checkout_agent_description: checkoutAgentDesc.trim() || undefined,
+        checkout_description: checkoutDesc.trim() || undefined,
+        paid_highlights: paidHighlightsArray.length ? paidHighlightsArray : undefined,
+        trial_highlights: trialHighlightsArray.length ? trialHighlightsArray : undefined,
+        trial_notice: trialNotice.trim() || undefined,
+        featured_plan: (featuredPlan || '1_month') as any,
+        featured_ribbon_text: featuredRibbonText.trim() || undefined,
+        plan_configs: {
+          '1_week': {
+            subtitle: plan1wSubtitle.trim() || undefined,
+            badge: plan1wBadge.trim() || undefined,
+          },
+          '1_month': {
+            subtitle: plan1mSubtitle.trim() || undefined,
+            badge: plan1mBadge.trim() || undefined,
+          },
+          '3_months': {
+            subtitle: plan3mSubtitle.trim() || undefined,
+            badge: plan3mBadge.trim() || undefined,
+          },
+          'lifetime': {
+            subtitle: planLifetimeSubtitle.trim() || undefined,
+            badge: planLifetimeBadge.trim() || undefined,
+          },
+        },
+      };
+
       await api('/admin/products', {
         method: 'POST',
         body: JSON.stringify({
           ...product,
+          description: product.description,
           releaseStatus,
           status,
           version,
           requirements,
           price,
+          price_1w: price1w,
           price_1m: price1m,
           price_3m: price3m,
           price_lifetime: priceLifetime,
           aiUsage,
           deviceAllowance,
           trialActive,
-          extendedContent: product.extendedContent || {}
+          extendedContent: updatedExt
         })
       });
       if (product.id) {
@@ -4204,76 +4367,581 @@ export function AgentReleaseCard({
       </div>
 
       {isExpanded && (
-        <div style={{ borderTop: '1px solid var(--line)', paddingTop: '1.25rem' }}>
-          <div className="form-grid">
-            <Field label="Release Status" hint="Controls public download ability and countdown flags">
-              <select value={releaseStatus} onChange={e => setReleaseStatus(e.target.value as any)}>
-                <option value="development">In development (Private / Testing)</option>
-                <option value="prelaunch">Preparing for launch (Pre-launch waitlist)</option>
-                <option value="live">Live - Available for download</option>
-              </select>
-            </Field>
-            <Field label="Catalog Visibility">
-              <select value={status} onChange={e => setStatus(e.target.value as any)}>
-                <option value="published">Published (Visible in catalog)</option>
-                <option value="draft">Draft (Hidden from public)</option>
-                <option value="archived">Archived (Discontinue sales)</option>
-              </select>
-            </Field>
-            <Field label="Current Release Version" hint="e.g. v1.2.0">
-              <input value={version} onChange={e => setVersion(e.target.value)} required />
-            </Field>
-            <Field label="System Requirements" hint="e.g. Windows 10+ 64-bit / macOS 12+">
-              <input value={requirements} onChange={e => setRequirements(e.target.value)} required />
-            </Field>
-          </div>
-
-          <h4 style={{ margin: '1.25rem 0 0.5rem 0', fontSize: '0.95rem' }}>Commercial Pricing Matrix</h4>
-          <div className="form-grid">
-            <Field label="Public Display Price" hint="Text shown on catalog cards">
-              <input value={price} onChange={e => setPrice(e.target.value)} placeholder="Starting at ₹499" required />
-            </Field>
-            <Field label="1-Month License Price (₹ / $)">
-              <input type="number" value={price1m} onChange={e => setPrice1m(e.target.value)} />
-            </Field>
-            <Field label="3-Month License Price (₹ / $)">
-              <input type="number" value={price3m} onChange={e => setPrice3m(e.target.value)} />
-            </Field>
-            <Field label="Lifetime License Price (₹ / $)">
-              <input type="number" value={priceLifetime} onChange={e => setPriceLifetime(e.target.value)} />
-            </Field>
-          </div>
-
-          <h4 style={{ margin: '1.25rem 0 0.5rem 0', fontSize: '0.95rem' }}>License, Trial & Usage Limits</h4>
-          <div className="form-grid">
-            <Field label="1-Day Free Trial" hint="Allow new users to claim a 1-day trial key">
-              <select value={trialActive ? 'active' : 'disabled'} onChange={e => setTrialActive(e.target.value === 'active')}>
-                <option value="active">Active (Free trial enabled on public page)</option>
-                <option value="disabled">Disabled (No free trial; paid checkout only)</option>
-              </select>
-            </Field>
-            <Field label="Device Allowance" hint="Max simultaneous device hardware bindings">
-              <input value={deviceAllowance} onChange={e => setDeviceAllowance(e.target.value)} placeholder="1 active device per license" />
-            </Field>
-          </div>
-
-          <AgentAiPolicySection
-            productId={product.id}
-            productName={product.name}
-            policy={aiPolicy}
-            availableKeys={availableKeys}
-            onChange={next => {
-              setAiDirty(true);
-              setAiPolicy(next);
+        <div style={{ borderTop: '1px solid var(--line)', paddingTop: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          
+          {/* ========================================================================= */}
+          {/* ACCORDION 1: 🚀 Release Status, Catalog & Pricing Matrix                 */}
+          {/* ========================================================================= */}
+          <div
+            style={{
+              borderRadius: '10px',
+              border: '1px solid var(--line, #2a3824)',
+              background: 'var(--surface, #141a12)',
+              overflow: 'hidden',
             }}
-            onSavePolicy={handleSaveAiOnly}
-            saving={aiSaving}
-            feedback={aiFeedback}
-          />
+          >
+            <div
+              style={{
+                padding: '0.85rem 1.25rem',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '0.75rem',
+                cursor: 'pointer',
+                background: openSections.pricing ? 'rgba(255, 255, 255, 0.03)' : 'transparent',
+                borderBottom: openSections.pricing ? '1px solid var(--line, #2a3824)' : 'none',
+              }}
+              onClick={() => toggleSection('pricing')}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div
+                  style={{
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '8px',
+                    background: 'rgba(59, 130, 246, 0.12)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#3b82f6',
+                  }}
+                >
+                  <Rocket size={17} />
+                </div>
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    Release Status, Catalog &amp; Pricing Matrix
+                  </div>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-light)' }}>
+                    Deployment status, system requirements, tier durations, and commercial prices
+                  </div>
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: 12, background: sc.bg, color: sc.text, border: `1px solid ${sc.border}`, fontWeight: 600 }}>
+                  {sc.label}
+                </span>
+                <Badge>{status}</Badge>
+                <span className="badge" style={{ opacity: 0.85 }}>{price}</span>
+                <span className="badge" style={{ opacity: 0.85 }}>{version}</span>
+                {openSections.pricing ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+              </div>
+            </div>
 
-          <Field label="AI Usage Policy" hint="Displayed during purchase and on product detail page">
-            <input value={aiUsage} onChange={e => setAiUsage(e.target.value)} placeholder="Unlimited local usage. Bring your own API keys." />
-          </Field>
+            {openSections.pricing && (
+              <div style={{ padding: '1.25rem' }}>
+                <div className="form-grid">
+                  <Field label="Release Status" hint="Controls public download ability and countdown flags">
+                    <select value={releaseStatus} onChange={e => setReleaseStatus(e.target.value as any)}>
+                      <option value="development">In development (Private / Testing)</option>
+                      <option value="prelaunch">Preparing for launch (Pre-launch waitlist)</option>
+                      <option value="live">Live - Available for download</option>
+                    </select>
+                  </Field>
+                  <Field label="Catalog Visibility">
+                    <select value={status} onChange={e => setStatus(e.target.value as any)}>
+                      <option value="published">Published (Visible in catalog)</option>
+                      <option value="draft">Draft (Hidden from public)</option>
+                      <option value="archived">Archived (Discontinue sales)</option>
+                    </select>
+                  </Field>
+                  <Field label="Current Release Version" hint="e.g. v1.2.0">
+                    <input value={version} onChange={e => setVersion(e.target.value)} required />
+                  </Field>
+                  <Field label="System Requirements" hint="e.g. Windows 10+ 64-bit / macOS 12+">
+                    <input value={requirements} onChange={e => setRequirements(e.target.value)} required />
+                  </Field>
+                </div>
+
+                <h4 style={{ margin: '1.25rem 0 0.5rem 0', fontSize: '0.95rem' }}>Commercial Pricing Matrix</h4>
+                <div className="form-grid">
+                  <Field label="Public Display Price" hint="Text shown on catalog cards">
+                    <input value={price} onChange={e => setPrice(e.target.value)} placeholder="Starting at ₹499" required />
+                  </Field>
+                  <Field label="1-Week License Price (₹ / $)" hint="Paid 7-day access tier">
+                    <input type="number" value={price1w} onChange={e => setPrice1w(e.target.value)} placeholder="e.g. 199" />
+                  </Field>
+                  <Field label="1-Month License Price (₹ / $)">
+                    <input type="number" value={price1m} onChange={e => setPrice1m(e.target.value)} />
+                  </Field>
+                  <Field label="3-Month License Price (₹ / $)">
+                    <input type="number" value={price3m} onChange={e => setPrice3m(e.target.value)} />
+                  </Field>
+                  <Field label="Lifetime License Price (₹ / $)">
+                    <input type="number" value={priceLifetime} onChange={e => setPriceLifetime(e.target.value)} />
+                  </Field>
+                </div>
+
+                <h4 style={{ margin: '1.25rem 0 0.5rem 0', fontSize: '0.95rem' }}>License, Trial & Usage Limits</h4>
+                <div className="form-grid">
+                  <Field label="1-Day Free Trial" hint="Allow new users to claim a 1-day trial key">
+                    <select value={trialActive ? 'active' : 'disabled'} onChange={e => setTrialActive(e.target.value === 'active')}>
+                      <option value="active">Active (Free trial enabled on public page)</option>
+                      <option value="disabled">Disabled (No free trial; paid checkout only)</option>
+                    </select>
+                  </Field>
+                  <Field label="Device Allowance" hint="Max simultaneous device hardware bindings">
+                    <input value={deviceAllowance} onChange={e => setDeviceAllowance(e.target.value)} placeholder="1 active device per license" />
+                  </Field>
+                  <Field label="AI Usage Policy" hint="Displayed during purchase and on product detail page">
+                    <input value={aiUsage} onChange={e => setAiUsage(e.target.value)} placeholder="Unlimited Cloud AI usage included. Powered by NORVI Cloud AI." />
+                  </Field>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* ========================================================================= */}
+          {/* ACCORDION 2: 🧠 OpenRouter Cloud AI Engine & Task Routing (Dual-Tier)     */}
+          {/* ========================================================================= */}
+          <div
+            style={{
+              borderRadius: '10px',
+              border: '1px solid var(--line, #2a3824)',
+              background: 'var(--surface, #141a12)',
+              overflow: 'hidden',
+            }}
+          >
+            <div
+              style={{
+                padding: '0.85rem 1.25rem',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '0.75rem',
+                cursor: 'pointer',
+                background: openSections.openrouter ? 'rgba(255, 255, 255, 0.03)' : 'transparent',
+                borderBottom: openSections.openrouter ? '1px solid var(--line, #2a3824)' : 'none',
+              }}
+              onClick={() => toggleSection('openrouter')}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div
+                  style={{
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '8px',
+                    background: 'rgba(152, 224, 56, 0.12)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: 'var(--lime, #98e038)',
+                  }}
+                >
+                  <Bot size={17} />
+                </div>
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    OpenRouter Cloud AI Engine &amp; Task Routing
+                  </div>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-light)' }}>
+                    LLM inference models, prompt routing, dual-tier paid/trial keys, and Fair Use limits
+                  </div>
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span className={aiPolicy.aiEnabled ? 'badge good' : 'badge'}>
+                  {aiPolicy.aiEnabled ? 'AI Active' : 'AI Paused'}
+                </span>
+                <span className="badge" style={{ fontFamily: 'monospace', fontSize: '11px' }}>
+                  {aiPolicy.defaultModel}
+                </span>
+                <span className="badge" style={{ opacity: 0.85 }}>
+                  {aiPolicy.taskModels.length} task{aiPolicy.taskModels.length === 1 ? '' : 's'}
+                </span>
+                {openSections.openrouter ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+              </div>
+            </div>
+
+            {openSections.openrouter && (
+              <div style={{ padding: '0.75rem 1.25rem 1.25rem' }}>
+                <AgentAiPolicySection
+                  productId={product.id}
+                  productName={product.name}
+                  policy={aiPolicy}
+                  availableKeys={availableKeys}
+                  onChange={next => {
+                    setAiDirty(true);
+                    setAiPolicy(next);
+                  }}
+                  onSavePolicy={handleSaveAiOnly}
+                  saving={aiSaving}
+                  feedback={aiFeedback}
+                  variant="openrouter"
+                />
+              </div>
+            )}
+          </div>
+
+          {/* ========================================================================= */}
+          {/* ACCORDION 3: 🎙️ Groq Speech-to-Text (STT) Voice Engine                    */}
+          {/* ========================================================================= */}
+          <div
+            style={{
+              borderRadius: '10px',
+              border: '1px solid var(--line, #2a3824)',
+              background: 'var(--surface, #141a12)',
+              overflow: 'hidden',
+            }}
+          >
+            <div
+              style={{
+                padding: '0.85rem 1.25rem',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '0.75rem',
+                cursor: 'pointer',
+                background: openSections.groq ? 'rgba(255, 255, 255, 0.03)' : 'transparent',
+                borderBottom: openSections.groq ? '1px solid var(--line, #2a3824)' : 'none',
+              }}
+              onClick={() => toggleSection('groq')}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div
+                  style={{
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '8px',
+                    background: 'rgba(249, 115, 22, 0.12)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#f97316',
+                  }}
+                >
+                  <Mic size={17} />
+                </div>
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    Groq Speech-to-Text (STT) Voice Engine
+                  </div>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-light)' }}>
+                    Whisper audio transcription, paid fallback key, and trial voice access controls
+                  </div>
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span className="badge" style={{ fontFamily: 'monospace', fontSize: '11px' }}>
+                  {aiPolicy.sttModel || 'whisper-large-v3-turbo'}
+                </span>
+                <span className={aiPolicy.groqFallbackEnabled ? 'badge good' : 'badge'}>
+                  {aiPolicy.groqFallbackEnabled ? 'Paid Fallback Active' : 'Paid Voice Paused'}
+                </span>
+                <span className={aiPolicy.trialSttFallbackEnabled ? 'badge good' : 'badge'}>
+                  {aiPolicy.trialSttFallbackEnabled ? 'Trial Voice Active' : 'Trial Voice Disabled'}
+                </span>
+                {openSections.groq ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+              </div>
+            </div>
+
+            {openSections.groq && (
+              <div style={{ padding: '0.75rem 1.25rem 1.25rem' }}>
+                <AgentAiPolicySection
+                  productId={product.id}
+                  productName={product.name}
+                  policy={aiPolicy}
+                  availableKeys={availableKeys}
+                  onChange={next => {
+                    setAiDirty(true);
+                    setAiPolicy(next);
+                  }}
+                  onSavePolicy={handleSaveAiOnly}
+                  saving={aiSaving}
+                  feedback={aiFeedback}
+                  variant="groq"
+                />
+              </div>
+            )}
+          </div>
+
+          {/* ========================================================================= */}
+          {/* ACCORDION 4: 🏷️ Storefront Checkout, Highlights & Plan Selector (Opt A)   */}
+          {/* ========================================================================= */}
+          <div
+            style={{
+              borderRadius: '10px',
+              border: '1px solid var(--line, #2a3824)',
+              background: 'var(--surface, #141a12)',
+              overflow: 'hidden',
+            }}
+          >
+            <div
+              style={{
+                padding: '0.85rem 1.25rem',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '0.75rem',
+                cursor: 'pointer',
+                background: openSections.storefront ? 'rgba(255, 255, 255, 0.03)' : 'transparent',
+                borderBottom: openSections.storefront ? '1px solid var(--line, #2a3824)' : 'none',
+              }}
+              onClick={() => toggleSection('storefront')}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div
+                  style={{
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '8px',
+                    background: 'rgba(168, 85, 247, 0.12)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#a855f7',
+                  }}
+                >
+                  <Tag size={17} />
+                </div>
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    Storefront Checkout, Highlights &amp; Plan Selector
+                  </div>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-light)' }}>
+                    Dedicated checkout description, value bullets, floating ribbons, and plan badges
+                  </div>
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span className="badge" style={{ borderColor: 'var(--lime, #98e038)', color: 'var(--lime, #98e038)' }}>
+                  Ribbon: {featuredPlan === 'none' ? 'None' : featuredPlan.replace('_', ' ').toUpperCase()}
+                </span>
+                <span className="badge" style={{ opacity: 0.85 }}>
+                  {paidHighlightsText.split('\n').filter(Boolean).length} Highlights
+                </span>
+                {openSections.storefront ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+              </div>
+            </div>
+
+            {openSections.storefront && (
+              <div style={{ padding: '1.25rem' }}>
+                <div className="form-grid" style={{ marginBottom: '1.25rem', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  <Field
+                    label="Checkout Page Description (Optional — /checkout/:slug)"
+                    hint="Description shown below agent title on the checkout page. Leave blank to hide and remove the space completely. (Landing page overview is managed in Products &amp; Content)."
+                  >
+                    <textarea
+                      rows={2}
+                      value={checkoutAgentDesc}
+                      onChange={e => setCheckoutAgentDesc(e.target.value)}
+                      placeholder="Leave empty to remove space on checkout page, or write a dedicated checkout description..."
+                      style={{ width: '100%', fontSize: '0.85rem', fontFamily: 'inherit', lineHeight: 1.5 }}
+                    />
+                  </Field>
+
+                  <Field
+                    label="Checkout Plan Selection Subtitle (Optional)"
+                    hint="Guidance subtitle displayed inside the 'SELECT YOUR LICENSE PLAN' card. Leave blank for default."
+                  >
+                    <input
+                      value={checkoutDesc}
+                      onChange={e => setCheckoutDesc(e.target.value)}
+                      placeholder="Choose your access duration below. All plans include ultra-low latency cloud AI and multi-device activation."
+                    />
+                  </Field>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                      <label style={{ fontSize: '0.85rem', fontWeight: 600 }}>
+                        👑 Paid Tier Key Highlights (1 per line)
+                      </label>
+                      <button
+                        type="button"
+                        className="button secondary small"
+                        style={{ fontSize: '11px', padding: '2px 8px' }}
+                        onClick={prefillPaidHighlights}
+                        title="Fill recommended high-converting paid benefits"
+                      >
+                        ✨ Pre-fill Recommended
+                      </button>
+                    </div>
+                    <textarea
+                      rows={5}
+                      value={paidHighlightsText}
+                      onChange={e => setPaidHighlightsText(e.target.value)}
+                      placeholder="⚡ Task-specialized high-speed AI models&#10;🚀 Lowest latency priority routing&#10;🔓 High daily quota (300+ requests/day fair use)&#10;🔒 Zero Data Retention (ZDR)&#10;💻 Multi-device activation on 3 machines"
+                      style={{ width: '100%', fontSize: '0.85rem', fontFamily: 'inherit' }}
+                    />
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-light)' }}>
+                      Shown on checkout page and order summary with green checkmarks.
+                    </span>
+                  </div>
+
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                      <label style={{ fontSize: '0.85rem', fontWeight: 600 }}>
+                        🎁 Free Trial Highlights &amp; Notice
+                      </label>
+                      <button
+                        type="button"
+                        className="button secondary small"
+                        style={{ fontSize: '11px', padding: '2px 8px' }}
+                        onClick={prefillTrialHighlights}
+                        title="Fill recommended trial clarity bullets & notice"
+                      >
+                        ✨ Pre-fill Recommended
+                      </button>
+                    </div>
+                    <textarea
+                      rows={3}
+                      value={trialHighlightsText}
+                      onChange={e => setTrialHighlightsText(e.target.value)}
+                      placeholder="🎁 Free trial activation on 1 PC — No credit card required&#10;📄 Standard community AI model (Nemotron 30B)&#10;⏱ Daily fair-use quota (50 requests/day)"
+                      style={{ width: '100%', fontSize: '0.85rem', fontFamily: 'inherit', marginBottom: 6 }}
+                    />
+                    <input
+                      value={trialNotice}
+                      onChange={e => setTrialNotice(e.target.value)}
+                      placeholder="Free trials run on shared community AI endpoints. Upgrade to paid anytime for ultra-fast models."
+                      style={{ width: '100%', fontSize: '0.82rem' }}
+                    />
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-light)' }}>
+                      Shown in the &ldquo;Start Free Trial&rdquo; modal so users understand trial limits.
+                    </span>
+                  </div>
+                </div>
+
+                {/* Option A Plan Selector Badges & Copy Customization */}
+                <div style={{ marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', flexWrap: 'wrap', gap: 8 }}>
+                    <div>
+                      <h5 style={{ margin: 0, fontSize: '0.9rem', color: 'var(--lime, #98e038)' }}>
+                        🏷️ Option A Plan Selector Badges &amp; Custom Subtitles
+                      </h5>
+                      <p style={{ margin: '2px 0 0', fontSize: '0.75rem', color: 'var(--text-light)' }}>
+                        Customize the floating ribbon, subtitle guidance, and badge pills for each duration card on the checkout page.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      className="button secondary small"
+                      style={{ fontSize: '11px', padding: '2px 8px' }}
+                      onClick={prefillPlanConfigs}
+                      title="Fill proven high-converting badges and subtitles"
+                    >
+                      ✨ Pre-fill Recommended Plan Copy
+                    </button>
+                  </div>
+
+                  <div className="form-grid" style={{ marginBottom: '1rem' }}>
+                    <Field label="⭐ Featured Plan Ribbon Target" hint="Attach floating ribbon banner to any duration card">
+                      <select
+                        value={featuredPlan}
+                        onChange={e => setFeaturedPlan(e.target.value)}
+                      >
+                        <option value="none">None (No floating ribbon)</option>
+                        <option value="1_week">1 Week (7 Days)</option>
+                        <option value="1_month">1 Month (Recommended)</option>
+                        <option value="3_months">3 Months</option>
+                        <option value="lifetime">Lifetime Access</option>
+                      </select>
+                    </Field>
+
+                    <Field label="Floating Ribbon Banner Text" hint="Text shown on the featured ribbon badge">
+                      <input
+                        value={featuredRibbonText}
+                        onChange={e => setFeaturedRibbonText(e.target.value)}
+                        placeholder="⭐ MOST POPULAR"
+                      />
+                    </Field>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '10px' }}>
+                    <div style={{ padding: '8px', background: 'rgba(0,0,0,0.2)', borderRadius: 6, border: '1px solid var(--line)' }}>
+                      <b style={{ fontSize: '0.8rem', display: 'block', marginBottom: 4 }}>1 Week (7 Days) Card</b>
+                      <input
+                        value={plan1wSubtitle}
+                        onChange={e => setPlan1wSubtitle(e.target.value)}
+                        placeholder="Subtitle: e.g. Ideal for a technical interview"
+                        style={{ width: '100%', fontSize: '0.78rem', marginBottom: 4 }}
+                      />
+                      <input
+                        value={plan1wBadge}
+                        onChange={e => setPlan1wBadge(e.target.value)}
+                        placeholder="Badge: e.g. 🚀 Starter Pass"
+                        style={{ width: '100%', fontSize: '0.78rem' }}
+                      />
+                    </div>
+
+                    <div style={{ padding: '8px', background: 'rgba(0,0,0,0.2)', borderRadius: 6, border: '1px solid var(--line)' }}>
+                      <b style={{ fontSize: '0.8rem', display: 'block', marginBottom: 4 }}>1 Month Card</b>
+                      <input
+                        value={plan1mSubtitle}
+                        onChange={e => setPlan1mSubtitle(e.target.value)}
+                        placeholder="Subtitle: e.g. Full month of cloud AI assist"
+                        style={{ width: '100%', fontSize: '0.78rem', marginBottom: 4 }}
+                      />
+                      <input
+                        value={plan1mBadge}
+                        onChange={e => setPlan1mBadge(e.target.value)}
+                        placeholder="Badge: e.g. 10% OFF"
+                        style={{ width: '100%', fontSize: '0.78rem' }}
+                      />
+                    </div>
+
+                    <div style={{ padding: '8px', background: 'rgba(0,0,0,0.2)', borderRadius: 6, border: '1px solid var(--line)' }}>
+                      <b style={{ fontSize: '0.8rem', display: 'block', marginBottom: 4 }}>3 Months Card</b>
+                      <input
+                        value={plan3mSubtitle}
+                        onChange={e => setPlan3mSubtitle(e.target.value)}
+                        placeholder="Subtitle: e.g. Multi-round job search prep"
+                        style={{ width: '100%', fontSize: '0.78rem', marginBottom: 4 }}
+                      />
+                      <input
+                        value={plan3mBadge}
+                        onChange={e => setPlan3mBadge(e.target.value)}
+                        placeholder="Badge: e.g. 🔥 Save ₹240"
+                        style={{ width: '100%', fontSize: '0.78rem' }}
+                      />
+                    </div>
+
+                    <div style={{ padding: '8px', background: 'rgba(0,0,0,0.2)', borderRadius: 6, border: '1px solid var(--line)' }}>
+                      <b style={{ fontSize: '0.8rem', display: 'block', marginBottom: 4 }}>Lifetime Access Card</b>
+                      <input
+                        value={planLifetimeSubtitle}
+                        onChange={e => setPlanLifetimeSubtitle(e.target.value)}
+                        placeholder="Subtitle: e.g. Permanent ownership"
+                        style={{ width: '100%', fontSize: '0.78rem', marginBottom: 4 }}
+                      />
+                      <input
+                        value={planLifetimeBadge}
+                        onChange={e => setPlanLifetimeBadge(e.target.value)}
+                        placeholder="Badge: e.g. 👑 Pay Once"
+                        style={{ width: '100%', fontSize: '0.78rem' }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Action / Save Bar */}
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              paddingTop: '0.5rem',
+              flexWrap: 'wrap',
+              gap: '0.75rem',
+            }}
+          >
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-light)' }}>
+              All 4 categories are saved together under agent release &amp; policy records.
+            </div>
+            <button className="button primary" disabled={busy}>
+              {busy ? 'Saving All Settings...' : 'Save Release & Commercial Settings'}
+              <Check size={16} />
+            </button>
+          </div>
 
           {message && <Notice kind={message.startsWith('Error') ? 'error' : 'success'}>{message}</Notice>}
         </div>
@@ -4394,6 +5062,7 @@ export function ProductForm({ product, onSave, categories }: { product: Product 
         workflowNote,
         // Preserve release & pricing settings
         price: product?.price || 'Starting at ₹499',
+        price_1w: (product as any)?.price1w || null,
         price_1m: product?.price1m || '0',
         price_3m: product?.price3m || '0',
         price_lifetime: product?.price_lifetime || '999',
@@ -5134,7 +5803,56 @@ export function RolePermissionsAdmin({
   );
 }
 
-export function SettingsForm({ initial, contentOnly = false, onSave }: { initial: Settings; contentOnly?: boolean; onSave: () => void }) { const [message, setMessage] = useState(''); return <form className="panel settings-form" onSubmit={async e => { e.preventDefault(); const form = new FormData(e.currentTarget); const d = { ...Object.fromEntries(form), maintenanceMode: form.get('maintenanceMode') === 'on' }; try { await api(contentOnly ? '/admin/content' : '/admin/settings', { method: 'PATCH', body: JSON.stringify(contentOnly ? d : { ...initial, ...d }) }); setMessage('Saved. Your website preview has been updated.'); onSave(); } catch (e: any) { setMessage(e.message); } }}><h3>{contentOnly ? 'Homepage copy' : 'Business details'}</h3>{!contentOnly && <div className="form-grid"><Field label="Website name"><input name="name" required defaultValue={initial.name} /></Field><Field label="Company name"><input name="company" defaultValue={initial.company} /></Field><Field label="Support email"><input name="email" defaultValue={initial.email} /></Field><Field label="Website domain"><input name="domain" defaultValue={initial.domain} /></Field></div>}<Field label="Homepage headline" hint="Use a new line to split the headline."><textarea name="headline" required rows={2} defaultValue={initial.headline} /></Field><Field label="Homepage description"><textarea name="description" required rows={3} defaultValue={initial.description} /></Field>{!contentOnly && <label style={{ display: 'flex', gap: 10, alignItems: 'center', margin: '20px 0', background: 'var(--surface)', padding: 15, borderRadius: 8, border: '1px solid var(--border)' }}><input type="checkbox" name="maintenanceMode" defaultChecked={initial.maintenanceMode} style={{ width: 18, height: 18 }} /><div><b>Maintenance Mode</b><p style={{ margin: 0, fontSize: 13, color: 'var(--text-light)' }}>When enabled, checkout and downloads are temporarily disabled for customers.</p></div></label>}<button className="button primary">Save changes <Check size={16} /></button>{message && <Notice>{message}</Notice>}</form>; }
+export function SettingsForm({ initial, contentOnly = false, onSave }: { initial: Settings; contentOnly?: boolean; onSave: () => void }) {
+  const [message, setMessage] = useState('');
+  const init = initial || ({} as Settings);
+  return (
+    <form className="panel settings-form" onSubmit={async e => {
+      e.preventDefault();
+      const form = new FormData(e.currentTarget);
+      const d = { ...Object.fromEntries(form), maintenanceMode: form.get('maintenanceMode') === 'on' };
+      try {
+        await api(contentOnly ? '/admin/content' : '/admin/settings', {
+          method: 'PATCH',
+          body: JSON.stringify(contentOnly ? d : { ...init, ...d })
+        });
+        setMessage('Saved. Your website preview has been updated.');
+        onSave();
+      } catch (e: any) {
+        setMessage(e.message);
+      }
+    }}>
+      <h3>{contentOnly ? 'Homepage copy' : 'Business details'}</h3>
+      {!contentOnly && (
+        <div className="form-grid">
+          <Field label="Website name"><input name="name" required defaultValue={init.name || ''} /></Field>
+          <Field label="Company name"><input name="company" defaultValue={init.company || ''} /></Field>
+          <Field label="Support email"><input name="email" defaultValue={init.email || ''} /></Field>
+          <Field label="Website domain"><input name="domain" defaultValue={init.domain || ''} /></Field>
+        </div>
+      )}
+      <Field label="Homepage headline" hint="Use a new line to split the headline.">
+        <textarea name="headline" required rows={2} defaultValue={init.headline || ''} />
+      </Field>
+      <Field label="Homepage description">
+        <textarea name="description" required rows={3} defaultValue={init.description || ''} />
+      </Field>
+      {!contentOnly && (
+        <label style={{ display: 'flex', gap: 10, alignItems: 'center', margin: '20px 0', background: 'var(--surface)', padding: 15, borderRadius: 8, border: '1px solid var(--border)' }}>
+          <input type="checkbox" name="maintenanceMode" defaultChecked={Boolean(init.maintenanceMode)} style={{ width: 18, height: 18 }} />
+          <div>
+            <b>Maintenance Mode</b>
+            <p style={{ margin: 0, fontSize: 13, color: 'var(--text-light)' }}>
+              When enabled, checkout and downloads are temporarily disabled for customers.
+            </p>
+          </div>
+        </label>
+      )}
+      <button className="button primary">Save changes <Check size={16} /></button>
+      {message && <Notice>{message}</Notice>}
+    </form>
+  );
+}
 function Team({
   data,
   onAction,

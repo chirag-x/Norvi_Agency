@@ -14,6 +14,10 @@ export type AgentAiPolicyStats = {
   requests7d: number;
   requests30d: number;
   cost30dUsd: number;
+  requests24hPaid?: number;
+  requests24hTrial?: number;
+  cost30dUsdPaid?: number;
+  cost30dUsdTrial?: number;
   sttRequests24h?: number;
   sttRequests7d?: number;
   sttRequests30d?: number;
@@ -38,6 +42,13 @@ export type AgentAiPolicyInput = {
   sttMonthlyLimit: number;
   sttTrialDailyLimit: number;
   aiKeyId?: string | null;
+  trialAiKeyId?: string | null;
+  trialDefaultModel: string;
+  trialEnforceZdr?: boolean;
+  sttKeyId?: string | null;
+  trialSttKeyId?: string | null;
+  trialSttFallbackEnabled?: boolean;
+  trialSttModel?: string;
 };
 
 export type AgentAiPolicy = AgentAiPolicyInput & {
@@ -48,6 +59,12 @@ export type AgentAiPolicy = AgentAiPolicyInput & {
   stats: AgentAiPolicyStats;
   aiKeyLabel?: string | null;
   aiKeySuffix?: string | null;
+  trialAiKeyLabel?: string | null;
+  trialAiKeySuffix?: string | null;
+  sttKeyLabel?: string | null;
+  sttKeySuffix?: string | null;
+  trialSttKeyLabel?: string | null;
+  trialSttKeySuffix?: string | null;
 };
 
 export const OPENROUTER_MODEL_PRESETS = [
@@ -170,6 +187,7 @@ export function createDefaultAgentAiPolicy(product: { id: string; slug: string; 
     maxOutputTokens: slug === 'nexus' ? 4096 : 2048,
     enforceZdr: true,
     sttModel: 'whisper-large-v3-turbo',
+    trialSttModel: 'whisper-large-v3-turbo',
     groqFallbackEnabled: false,
     sttDailyLimit: 0,
     sttWeeklyLimit: 0,
@@ -178,12 +196,20 @@ export function createDefaultAgentAiPolicy(product: { id: string; slug: string; 
     aiKeyId: null,
     aiKeyLabel: null,
     aiKeySuffix: null,
+    trialAiKeyId: null,
+    trialAiKeyLabel: null,
+    trialAiKeySuffix: null,
+    trialDefaultModel: 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free',
     updatedAt: null,
     stats: {
       requests24h: 0,
       requests7d: 0,
       requests30d: 0,
       cost30dUsd: 0,
+      requests24hPaid: 0,
+      requests24hTrial: 0,
+      cost30dUsdPaid: 0,
+      cost30dUsdTrial: 0,
       sttRequests24h: 0,
       sttRequests7d: 0,
       sttRequests30d: 0,
@@ -311,6 +337,31 @@ export function normalizeAgentAiPolicyPayload(
   const rawKeyId = typeof obj.aiKeyId === 'string' ? obj.aiKeyId.trim() : typeof (obj as any).ai_key_id === 'string' ? (obj as any).ai_key_id.trim() : null;
   const aiKeyId = rawKeyId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawKeyId) ? rawKeyId : null;
 
+  const rawTrialKeyId = typeof obj.trialAiKeyId === 'string' ? obj.trialAiKeyId.trim() : typeof (obj as any).trial_ai_key_id === 'string' ? (obj as any).trial_ai_key_id.trim() : null;
+  const trialAiKeyId = rawTrialKeyId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawTrialKeyId) ? rawTrialKeyId : null;
+
+  const rawSttKeyId = typeof obj.sttKeyId === 'string' ? obj.sttKeyId.trim() : typeof (obj as any).stt_key_id === 'string' ? (obj as any).stt_key_id.trim() : null;
+  const sttKeyId = rawSttKeyId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawSttKeyId) ? rawSttKeyId : null;
+
+  const rawTrialSttKeyId = typeof obj.trialSttKeyId === 'string' ? obj.trialSttKeyId.trim() : typeof (obj as any).trial_stt_key_id === 'string' ? (obj as any).trial_stt_key_id.trim() : null;
+  const trialSttKeyId = rawTrialSttKeyId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawTrialSttKeyId) ? rawTrialSttKeyId : null;
+
+  const trialSttFallbackEnabled = Boolean(obj.trialSttFallbackEnabled ?? (obj as any).trial_stt_fallback_enabled ?? false);
+
+  const rawTrialSttModel =
+    typeof obj.trialSttModel === 'string'
+      ? obj.trialSttModel.trim()
+      : typeof (obj as any).trial_stt_model === 'string'
+        ? (obj as any).trial_stt_model.trim()
+        : '';
+  const trialSttModel = rawTrialSttModel || sttModel || 'whisper-large-v3-turbo';
+  if (trialSttModel.length > 120 || /\s/.test(trialSttModel)) {
+    return { ok: false, error: 'Free Trial Groq STT model ID must be a valid model slug without spaces (e.g. whisper-large-v3-turbo).' };
+  }
+
+  const rawTrialModel = typeof obj.trialDefaultModel === 'string' ? obj.trialDefaultModel.trim() : typeof (obj as any).trial_default_model === 'string' ? (obj as any).trial_default_model.trim() : '';
+  const trialDefaultModel = rawTrialModel || 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free';
+
   return {
     ok: true,
     data: {
@@ -325,12 +376,19 @@ export function normalizeAgentAiPolicyPayload(
       maxOutputTokens,
       enforceZdr: obj.enforceZdr !== false,
       sttModel,
+      trialSttModel,
       groqFallbackEnabled,
       sttDailyLimit: sttDaily.value,
       sttWeeklyLimit: sttWeekly.value,
       sttMonthlyLimit: sttMonthly.value,
       sttTrialDailyLimit: sttTrialDaily.value,
       aiKeyId,
+      trialAiKeyId,
+      trialDefaultModel,
+      trialEnforceZdr: Boolean(obj.trialEnforceZdr ?? (obj as any).trial_enforce_zdr ?? false),
+      sttKeyId,
+      trialSttKeyId,
+      trialSttFallbackEnabled,
     },
   };
 }

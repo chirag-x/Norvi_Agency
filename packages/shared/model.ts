@@ -22,10 +22,18 @@ export type AgentExtendedContent = {
   faqs?: AgentFaq[];
   seo?: AgentSeo;
   guide?: AgentGuide;
+  checkout_description?: string;
+  checkout_agent_description?: string;
+  paid_highlights?: string[];
+  trial_highlights?: string[];
+  trial_notice?: string;
+  featured_plan?: '1_week' | '1_month' | '3_months' | 'lifetime' | 'none';
+  featured_ribbon_text?: string;
+  plan_configs?: Record<string, { subtitle?: string; badge?: string }>;
 };
-export type Product = { id: string; slug: string; name: string; categoryId: string; category?: Category | null; subHeading?: string; tagline: string; description: string; price: string; price1m?: string; price3m?: string; price_lifetime?: string; is_on_sale?: boolean; trialActive?: boolean; aiUsage?: string; deviceAllowance?: string; status: 'draft' | 'published' | 'archived'; releaseStatus: 'development' | 'prelaunch' | 'live'; logoUrl: string | null; icon?: string; color?: string; features: string[]; version: string; requirements: string; workflowHeading: string; workflowDescription: string; workflowMediaUrl: string | null; workflowNote: string; updatedAt?: string; extendedContent?: AgentExtendedContent; };
+export type Product = { id: string; slug: string; name: string; categoryId: string; category?: Category | null; subHeading?: string; tagline: string; description: string; price: string; price1w?: string; price1m?: string; price3m?: string; price_lifetime?: string; is_on_sale?: boolean; trialActive?: boolean; aiUsage?: string; deviceAllowance?: string; status: 'draft' | 'published' | 'archived'; releaseStatus: 'development' | 'prelaunch' | 'live'; logoUrl: string | null; icon?: string; color?: string; features: string[]; version: string; requirements: string; workflowHeading: string; workflowDescription: string; workflowMediaUrl: string | null; workflowNote: string; updatedAt?: string; extendedContent?: AgentExtendedContent; };
 export type User = { id: string; name: string; email: string; role: Role; status: 'active' | 'suspended'; createdAt: string; lastLogin: string | null };
-export type License = { id: string; userId: string; productId: string; status: 'active' | 'revoked'; keyHash: string; encryptedKey: string; suffix: string; createdAt: string; device: string | null; expiresAt: string | null };
+export type License = { id: string; userId: string; productId: string; status: 'active' | 'revoked'; keyHash: string; encryptedKey: string; suffix: string; createdAt: string; device: string | null; expiresAt: string | null; isTrial?: boolean; is_trial?: boolean; };
 export type Order = { id: string; userId: string; productId: string; status: 'simulated' | 'refunded' | 'pending' | 'paid' | 'failed'; amount: string; createdAt: string; licenseId: string };
 export type Audit = { id: string; actor: string; action: string; target: string; createdAt: string };
 export type Ticket = { id: string; userId: string; subject: string; message: string; status: 'open' | 'closed'; createdAt: string };
@@ -74,19 +82,21 @@ export const products: Product[] = [
     slug: "voro",
     name: "Voro",
     categoryId: "cat-2",
-    subHeading: "Interview Assistant",
+    subHeading: "Real-Time Interview Copilot",
     category: { id: 'cat-2', slug: 'interview-assistance', name: 'Interview assistance' },
-    tagline: "Bring context to your interview preparation.",
-    description: "An interview assistant with screen and audio context, résumé memory, and coding assistance. Designed for practice and situations where assistance is permitted. The application is reported complete; the NORVI release and compatibility checks are still being prepared.",
-    price: "Pricing to be confirmed",
+    tagline: "Real-time AI interview assistant, screen-aware copilot & live coding companion.",
+    description: "Voro is an ultra-low latency, discreet desktop copilot engineered to give you an undetectable unfair advantage during high-stakes technical screens, coding interviews, and system design rounds. Operating with native hardware display exclusion, Voro remains 100% invisible on Zoom, Microsoft Teams, Google Meet, and browser proctoring tools—even during full-screen sharing. By fusing real-time multimodal screen perception with sub-second speech recognition, Voro silently reads live LeetCode problems, distills optimal Big-O solutions, grounds behavioral answers in your actual resume, and whispers instant guidance directly into your private earpiece. Zero complex local setup, zero prompt data logging, and instant sub-second answers right when you need them most.",
+    price: "Pick Your Plan",
     status: "published",
-    releaseStatus: "prelaunch",
+    releaseStatus: "live",
     logoUrl: null,
     features: [
-      "Screen and audio context",
-      "Résumé and conversation memory",
-      "Zero-setup NORVI Cloud AI",
-      "Coding assistance"
+      "100% Undetectable on Zoom, Teams & Meet (Hardware-Level Invisible)",
+      "Real-Time Screen Perception & Live LeetCode Solver",
+      "Private Earpiece Whisper with Auto-Mute Speaking Detection",
+      "Resume-Grounded Answers & Behavioral Interview Copilot",
+      "Sub-Second Low Latency Powered by NORVI Cloud AI",
+      "Strict Zero Data Retention (ZDR) — No Audio or Screen Logging"
     ],
     version: "Release version to be confirmed",
     requirements: "Windows-oriented application. Supported Windows versions and audio setup documented in the setup guide.",
@@ -96,7 +106,7 @@ export const products: Product[] = [
     workflowNote: "",
     updatedAt: "2026-09-23",
     extendedContent: {
-      badgeText: "⚡ Ultra-Low Latency | 100% Undetectable | Managed Cloud AI",
+      badgeText: "⚡ Undetectable Hardware Cloak · Sub-Second Cloud AI · Live Screen Perception",
       platformBadges: ["Zoom", "Microsoft Teams", "Google Meet", "HackerRank", "LeetCode", "CoderPad"],
       featurePillars: [
         {
@@ -427,3 +437,180 @@ export function seed(): Store {
   ], licenses: [], orders: [], audit: [], tickets: [], invitations: [], emails: [], announcements: [] };
 }
 export const routes = ['', 'agents', 'agents/agent-1', 'agents/agent-2', 'agents/agent-3', 'pricing', 'about', 'partners', 'contact', 'help', 'privacy', 'terms', 'refunds', 'delivery', 'license', 'register', 'login', 'verify-email', 'reset-password', 'update-password', 'auth/confirm', 'account/security', 'onboarding', 'account', 'account/agents', 'account/licenses', 'account/billing', 'account/settings', 'account/support', 'checkout/agent-1', 'checkout/agent-2', 'checkout/agent-3', 'orders', 'admin', 'admin/login', 'admin/customers', 'admin/licenses', 'admin/orders', 'admin/inquiries', 'admin/subscriptions', 'admin/products', 'admin/releases', 'admin/categories', 'admin/announcements', 'admin/activity', 'admin/settings', 'admin/team', 'admin/content'];
+
+export function formatDurationLabel(duration: string | null | undefined): string {
+  if (!duration) return '';
+  switch (duration.trim().toLowerCase()) {
+    case '1_day':
+    case '24h':
+      return '1-Day Free Trial';
+    case '1_week_trial':
+      return '1-Week Free Trial';
+    case '1_month_trial':
+      return '1-Month Free Trial';
+    case '1_week':
+    case '7d':
+      return '1 Week';
+    case '1_month':
+    case '1m':
+      return '1 Month';
+    case '3_months':
+    case '3m':
+      return '3 Months';
+    case 'lifetime':
+      return 'Lifetime Access';
+    case 'all':
+      return 'All Durations';
+    default:
+      return duration.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+  }
+}
+
+export function formatPaymentReference(paymentId: string | null | undefined): string {
+  if (!paymentId) return 'Verified Checkout';
+  if (paymentId.startsWith('pay_')) return paymentId.slice(0, 14) + '...';
+  if (paymentId.startsWith('trial_gift_')) return '🎁 Gifted Free Trial';
+  if (paymentId.startsWith('gift_')) return '🎁 Promotional Gift';
+  if (paymentId.startsWith('trial_')) return '🎁 Free Trial Claim';
+  if (paymentId.startsWith('free_')) return '🎟️ 100% Promo Coupon';
+  return paymentId;
+}
+
+export function formatStatusLabel(status: string | null | undefined): string {
+  if (!status) return '';
+  return status.charAt(0).toUpperCase() + status.slice(1);
+}
+
+export function getDefaultAgentPaidHighlights(slug?: string): string[] {
+  switch (slug) {
+    case 'voro':
+      return [
+        '⚡ Instant, sub-second responses tailored live to your screen & audio',
+        '👁️ Real-time invisible screen perception & live vision assistant',
+        '🚀 Priority cloud performance with zero waiting or queue delays',
+        '🔒 100% private & undetectable — zero data harvesting or prompt training',
+        '💻 Multi-device activation — seamlessly switch between your desktop & laptop',
+        '✨ Unlimited daily access for real everyday productivity & work'
+      ];
+    case 'rolvio':
+      return [
+        '⚡ Autonomous 1-click multi-board job applications on LinkedIn, Indeed & more',
+        '📄 Intelligent AI resume tailoring & custom cover letter generation per role',
+        '📬 Automated recruiter email sync, reply parsing & interview invite tracking',
+        '🛡️ Human-like anti-bot pacing & typing shield to protect your accounts',
+        '📊 Kanban visual pipeline board to organize all submitted applications',
+        '🚀 Unlimited daily job hunting, matching & automated submissions'
+      ];
+    case 'nexus':
+      return [
+        '🎬 Automatic viral moment extraction from podcasts, interviews & streams',
+        '📐 Smart AI 9:16 vertical re-framing with continuous face centering',
+        '✨ Kinetic animated captions & emojis (MrBeast & Alex Hormozi styles)',
+        '📈 AI virality scoring and hook optimization to maximize views',
+        '📲 1-Click direct auto-publishing to YouTube Shorts, Reels & TikTok',
+        '🚀 Unlimited high-resolution rendering with priority cloud video pipeline'
+      ];
+    default:
+      return [
+        '⚡ Task-specialized high-speed AI models',
+        '🚀 Lowest latency priority routing with zero waiting or queue delays',
+        '🔓 High daily quota for real everyday productivity & work',
+        '🔒 Zero Data Retention (ZDR) — 100% private & undetectable',
+        '💻 Multi-device activation — seamlessly switch between desktop & laptop',
+        '✨ Unlimited daily access to all core autonomous workflows'
+      ];
+  }
+}
+
+export function getDefaultAgentTrialHighlights(slug?: string): string[] {
+  switch (slug) {
+    case 'voro':
+      return [
+        '🎁 Instant 1-click desktop activation — no credit card needed',
+        '👁️ Live screen-aware assistant to test real desktop workflows',
+        '⚡ Fast contextual answers right on your personal PC',
+        '⏱️ Generous daily trial allowance to experience the full software',
+        '🚀 Test all core features before deciding to unlock the full paid version'
+      ];
+    case 'rolvio':
+      return [
+        '🎁 Instant 1-click desktop activation — no credit card required',
+        '🔍 Test automated job discovery across LinkedIn, Indeed & Wellfound',
+        '📄 Preview resume matching scores and role compatibility insights',
+        '⏱️ Generous daily trial quota to experience automated job searching',
+        '🚀 Full access to test job finding and board management before upgrading'
+      ];
+    case 'nexus':
+      return [
+        '🎁 Instant 1-click desktop activation — no credit card required',
+        '🎬 Import long videos or YouTube links to test AI clip generation',
+        '✨ Preview animated captions, auto-framing, and virality scores',
+        '⏱️ Generous trial quota to create and inspect viral short clips',
+        '🚀 Full studio preview before upgrading to unlimited high-speed rendering'
+      ];
+    default:
+      return [
+        '🎁 Instant 1-click desktop activation — no credit card required',
+        '🤖 Test core autonomous workflows directly on your desktop',
+        '⚡ Fast contextual processing powered by cloud AI',
+        '⏱️ Generous daily trial allowance to evaluate full capabilities',
+        '🚀 Experience the software in action before upgrading to paid'
+      ];
+  }
+}
+
+export function getDefaultAgentTrialNotice(slug?: string): string {
+  switch (slug) {
+    case 'rolvio':
+      return 'Free trial runs on standard community cloud capacity. Upgrade to paid anytime for unlimited automated job applications and priority cloud AI.';
+    case 'nexus':
+      return 'Free trial runs on standard community cloud capacity. Upgrade to paid anytime for unlimited high-resolution video rendering and direct auto-publishing.';
+    default:
+      return 'Free trial runs on standard community cloud capacity. Upgrade to any paid license anytime for instant sub-second speed, unlimited access, and prioritized performance.';
+  }
+}
+
+export function getDefaultAgentPlanConfigs(slug?: string): {
+  featured_plan: '1_month' | '3_months' | '1_week' | 'lifetime';
+  featured_ribbon_text: string;
+  plan_configs: Record<string, { subtitle: string; badge: string }>;
+} {
+  switch (slug) {
+    case 'rolvio':
+      return {
+        featured_plan: '1_month',
+        featured_ribbon_text: '⭐ MOST POPULAR',
+        plan_configs: {
+          '1_week': { subtitle: 'Ideal for an intensive job application sprint across boards', badge: '🚀 Sprint Pass' },
+          '1_month': { subtitle: 'Full month of automated job hunting, email tracking & matching', badge: '⭐ Most Popular' },
+          '3_months': { subtitle: 'Multi-month active career search & automated recruiter follow-ups', badge: '🔥 High Success' },
+          'lifetime': { subtitle: 'Permanent autonomous job hunting agent for all future career transitions', badge: '👑 Career Pass' },
+        }
+      };
+    case 'nexus':
+      return {
+        featured_plan: '1_month',
+        featured_ribbon_text: '⭐ MOST POPULAR',
+        plan_configs: {
+          '1_week': { subtitle: 'Ideal for a quick video editing project or podcast launch', badge: '🚀 Creator Pass' },
+          '1_month': { subtitle: 'Full month of automated vertical clipping, subtitles & virality scoring', badge: '⭐ Most Popular' },
+          '3_months': { subtitle: 'Multi-month content studio for consistent daily YouTube Shorts & Reels', badge: '🔥 Best Value' },
+          'lifetime': { subtitle: 'Permanent autonomous video studio with all future editing pipelines', badge: '👑 Studio Pass' },
+        }
+      };
+    case 'voro':
+    default:
+      return {
+        featured_plan: '1_month',
+        featured_ribbon_text: '⭐ MOST POPULAR',
+        plan_configs: {
+          '1_week': { subtitle: 'Ideal for an upcoming technical interview or quick project', badge: '🚀 Starter Pass' },
+          '1_month': { subtitle: 'Full month of high-speed cloud AI interview assist', badge: '10% OFF' },
+          '3_months': { subtitle: 'Multi-round job search & technical prep', badge: '🔥 Save ₹240' },
+          'lifetime': { subtitle: 'Permanent ownership with all future agent models', badge: '👑 Pay Once' },
+        }
+      };
+  }
+}
+
+

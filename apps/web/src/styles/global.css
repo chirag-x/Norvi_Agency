@@ -205,6 +205,35 @@ body{margin:0}button,input,textarea,select{font:inherit}button,a,input,select,te
   top: 30px;
 }
 
+.purchase-panel .paid-highlights-box,
+.paid-highlights-box,
+.checkout-highlights-box {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  width: 100% !important;
+  margin-bottom: 0 !important;
+}
+
+.paid-highlights-box .highlights-list,
+.checkout-highlights-box .highlights-list {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 10px !important;
+  width: 100% !important;
+}
+
+.paid-highlights-box .highlight-item,
+.checkout-highlights-box .highlight-item {
+  display: flex !important;
+  align-items: flex-start !important;
+  gap: 10px !important;
+  font-size: 14px !important;
+  line-height: 1.5 !important;
+  color: var(--text, #f0f3ee) !important;
+  margin-bottom: 0 !important;
+}
+
 @media (max-width: 850px) {
   .detail-hero .purchase-panel {
     position: static;

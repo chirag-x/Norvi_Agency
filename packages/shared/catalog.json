@@ -33,6 +33,285 @@
   ],
   "products": [
     {
+      "id": "00000000-0000-4000-8000-000000000002",
+      "slug": "voro",
+      "name": "Voro",
+      "categoryId": "430a669a-1b36-418f-9dd9-76b41fc91ddb",
+      "tagline": "Real-time AI interview assistant, screen-aware copilot & live coding companion.",
+      "description": "Voro is an ultra-low latency, desktop copilot engineered to give you an undetectable unfair advantage during high-stakes technical or non technical interviews rounds. \nVoro remains 100% invisible on Zoom, Microsoft Teams, Google Meet, and browser proctoring tools—even during full-screen sharing. By fusing real-time multimodal screen perception with sub-second speech recognition.\nVoro silently reads live Screen problems, display optimal solutions, grounds behavioral answers in your actual resume, and whispers instant guidance directly into your private earpiece. Zero complex local setup, zero prompt data logging, and instant sub-second answers right when you need them most.",
+      "price": "Pick Your Plan",
+      "price1m": 949,
+      "price3m": 2399,
+      "price_lifetime": 9999,
+      "status": "published",
+      "logoUrl": "https://lpzqvziejdpzykwrhkmn.supabase.co/storage/v1/object/public/product-assets/243715ee-81e1-430e-a00b-abb34026556b.jpg",
+      "features": [
+        "100% Undetectable (Hardware-Level Invisible)",
+        "Real-Time Screen Perception",
+        "Resume-Based Answers & Behavioral Interview",
+        "Sub-Second Low Latency Powered by NORVI",
+        "100% Data Protection — No Audio or Screen Logging"
+      ],
+      "version": "V - 1.4.2",
+      "requirements": "Windows 10 / Windows 11 (64-bit) & macOS 12+ . Supports Low end PC",
+      "releaseStatus": "live",
+      "workflowHeading": "Engineered for calm, confident interviews.",
+      "workflowDescription": "Voro sits unobtrusively in your system tray until your interview begins. As interviewers speak or display technical questions on screen, Voro extracts the core requirement, cross-references your uploaded resume, and projects bulletproof talking points onto your screen.",
+      "workflowMediaUrl": "https://lpzqvziejdpzykwrhkmn.supabase.co/storage/v1/object/public/product-assets/400e959b-2aa1-424b-9fd2-854720b09969.mp4",
+      "workflowNote": "Windows 10/11 native installer. Includes automatic silent background updater and ultra-low latency NORVI Cloud AI.",
+      "aiUsage": "Unlimited — Powered by NORVI Cloud AI",
+      "deviceAllowance": "3 active device per license. Manage devices in your account.",
+      "is_on_sale": true,
+      "trialActive": true,
+      "extendedContent": {
+        "seo": {
+          "ogImage": "https://nor-vi.in/logo.jpg?v=2",
+          "metaTitle": "Voro - #1 Real-Time AI Interview Assistant & Coding Copilot",
+          "focusKeywords": "interview assistant agent, real time ai interview assistant, ai interview copilot, leetcode ai helper, parakeet ai alternative, voro ai",
+          "metaDescription": "Ace your live technical & behavioral interviews with Voro: undetectable screen-aware AI assistant, private audio routing, and live coding copilot. Try free."
+        },
+        "faqs": [
+          {
+            "answer": "No. Voro utilizes Windows native hardware display exclusion. It renders in a private graphics pipeline completely omitted from video capture streams and screenshot APIs.",
+            "question": "Will Zoom, Microsoft Teams, or Google Meet detect Voro during screen sharing?"
+          },
+          {
+            "answer": "No. Voro's audio routing outputs exclusively to your selected headphone/earpiece device, bypassing the virtual microphone loopback so no call participants ever hear it.",
+            "question": "Can interviewers hear Voro speaking the answers?"
+          },
+          {
+            "answer": "Yes. Voro’s multimodal screen vision reads code editors, LeetCode, and HackerRank in real-time, instantly delivering the optimal algorithmic approach, time/space complexity analysis, and clean code.",
+            "question": "Does Voro solve live LeetCode and coding problems?"
+          },
+          {
+            "answer": "Absolutely not. Norvi Agency enforces a strict zero-data-logging architecture. Voro captures your screen and routes audio natively on your machine, while AI reasoning queries are encrypted and processed through NORVI Cloud AI with zero tracking, logging, or audio storage.",
+            "question": "Does Norvi Agency record or store my interview sessions?"
+          },
+          {
+            "answer": "You are 100% safe. Even if you choose \"Share Entire Screen\" instead of just a browser tab, Voro remains completely invisible to the interviewer and the recording. You can clearly see Voro's answers floating on your monitor, but anyone watching the stream or recording only sees your clean desktop.",
+            "question": "What happens if the interviewer asks me to share my entire desktop screen?"
+          },
+          {
+            "answer": "Yes, absolutely! Voro is designed for everyday job seekers and students. There is no coding required. Setup takes only 2 minutes with simple buttons, and you can control everything during the interview with easy keyboard shortcuts like Ctrl+Enter to answer and Ctrl+Shift+G for stealth mode.",
+            "question": "I’m not very tech-savvy. Is Voro easy for beginners to set up and use?"
+          }
+        ],
+        "guide": {
+          "sections": [
+            {
+              "id": "section-voro-step-1",
+              "content": "1. In your NORVI Dashboard (https://nor-vi.in/account/agents), click the \"Download Installer\" button next to Voro to get the official setup file (Voro_Setup.exe).\n2. Open the downloaded file and follow the standard on-screen Windows installer steps.\n3. Once installed, launch Voro from your desktop shortcut or Windows Start menu.",
+              "heading": "Download & Install Voro",
+              "imageUrl": null
+            },
+            {
+              "id": "section-voro-step-2",
+              "content": "1. On your NORVI Dashboard, find Voro and click \"View License\".\n2. Copy your unique activation key (starts with NORVI-VORO-).\n3. In the Voro application, paste your license key and click \"Activate\". Your license is verified immediately through the NORVI security gateway, giving you full access.",
+              "heading": "Activate Your License Key",
+              "imageUrl": null
+            },
+            {
+              "id": "section-voro-step-3",
+              "content": "Unlike older tools that require you to configure Ollama, install Python, or download massive 10GB models, Voro connects to the NORVI Cloud AI brain automatically.\n• Real-time interview reasoning, coding solutions, and answer distillation are 100% active immediately.\n• Zero GPU requirements and minimal system resource usage—runs smoothly on standard laptops.\n• Check your operational status at any time in Voro Settings → System Readiness Summary.",
+              "heading": "Instant Cloud AI Brain (Zero Setup Needed)",
+              "imageUrl": null
+            },
+            {
+              "id": "section-voro-step-4",
+              "content": "For ultra-fast ~200ms speech recognition, connect your free personal Groq API key:\n1. Inside Voro, open Settings → Audio tab.\n2. In Section 3 (Voice Recognition), click \"Get Free Key\" (or visit https://console.groq.com/keys).\n3. Sign up or log in (100% free with Google, no card required).\n4. Click \"Create API Key\", name it \"Voro\", and copy your key (starts with \"gsk_...\").\n5. Paste it into the \"Groq API Key\" field in Voro and click \"⚡ Test Key\".\n(Note: If you ever interview offline without internet, simply select an offline model from the dropdown and click \"Download\" for zero-internet backup).",
+              "heading": "Connect Fast Voice Recognition (~200ms Latency)",
+              "imageUrl": null
+            },
+            {
+              "id": "section-voro-step-5",
+              "content": "Make your answers sound completely natural and grounded in your real background:\n1. Open Voro Settings → Profile tab.\n2. Paste your Resume / Work History detailing your past projects, tech stack, and experience.\n3. Paste the target Job Description of the role you are interviewing for.\n4. Click \"Save Settings\". Voro will now frame all behavioral and technical answers using your genuine past experience.",
+              "heading": "Personalize Answers with Your Resume & Target Job",
+              "imageUrl": null
+            },
+            {
+              "id": "section-voro-step-6",
+              "content": "Prepare your meeting audio and control Voro effortlessly with keyboard shortcuts:\n• Private Headphone Audio: In Settings → Audio, select your headphones/earpiece as the output device so only you hear Voro's voice.\n• 100% Invisible Screen Share: Voro uses Windows hardware display isolation (SetWindowDisplayAffinity) and is completely invisible to Zoom, Teams, and Google Meet even when sharing your entire desktop.\n• Key Shortcuts:\n  - Ctrl + Enter: Push-to-Answer (answers the technical question while filtering small talk).\n  - Ctrl + Shift + U: Toggle Auto-Answer (hands-free automatic answers).\n  - Ctrl + Shift + Q: Screen Vision (reads LeetCode/IDE code on screen and generates clean code + Big-O analysis).\n  - Ctrl + Shift + G: Emergency Stealth Cloak (instantly hides Voro in under 20ms).",
+              "heading": "Meeting Setup & Live Interview Hotkeys",
+              "imageUrl": null
+            }
+          ],
+          "videoUrl": null
+        },
+        "badgeText": "⚡ Undetectable Hardware Cloak · Sub-Second Cloud AI · Live Screen Perception",
+        "comparison": {
+          "rows": [
+            {
+              "us": "100% Invisible",
+              "comp1": "Partial",
+              "comp2": "Detectable (Visible)",
+              "feature": "Invisible on Screen Share    "
+            },
+            {
+              "us": "Included",
+              "comp1": "Add-on Needed",
+              "comp2": "None",
+              "feature": "Hardware Earpiece Audio Bypass"
+            },
+            {
+              "us": "Unlimited",
+              "comp1": "100 Qs / Month",
+              "comp2": "Rate Limited (40 msgs/3hr)",
+              "feature": "Usage (No Caps)"
+            },
+            {
+              "us": "Native",
+              "comp1": "None",
+              "comp2": "None",
+              "feature": "Question Distillation (Filters Chit-Chat)"
+            },
+            {
+              "us": "Yes (Live Syntax & Complexity)",
+              "comp1": "Limited",
+              "comp2": "Manual Copy-Paste Only",
+              "feature": "LeetCode & Coding Copilot Mode"
+            },
+            {
+              "us": "Optimized for Indian & Global Accents",
+              "comp1": "US / UK English Only",
+              "comp2": "Text Only",
+              "feature": "Hinglish & Multi-Accent Recognition"
+            },
+            {
+              "us": "From ₹599 / Lifetime Available",
+              "comp1": "₹9,500/month",
+              "comp2": "$20 / month",
+              "feature": "Pricing Model"
+            }
+          ],
+          "headline": "Why Candidates Choose Voro Over Parakeet.ai",
+          "competitor1Name": "Parakeet.ai",
+          "competitor2Name": "ChatGPT / Web AI"
+        },
+        "subHeading": "Real-Time Interview Copilot",
+        "heroMediaUrl": null,
+        "plan_configs": {
+          "1_week": {
+            "badge": "🚀 Starter Pass",
+            "subtitle": "Ideal for an upcoming technical interview or quick project"
+          },
+          "1_month": {
+            "badge": "10% OFF",
+            "subtitle": "Full month of high-speed cloud AI interview assist"
+          },
+          "3_months": {
+            "badge": "🔥 Save ₹240",
+            "subtitle": "Multi-round job search & technical prep"
+          },
+          "lifetime": {
+            "badge": "👑 Pay Once",
+            "subtitle": "Permanent ownership with all future agent models"
+          }
+        },
+        "trial_notice": "Free trial runs on standard community cloud capacity. Upgrade to any paid license anytime for instant sub-second speed, unlimited access, and prioritized performance.",
+        "featured_plan": "1_month",
+        "featurePillars": [
+          {
+            "id": "voro-p1",
+            "tag": "Completely Undetectable",
+            "icon": "Shield",
+            "title": "100% Invisible Across All of Windows",
+            "description": "Voro is built to be completely invisible on your computer. When you share your screen on Zoom, Microsoft Teams, or Google Meet, the interviewer will never see Voro. Even better, Voro can hide completely from your Windows Taskbar, System Tray, Task Manager, and screen recorders. You get help right in front of you while looking 100% clean.",
+            "shortDescription": "Completely invisible during Zoom, Teams, and Meet screen sharing, with full Taskbar, Tray, and Task Manager cloaking."
+          },
+          {
+            "id": "voro-p2",
+            "tag": "Instant Voice AI",
+            "icon": "Zap",
+            "title": "Understands Questions in Less Than a Second",
+            "description": "Voro listens to the interviewer through your headphones and understands what they asked in less than a second. It automatically separates the interviewer’s voice from your voice, so it always knows who is speaking and gives you the exact answer right when you need it.",
+            "shortDescription": "Listens through your headphones and transcribes interviewer questions in sub-second latency with real-time speaker separation."
+          },
+          {
+            "id": "voro-p3",
+            "tag": "No Embarrassing Popups",
+            "icon": "Check",
+            "title": "Smart Push-to-Answer & Auto Answer",
+            "description": "In interviews, interviewers often say casual things like \"Hey, how are you today?\" or \"Can you hear me?\". Voro is smart enough to ignore all the friendly small talk. With simple manual mode (Ctrl+Enter), Voro only answers when you ask it to, giving you the direct technical answer to the real question.\nand if you select auto answer it will give you answers without pressing any key .",
+            "shortDescription": "Filters out casual small talk and only provides technical answers on-demand via Ctrl+Enter or hands-free Auto Answer."
+          },
+          {
+            "id": "voro-p4",
+            "tag": "Sounds Naturally Like You",
+            "icon": "Check",
+            "title": "Uses Your Real Resume & Past Experience",
+            "description": "Just paste your resume and the target company's job description into Voro. When the interviewer asks questions like \"Tell me about a time you handled a difficult project\", Voro crafts answers using your real career projects, tech stack, and background, making your answers sound completely genuine.",
+            "shortDescription": "Ingests your resume and target job description to ground behavioral and technical answers in your genuine past projects."
+          },
+          {
+            "id": "voro-p5",
+            "tag": "Screen Awareness",
+            "icon": "Eye",
+            "title": "Reads Your Screen & Solves Live Coding",
+            "description": "Doing a live coding round or technical test? Voro reads whatever is on your screen—including LeetCode, HackerRank, code editors, and technical diagrams. It explains the problem, writes clean code, and explains the time and memory complexity step-by-step so you can speak confidently.",
+            "shortDescription": "Real-time screen OCR reads LeetCode, HackerRank, and architecture diagrams, producing clean code and Big-O explanations."
+          },
+          {
+            "id": "voro-p6",
+            "tag": "Only You Hear It",
+            "icon": "Sparkles",
+            "title": "Private Whisper in Your Ear",
+            "description": "If you prefer hearing the answer instead of reading text, Voro can quietly speak answers directly into your headphones. The interviewer cannot hear it at all. Plus, the second you start speaking, Voro immediately stops talking so you never talk over each other.",
+            "shortDescription": "Discreet text-to-speech audio piped directly to your earpiece that automatically pauses the moment you start speaking."
+          },
+          {
+            "id": "voro-p7",
+            "tag": "Zero Data Tracking",
+            "icon": "Cpu",
+            "title": "100% Private — Runs on Your Computer",
+            "description": "Your privacy is 100% guaranteed. Norvi Agency never records, saves, or sees your audio, screen, or interview questions. Everything runs safely right on your own PC, keeping your interviews, resume, and data completely confidential.",
+            "shortDescription": "Zero audio or screen recording retained. Session data remains strictly on your local machine with end-to-end privacy."
+          },
+          {
+            "id": "voro-p8",
+            "tag": "Instant Panic Cloak",
+            "icon": "Shield",
+            "title": "Emergency Stealth Panic Key & Instant Cloak",
+            "description": "Need to clear your screen instantly? Press your customizable panic hotkey (e.g., Ctrl+Shift+Q or Esc double-tap) to make Voro vanish in less than 50 milliseconds. The overlay immediately terminates display rendering, clears temporary text caches from active memory, and drops background footprint to absolute zero. When you're ready, tap your resume key to restore your session right where you left off.",
+            "shortDescription": "A single customizable hotkey instantly dismisses all HUD overlays and purges active screen traces in under 50 milliseconds."
+          }
+        ],
+        "platformBadges": [
+          "Microsoft Teams",
+          "Zoom",
+          "Google Meet",
+          "HackerRank",
+          "LeetCode",
+          "CoderPad",
+          "Windows",
+          "macOS",
+          "All Others Apps"
+        ],
+        "paid_highlights": [
+          "⚡ Instant, sub-second responses tailored live to your screen & audio",
+          "👁️ Real-time invisible screen perception & live vision assistant",
+          "🚀 Priority cloud performance with zero waiting or queue delays",
+          "🔒 100% private & undetectable — zero data harvesting or prompt training",
+          "💻 Multi-device activation — seamlessly switch between your desktop & laptop",
+          "✨ Unlimited daily access for real everyday productivity & work"
+        ],
+        "trial_highlights": [
+          "🎁 Instant 1-click desktop activation — no credit card needed",
+          "👁️ Live screen-aware assistant to test real desktop workflows",
+          "⚡ Fast contextual answers right on your personal PC",
+          "⏱️ Generous daily trial allowance to experience the full software",
+          "🚀 Test all core features before deciding to unlock the full paid version"
+        ],
+        "featured_ribbon_text": "⭐ MOST POPULAR"
+      },
+      "subHeading": "Real-Time Interview Copilot",
+      "category": {
+        "id": "430a669a-1b36-418f-9dd9-76b41fc91ddb",
+        "slug": "interview-assistance",
+        "name": "Interview Assistance",
+        "createdAt": "2026-09-24T08:42:17.673253+00:00"
+      }
+    },
+    {
       "id": "00000000-0000-4000-8000-000000000003",
       "slug": "rolvio",
       "name": "Rolvio",
@@ -113,6 +392,26 @@
         },
         "subHeading": "Autonomous Career Agent",
         "heroMediaUrl": null,
+        "plan_configs": {
+          "1_week": {
+            "badge": "🚀 Sprint Pass",
+            "subtitle": "Ideal for an intensive job application sprint across boards"
+          },
+          "1_month": {
+            "badge": "⭐ Most Popular",
+            "subtitle": "Full month of automated job hunting, email tracking & matching"
+          },
+          "3_months": {
+            "badge": "🔥 High Success",
+            "subtitle": "Multi-month active career search & automated recruiter follow-ups"
+          },
+          "lifetime": {
+            "badge": "👑 Career Pass",
+            "subtitle": "Permanent autonomous job hunting agent for all future career transitions"
+          }
+        },
+        "trial_notice": "Free trial runs on standard community cloud capacity. Upgrade to paid anytime for unlimited automated job applications and priority cloud AI.",
+        "featured_plan": "1_month",
         "featurePillars": [
           {
             "id": "rolvio-p1",
@@ -142,7 +441,23 @@
           "Wellfound",
           "Glassdoor",
           "ZipRecruiter"
-        ]
+        ],
+        "paid_highlights": [
+          "⚡ Autonomous 1-click multi-board job applications on LinkedIn, Indeed & more",
+          "📄 Intelligent AI resume tailoring & custom cover letter generation per role",
+          "📬 Automated recruiter email sync, reply parsing & interview invite tracking",
+          "🛡️ Human-like anti-bot pacing & typing shield to protect your accounts",
+          "📊 Kanban visual pipeline board to organize all submitted applications",
+          "🚀 Unlimited daily job hunting, matching & automated submissions"
+        ],
+        "trial_highlights": [
+          "🎁 Instant 1-click desktop activation — no credit card required",
+          "🔍 Test automated job discovery across LinkedIn, Indeed & Wellfound",
+          "📄 Preview resume matching scores and role compatibility insights",
+          "⏱️ Generous daily trial quota to experience automated job searching",
+          "🚀 Full access to test job finding and board management before upgrading"
+        ],
+        "featured_ribbon_text": "⭐ MOST POPULAR"
       },
       "subHeading": "Autonomous Career Agent",
       "category": {
@@ -150,249 +465,6 @@
         "slug": "career-automation",
         "name": "Job Search & Career Automation",
         "createdAt": "2026-10-14T19:19:23.601167+00:00"
-      }
-    },
-    {
-      "id": "00000000-0000-4000-8000-000000000002",
-      "slug": "voro",
-      "name": "Voro",
-      "categoryId": "430a669a-1b36-418f-9dd9-76b41fc91ddb",
-      "tagline": "Real-time AI interview assistant, screen-aware copilot & live coding companion.",
-      "description": "Voro is a discreet, ultra-low latency desktop assistant engineered to give you real-time contextual support during live interviews, technical screens, and coding challenges. Utilizing hardware-level overlay layering and isolated audio routing, Voro reads questions off your screen and whispers instant, tailored answers into your private earpiece without being detected by Zoom, Teams, Google Meet, or browser proctoring tools.",
-      "price": "Pick Your Plan",
-      "price1m": 799,
-      "price3m": 1999,
-      "price_lifetime": 8999,
-      "status": "published",
-      "logoUrl": "https://lpzqvziejdpzykwrhkmn.supabase.co/storage/v1/object/public/product-assets/243715ee-81e1-430e-a00b-abb34026556b.jpg",
-      "features": [
-        "Invisible on Zoom , Meet & more",
-        "Live Coding & LeetCode Helper",
-        "Private Earpiece Whisper",
-        "Reads Screen Context in Real-Time",
-        "Grounds Answers in Your Resume"
-      ],
-      "version": "V - 1.4.1",
-      "requirements": "Windows 10 / Windows 11 (64-bit) & macOS 12+ . Supports Low end PC",
-      "releaseStatus": "live",
-      "workflowHeading": "Engineered for calm, confident interviews.",
-      "workflowDescription": "Voro sits unobtrusively in your system tray until your interview begins. As interviewers speak or display technical questions on screen, Voro extracts the core requirement, cross-references your uploaded resume, and projects bulletproof talking points onto your screen.",
-      "workflowMediaUrl": "https://lpzqvziejdpzykwrhkmn.supabase.co/storage/v1/object/public/product-assets/400e959b-2aa1-424b-9fd2-854720b09969.mp4",
-      "workflowNote": "Windows 10/11 native installer. Includes automatic silent background updater and ultra-low latency NORVI Cloud AI.",
-      "aiUsage": "Unlimited — Powered by NORVI Cloud AI",
-      "deviceAllowance": "3 active device per license. Manage devices in your account.",
-      "is_on_sale": true,
-      "trialActive": false,
-      "extendedContent": {
-        "seo": {
-          "ogImage": "https://nor-vi.in/logo.jpg?v=2",
-          "metaTitle": "Voro - #1 Real-Time AI Interview Assistant & Coding Copilot",
-          "focusKeywords": "interview assistant agent, real time ai interview assistant, ai interview copilot, leetcode ai helper, parakeet ai alternative, voro ai",
-          "metaDescription": "Ace your live technical & behavioral interviews with Voro: undetectable screen-aware AI assistant, private audio routing, and live coding copilot. Try free."
-        },
-        "faqs": [
-          {
-            "answer": "No. Voro utilizes Windows native hardware display exclusion. It renders in a private graphics pipeline completely omitted from video capture streams and screenshot APIs.",
-            "question": "Will Zoom, Microsoft Teams, or Google Meet detect Voro during screen sharing?"
-          },
-          {
-            "answer": "No. Voro's audio routing outputs exclusively to your selected headphone/earpiece device, bypassing the virtual microphone loopback so no call participants ever hear it.",
-            "question": "Can interviewers hear Voro speaking the answers?"
-          },
-          {
-            "answer": "Yes. Voro’s multimodal screen vision reads code editors, LeetCode, and HackerRank in real-time, instantly delivering the optimal algorithmic approach, time/space complexity analysis, and clean code.",
-            "question": "Does Voro solve live LeetCode and coding problems?"
-          },
-          {
-            "answer": "Absolutely not. Norvi Agency enforces a strict zero-data-logging architecture. Voro captures your screen and routes audio natively on your machine, while AI reasoning queries are encrypted and processed through NORVI Cloud AI with zero tracking, logging, or audio storage.",
-            "question": "Does Norvi Agency record or store my interview sessions?"
-          },
-          {
-            "answer": "You are 100% safe. Even if you choose \"Share Entire Screen\" instead of just a browser tab, Voro remains completely invisible to the interviewer and the recording. You can clearly see Voro's answers floating on your monitor, but anyone watching the stream or recording only sees your clean desktop.",
-            "question": "What happens if the interviewer asks me to share my entire desktop screen?"
-          },
-          {
-            "answer": "Yes, absolutely! Voro is designed for everyday job seekers and students. There is no coding required. Setup takes only 2 minutes with simple buttons, and you can control everything during the interview with easy keyboard shortcuts like Ctrl+Enter to answer and Ctrl+Shift+G for stealth mode.",
-            "question": "I’m not very tech-savvy. Is Voro easy for beginners to set up and use?"
-          }
-        ],
-        "guide": {
-          "sections": [
-            {
-              "id": "section-voro-step-1",
-              "content": "1. In your NORVI Dashboard (https://nor-vi.in/account/agents), click the \"Download Installer\" button next to Voro to get the official setup file (Voro_Setup.exe).\n2. Open the downloaded file and follow the standard on-screen Windows installer steps.\n3. Once installed, launch Voro from your desktop shortcut or Windows Start menu.",
-              "heading": "Download & Install Voro",
-              "imageUrl": null
-            },
-            {
-              "id": "section-voro-step-2",
-              "content": "1. On your NORVI Dashboard, find Voro and click \"View License\".\n2. Copy your unique activation key (starts with NORVI-VORO-).\n3. In the Voro application, paste your license key and click \"Activate\". Your license is verified immediately through the NORVI security gateway, giving you full access.",
-              "heading": "Activate Your License Key",
-              "imageUrl": null
-            },
-            {
-              "id": "section-voro-step-3",
-              "content": "Unlike older tools that require you to configure Ollama, install Python, or download massive 10GB models, Voro connects to the NORVI Cloud AI brain automatically.\n• Real-time interview reasoning, coding solutions, and answer distillation are 100% active immediately.\n• Zero GPU requirements and minimal system resource usage—runs smoothly on standard laptops.\n• Check your operational status at any time in Voro Settings → System Readiness Summary.",
-              "heading": "Instant Cloud AI Brain (Zero Setup Needed)",
-              "imageUrl": null
-            },
-            {
-              "id": "section-voro-step-4",
-              "content": "For ultra-fast ~200ms speech recognition, connect your free personal Groq API key:\n1. Inside Voro, open Settings → Audio tab.\n2. In Section 3 (Voice Recognition), click \"Get Free Key\" (or visit https://console.groq.com/keys).\n3. Sign up or log in (100% free with Google, no card required).\n4. Click \"Create API Key\", name it \"Voro\", and copy your key (starts with \"gsk_...\").\n5. Paste it into the \"Groq API Key\" field in Voro and click \"⚡ Test Key\".\n(Note: If you ever interview offline without internet, simply select an offline model from the dropdown and click \"Download\" for zero-internet backup).",
-              "heading": "Connect Fast Voice Recognition (~200ms Latency)",
-              "imageUrl": null
-            },
-            {
-              "id": "section-voro-step-5",
-              "content": "Make your answers sound completely natural and grounded in your real background:\n1. Open Voro Settings → Profile tab.\n2. Paste your Resume / Work History detailing your past projects, tech stack, and experience.\n3. Paste the target Job Description of the role you are interviewing for.\n4. Click \"Save Settings\". Voro will now frame all behavioral and technical answers using your genuine past experience.",
-              "heading": "Personalize Answers with Your Resume & Target Job",
-              "imageUrl": null
-            },
-            {
-              "id": "section-voro-step-6",
-              "content": "Prepare your meeting audio and control Voro effortlessly with keyboard shortcuts:\n• Private Headphone Audio: In Settings → Audio, select your headphones/earpiece as the output device so only you hear Voro's voice.\n• 100% Invisible Screen Share: Voro uses Windows hardware display isolation (SetWindowDisplayAffinity) and is completely invisible to Zoom, Teams, and Google Meet even when sharing your entire desktop.\n• Key Shortcuts:\n  - Ctrl + Enter: Push-to-Answer (answers the technical question while filtering small talk).\n  - Ctrl + Shift + U: Toggle Auto-Answer (hands-free automatic answers).\n  - Ctrl + Shift + Q: Screen Vision (reads LeetCode/IDE code on screen and generates clean code + Big-O analysis).\n  - Ctrl + Shift + G: Emergency Stealth Cloak (instantly hides Voro in under 20ms).",
-              "heading": "Meeting Setup & Live Interview Hotkeys",
-              "imageUrl": null
-            }
-          ],
-          "videoUrl": null
-        },
-        "badgeText": "⚡ Ultra-Low Latency | 100% Undetectable | Cloud AI Included",
-        "comparison": {
-          "rows": [
-            {
-              "us": "100% Invisible",
-              "comp1": "Partial",
-              "comp2": "Detectable (Visible)",
-              "feature": "Invisible on Screen Share    "
-            },
-            {
-              "us": "Included",
-              "comp1": "Add-on Needed",
-              "comp2": "None",
-              "feature": "Hardware Earpiece Audio Bypass"
-            },
-            {
-              "us": "Unlimited",
-              "comp1": "100 Qs / Month",
-              "comp2": "Rate Limited (40 msgs/3hr)",
-              "feature": "Usage (No Caps)"
-            },
-            {
-              "us": "Native",
-              "comp1": "None",
-              "comp2": "None",
-              "feature": "Question Distillation (Filters Chit-Chat)"
-            },
-            {
-              "us": "Yes (Live Syntax & Complexity)",
-              "comp1": "Limited",
-              "comp2": "Manual Copy-Paste Only",
-              "feature": "LeetCode & Coding Copilot Mode"
-            },
-            {
-              "us": "Optimized for Indian & Global Accents",
-              "comp1": "US / UK English Only",
-              "comp2": "Text Only",
-              "feature": "Hinglish & Multi-Accent Recognition"
-            },
-            {
-              "us": "From ₹599 / Lifetime Available",
-              "comp1": "₹9,500/month",
-              "comp2": "$20 / month",
-              "feature": "Pricing Model"
-            }
-          ],
-          "headline": "Why Candidates Choose Voro Over Parakeet.ai",
-          "competitor1Name": "Parakeet.ai",
-          "competitor2Name": "ChatGPT / Web AI"
-        },
-        "subHeading": "Interview Assistant",
-        "heroMediaUrl": null,
-        "featurePillars": [
-          {
-            "id": "voro-p1",
-            "tag": "Completely Undetectable",
-            "icon": "Shield",
-            "title": "100% Invisible Across All of Windows",
-            "description": "Voro is built to be completely invisible on your computer. When you share your screen on Zoom, Microsoft Teams, or Google Meet, the interviewer will never see Voro. Even better, Voro can hide completely from your Windows Taskbar, System Tray, Task Manager, and screen recorders. You get help right in front of you while looking 100% clean.",
-            "shortDescription": "Completely invisible during Zoom, Teams, and Meet screen sharing, with full Taskbar, Tray, and Task Manager cloaking."
-          },
-          {
-            "id": "voro-p2",
-            "tag": "Instant Voice AI",
-            "icon": "Zap",
-            "title": "Understands Questions in Less Than a Second",
-            "description": "Voro listens to the interviewer through your headphones and understands what they asked in less than a second. It automatically separates the interviewer’s voice from your voice, so it always knows who is speaking and gives you the exact answer right when you need it.",
-            "shortDescription": "Listens through your headphones and transcribes interviewer questions in sub-second latency with real-time speaker separation."
-          },
-          {
-            "id": "voro-p3",
-            "tag": "No Embarrassing Popups",
-            "icon": "Check",
-            "title": "Smart Push-to-Answer & Auto Answer",
-            "description": "In interviews, interviewers often say casual things like \"Hey, how are you today?\" or \"Can you hear me?\". Voro is smart enough to ignore all the friendly small talk. With simple manual mode (Ctrl+Enter), Voro only answers when you ask it to, giving you the direct technical answer to the real question.\nand if you select auto answer it will give you answers without pressing any key .",
-            "shortDescription": "Filters out casual small talk and only provides technical answers on-demand via Ctrl+Enter or hands-free Auto Answer."
-          },
-          {
-            "id": "voro-p4",
-            "tag": "Sounds Naturally Like You",
-            "icon": "Check",
-            "title": "Uses Your Real Resume & Past Experience",
-            "description": "Just paste your resume and the target company's job description into Voro. When the interviewer asks questions like \"Tell me about a time you handled a difficult project\", Voro crafts answers using your real career projects, tech stack, and background, making your answers sound completely genuine.",
-            "shortDescription": "Ingests your resume and target job description to ground behavioral and technical answers in your genuine past projects."
-          },
-          {
-            "id": "voro-p5",
-            "tag": "Screen Awareness",
-            "icon": "Eye",
-            "title": "Reads Your Screen & Solves Live Coding",
-            "description": "Doing a live coding round or technical test? Voro reads whatever is on your screen—including LeetCode, HackerRank, code editors, and technical diagrams. It explains the problem, writes clean code, and explains the time and memory complexity step-by-step so you can speak confidently.",
-            "shortDescription": "Real-time screen OCR reads LeetCode, HackerRank, and architecture diagrams, producing clean code and Big-O explanations."
-          },
-          {
-            "id": "voro-p6",
-            "tag": "Only You Hear It",
-            "icon": "Sparkles",
-            "title": "Private Whisper in Your Ear",
-            "description": "If you prefer hearing the answer instead of reading text, Voro can quietly speak answers directly into your headphones. The interviewer cannot hear it at all. Plus, the second you start speaking, Voro immediately stops talking so you never talk over each other.",
-            "shortDescription": "Discreet text-to-speech audio piped directly to your earpiece that automatically pauses the moment you start speaking."
-          },
-          {
-            "id": "voro-p7",
-            "tag": "Zero Data Tracking",
-            "icon": "Cpu",
-            "title": "100% Private — Runs on Your Computer",
-            "description": "Your privacy is 100% guaranteed. Norvi Agency never records, saves, or sees your audio, screen, or interview questions. Everything runs safely right on your own PC, keeping your interviews, resume, and data completely confidential.",
-            "shortDescription": "Zero audio or screen recording retained. Session data remains strictly on your local machine with end-to-end privacy."
-          },
-          {
-            "id": "voro-p8",
-            "tag": "Instant Panic Cloak",
-            "icon": "Shield",
-            "title": "Emergency Stealth Panic Key & Instant Cloak",
-            "description": "Need to clear your screen instantly? Press your customizable panic hotkey (e.g., Ctrl+Shift+Q or Esc double-tap) to make Voro vanish in less than 50 milliseconds. The overlay immediately terminates display rendering, clears temporary text caches from active memory, and drops background footprint to absolute zero. When you're ready, tap your resume key to restore your session right where you left off.",
-            "shortDescription": "A single customizable hotkey instantly dismisses all HUD overlays and purges active screen traces in under 50 milliseconds."
-          }
-        ],
-        "platformBadges": [
-          "Microsoft Teams",
-          "Zoom",
-          "Google Meet",
-          "HackerRank",
-          "LeetCode",
-          "CoderPad",
-          "Windows",
-          "macOS",
-          "All Others Apps"
-        ]
-      },
-      "subHeading": "Interview Assistant",
-      "category": {
-        "id": "430a669a-1b36-418f-9dd9-76b41fc91ddb",
-        "slug": "interview-assistance",
-        "name": "Interview Assistance",
-        "createdAt": "2026-09-24T08:42:17.673253+00:00"
       }
     },
     {
@@ -514,6 +586,26 @@
           "competitor2Name": "Manual Editing (CapCut / Premiere)"
         },
         "heroMediaUrl": null,
+        "plan_configs": {
+          "1_week": {
+            "badge": "🚀 Creator Pass",
+            "subtitle": "Ideal for a quick video editing project or podcast launch"
+          },
+          "1_month": {
+            "badge": "⭐ Most Popular",
+            "subtitle": "Full month of automated vertical clipping, subtitles & virality scoring"
+          },
+          "3_months": {
+            "badge": "🔥 Best Value",
+            "subtitle": "Multi-month content studio for consistent daily YouTube Shorts & Reels"
+          },
+          "lifetime": {
+            "badge": "👑 Studio Pass",
+            "subtitle": "Permanent autonomous video studio with all future editing pipelines"
+          }
+        },
+        "trial_notice": "Free trial runs on standard community cloud capacity. Upgrade to paid anytime for unlimited high-resolution video rendering and direct auto-publishing.",
+        "featured_plan": "1_month",
         "featurePillars": [
           {
             "id": "nexus-p1",
@@ -588,7 +680,23 @@
           "X(TWITTER)",
           "WINDOWS 10 , 11",
           "Direct File Import"
-        ]
+        ],
+        "paid_highlights": [
+          "🎬 Automatic viral moment extraction from podcasts, interviews & streams",
+          "📐 Smart AI 9:16 vertical re-framing with continuous face centering",
+          "✨ Kinetic animated captions & emojis (MrBeast & Alex Hormozi styles)",
+          "📈 AI virality scoring and hook optimization to maximize views",
+          "📲 1-Click direct auto-publishing to YouTube Shorts, Reels & TikTok",
+          "🚀 Unlimited high-resolution rendering with priority cloud video pipeline"
+        ],
+        "trial_highlights": [
+          "🎁 Instant 1-click desktop activation — no credit card required",
+          "🎬 Import long videos or YouTube links to test AI clip generation",
+          "✨ Preview animated captions, auto-framing, and virality scores",
+          "⏱️ Generous trial quota to create and inspect viral short clips",
+          "🚀 Full studio preview before upgrading to unlimited high-speed rendering"
+        ],
+        "featured_ribbon_text": "⭐ MOST POPULAR"
       },
       "category": {
         "id": "73ce8f2d-6749-4861-bd6c-97c675ca3566",

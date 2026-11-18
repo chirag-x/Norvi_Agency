@@ -4,7 +4,7 @@ import {
   Mail, LifeBuoy, Workflow, Activity, Instagram, Youtube, Facebook, Twitter,
   Sparkles, Plus, Code, Mic, Bot, Film, Cpu, Zap, Monitor, Layers, Lock, Terminal, Eye, X
 } from 'lucide-react';
-import type { Product, Settings, User, FeaturePillar } from '../../../../packages/shared/model';
+import { formatDurationLabel, getDefaultAgentPaidHighlights, getDefaultAgentTrialHighlights, getDefaultAgentTrialNotice, type Product, type Settings, type User, type FeaturePillar, type AgentExtendedContent } from '../../../../packages/shared/model';
 import { ProductCard,ProductIcon } from './App';
 import { PageHeading, Notice, Field, Empty, api, useData, Badge, SmartVideoPlayer, parseYouTubeVideoId } from './common';
 import { trackMetaPurchase, trackMetaViewContent, hasAdvertisingConsent, getProductDisplayPrice } from './analytics';
@@ -126,12 +126,30 @@ export function Detail({product, settings, isCatalogLoaded = true}:{product:Prod
               </>
             ) : (
               <>
-                <h3>Start Free Trial</h3>
-                <p style={{marginBottom: 24}}>Are you sure you want to activate your 1-day trial for <b>{product.name}</b>? You can only claim this once.</p>
+                <div style={{ textAlign: 'left', marginBottom: 20, background: 'rgba(255,255,255,0.03)', padding: '18px 20px', borderRadius: 8, border: '1px solid var(--border)' }}>
+                  <h3 style={{ margin: '0 0 14px 0', fontSize: 17, color: 'var(--lime, #98e038)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    🎁 What&apos;s Included in your 1-Day Free Trial
+                  </h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
+                    {((ext?.trial_highlights && ext.trial_highlights.length > 0) ? ext.trial_highlights : getDefaultAgentTrialHighlights(product.slug)).map((hl: string, i: number) => (
+                      <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, fontSize: 14, color: 'var(--text, #f0f3ee)', lineHeight: 1.5 }}>
+                        <Check size={16} style={{ color: 'var(--lime, #98e038)', flexShrink: 0, marginTop: 2.5 }} />
+                        <span>{hl}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ fontSize: 13, color: 'var(--text-light, #99a890)', borderTop: '1px solid var(--border)', paddingTop: 12, lineHeight: 1.5 }}>
+                    💡 <b>Note:</b> {ext?.trial_notice || getDefaultAgentTrialNotice(product.slug)}
+                  </div>
+                </div>
                 {trialError && <div className="notice error" style={{marginBottom: 16}}>{trialError}</div>}
                 <div style={{display: 'flex', gap: 12}}>
-                  <button className="button secondary full" onClick={() => setTrialModal(false)} disabled={trialBusy}>Cancel</button>
-                  <button className="button primary full" onClick={startTrial} disabled={trialBusy}>{trialBusy ? 'Activating...' : 'Activate Trial'}</button>
+                  <a className="button secondary full" href={`/checkout/${product.slug}`} style={{ textAlign: 'center', textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    View Paid Plans ↗
+                  </a>
+                  <button className="button primary full" onClick={startTrial} disabled={trialBusy}>
+                    {trialBusy ? 'Activating...' : 'Activate 1-Day Trial'}
+                  </button>
                 </div>
               </>
             )}
@@ -289,10 +307,26 @@ export function Detail({product, settings, isCatalogLoaded = true}:{product:Prod
               )}
             </>
           )}
-          <hr/>
-          <div><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 18v3c0 .6.4 1 1 1h4v-3h3v-3h2l1.4-1.4a6.5 6.5 0 1 0-4-4Z"></path><circle cx="16.5" cy="7.5" r=".5"></circle></svg> Your own product activation key</div>
-          <div><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg> Downloads in your account</div>
-          <div><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><path d="m9 12 2 2 4-4"></path></svg> Account-based license management</div>
+          {(() => {
+            const highlights = (ext?.paid_highlights && ext.paid_highlights.length > 0)
+              ? ext.paid_highlights
+              : getDefaultAgentPaidHighlights(product.slug);
+            return (
+              <div className="paid-highlights-box" style={{ display: 'flex', flexDirection: 'column', width: '100%', marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
+                <h4 style={{ margin: '0 0 14px 0', fontSize: 14, fontWeight: 700, color: 'var(--lime, #98e038)', textTransform: 'uppercase', letterSpacing: '0.6px', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  👑 What&apos;s Included in Paid Licenses:
+                </h4>
+                <div className="highlights-list" style={{ display: 'flex', flexDirection: 'column', gap: 10, width: '100%' }}>
+                  {highlights.map((hl: string, idx: number) => (
+                    <div key={idx} className="highlight-item" style={{ display: 'flex', alignItems: 'flex-start', gap: 10, fontSize: 14, lineHeight: 1.5, color: 'var(--text, #f0f3ee)' }}>
+                      <Check size={16} style={{ color: 'var(--lime, #98e038)', flexShrink: 0, marginTop: 2.5 }} />
+                      <span>{hl}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
         </aside>
       </div>
 
@@ -865,9 +899,16 @@ export function Legal({kind}:{kind:string}){const doc=legal[kind];return <div cl
 export function Checkout({product, settings}:{product:Product|undefined; settings?:Settings}){
   const {data:config}=useData('/auth/config');
   const {data:account}=useData('/account');
+  const ext = (product?.extendedContent || (product as any)?.extended_content) as AgentExtendedContent | undefined;
   const ownsLifetime = account?.licenses?.some((l:any) => l.productId === product?.id && l.status === 'active' && !l.expiresAt);
   const [busy,setBusy]=useState(false),[error,setError]=useState(''),[accepted,setAccepted]=useState(false),[success,setSuccess]=useState(false);
-  const [duration, setDuration] = useState('lifetime');
+  const [duration, setDuration] = useState<string>(() => {
+    if (Number(product?.price_lifetime) > 0) return 'lifetime';
+    if (Number(product?.price1m) > 0) return '1_month';
+    if (Number((product as any)?.price1w || (product as any)?.price_1w) > 0) return '1_week';
+    if (Number(product?.price3m) > 0) return '3_months';
+    return 'lifetime';
+  });
     const [referralCode, setReferralCode] = useState('');
     const [referralValid, setReferralValid] = useState<{valid: boolean; type?: string; discount?: number; reason?: string; allowedDurations?: string[]}|null>(null);
     const [checkingRef, setCheckingRef] = useState(false);
@@ -906,18 +947,35 @@ export function Checkout({product, settings}:{product:Product|undefined; setting
       return () => clearTimeout(delay);
     }, [referralCode, duration, product?.id]);
 
-    const getPrice = (d: string) => {
-      const base = d === '1_month' ? Number(product?.price1m) : d === '3_months' ? Number(product?.price3m) : Number(product?.price_lifetime);
-      if (!base) return 0;
-      const hasSale = settings?.saleActive && settings?.salePercentage && product?.is_on_sale;
-      const saleMultiplier = hasSale ? (1 - (settings?.salePercentage || 0) / 100) : 1;
-      const isAllowed = !referralValid?.allowedDurations || referralValid.allowedDurations.includes(d);
-      const refMultiplier = (referralValid?.valid && isAllowed && referralValid?.discount) 
-        ? (1 - referralValid.discount / 100) 
-        : (referralValid?.valid && isAllowed ? 0.9 : 1);
-      return Math.max(0, base * saleMultiplier * refMultiplier);
-    };
-    const currentFinalPrice = getPrice(duration);
+    const isTrialDuration = duration === '1_week_trial' || duration === '1_month_trial';
+    const basePrice = isTrialDuration
+      ? 0
+      : duration === '1_week'
+      ? Number((product as any)?.price1w || (product as any)?.price_1w) || 0
+      : duration === '1_month'
+      ? Number(product?.price1m) || 0
+      : duration === '3_months'
+      ? Number(product?.price3m) || 0
+      : Number(product?.price_lifetime) || 0;
+
+    const hasSale = !isTrialDuration && Boolean(settings?.saleActive && settings?.salePercentage && product?.is_on_sale);
+    const saleDiscountPercent = hasSale ? (settings?.salePercentage || 0) : 0;
+    const saleDiscountAmount = hasSale ? Math.round((basePrice * saleDiscountPercent) / 100) : 0;
+    const priceAfterSale = Math.max(0, basePrice - saleDiscountAmount);
+
+    const isAllowedCoupon = !referralValid?.allowedDurations || referralValid.allowedDurations.includes(duration);
+    const couponDiscountPercent = (referralValid?.valid && isAllowedCoupon && referralValid?.discount) 
+      ? referralValid.discount 
+      : (referralValid?.valid && isAllowedCoupon ? 10 : 0);
+    const isFreeTrialCoupon = isTrialDuration || (referralValid?.valid && isAllowedCoupon && couponDiscountPercent === 100);
+
+    const couponDiscountAmount = (referralValid?.valid && isAllowedCoupon)
+      ? (isFreeTrialCoupon ? priceAfterSale : Math.round((priceAfterSale * couponDiscountPercent) / 100))
+      : 0;
+
+    const grandTotal = isFreeTrialCoupon ? 0 : Math.max(0, priceAfterSale - couponDiscountAmount);
+    const totalSavings = isTrialDuration ? 0 : (basePrice - grandTotal);
+    const currentFinalPrice = grandTotal;
   const [renewalId, setRenewalId] = useState<string|null>(null);
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -1058,13 +1116,17 @@ export function Checkout({product, settings}:{product:Product|undefined; setting
                   &#10004; Applied (-{referralValid.discount || 10}%)
                   {referralValid.allowedDurations && referralValid.allowedDurations.length < 3 && (
                     <small style={{display: 'block', fontSize: '11px', opacity: 0.85}}>
-                      Valid for: {referralValid.allowedDurations.map((d: string) => d.replace('_', ' ')).join(', ')}
+                      Valid for: {referralValid.allowedDurations.map((d: string) => formatDurationLabel(d)).join(', ')}
                     </small>
                   )}
                 </span>
               ) : referralValid?.reason === 'duration_mismatch' && referralValid?.allowedDurations ? (
                 <span style={{color:'var(--error)', fontSize: '13px'}}>
-                  &#10008; Only valid for {referralValid.allowedDurations.map((d: string) => d.replace('_', ' ')).join(', ')}
+                  &#10008; Only valid for {referralValid.allowedDurations.map((d: string) => formatDurationLabel(d)).join(', ')}
+                </span>
+              ) : referralValid?.reason === 'usage_limit_reached' ? (
+                <span style={{color:'var(--error)', fontSize: '13px'}}>
+                  &#10008; Coupon has reached its maximum redemptions limit
                 </span>
               ) : referralValid?.reason === 'self_referral' ? (
                 <span style={{color:'var(--error)', fontSize: '13px'}}>
@@ -1078,104 +1140,364 @@ export function Checkout({product, settings}:{product:Product|undefined; setting
                 <span style={{color:'var(--error)'}}>&#10008; Invalid code</span>
               ) : null}
             </div>
+          {/* Dynamic Order Bill Breakdown */}
+          <div className="bill-breakdown-card" style={{
+            marginTop: 18,
+            marginBottom: 18,
+            padding: '16px 18px',
+            background: 'rgba(255, 255, 255, 0.03)',
+            borderRadius: 10,
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 10
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--lime, #98e038)', textTransform: 'uppercase', letterSpacing: '0.6px' }}>
+                Order Bill Breakdown
+              </span>
+              <span style={{ fontSize: 12, color: 'var(--text-light, #99a890)', background: 'rgba(255,255,255,0.06)', padding: '2px 8px', borderRadius: 4 }}>
+                {formatDurationLabel(duration) || 'License'}
+              </span>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, color: 'var(--text-light, #99a890)' }}>
+              <span>Base Catalog Price</span>
+              <span style={{ color: '#fff', fontWeight: 500 }}>
+                {basePrice === 0 ? 'FREE (₹0)' : `₹${basePrice.toLocaleString()}`}
+              </span>
+            </div>
+
+            {hasSale && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, color: 'var(--lime, #98e038)' }}>
+                <span>Storefront Flash Sale (-{saleDiscountPercent}%)</span>
+                <span style={{ fontWeight: 600 }}>-₹{saleDiscountAmount.toLocaleString()}</span>
+              </div>
+            )}
+
+            {referralValid?.valid && isAllowedCoupon && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, color: 'var(--lime, #98e038)' }}>
+                <span>
+                  {isFreeTrialCoupon ? '🎁 Promotional Coupon (-100%)' : `🎟️ Discount Code (${referralCode}) (-${couponDiscountPercent}%)`}
+                </span>
+                <span style={{ fontWeight: 600 }}>
+                  {isFreeTrialCoupon ? `-₹${priceAfterSale.toLocaleString()} (FREE)` : `-₹${couponDiscountAmount.toLocaleString()}`}
+                </span>
+              </div>
+            )}
+
+            <div style={{ borderTop: '1px dashed rgba(255, 255, 255, 0.12)', margin: '4px 0' }} />
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: 15, fontWeight: 700, color: '#fff' }}>Total Amount Due:</span>
+              <div style={{ textAlign: 'right', display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                {totalSavings > 0 && (
+                  <span style={{ textDecoration: 'line-through', fontSize: 14, color: 'var(--muted, #667560)' }}>
+                    ₹{basePrice.toLocaleString()}
+                  </span>
+                )}
+                <span style={{ fontSize: 22, fontWeight: 800, color: 'var(--lime, #98e038)' }}>
+                  {grandTotal === 0 ? 'FREE (₹0)' : `₹${grandTotal.toLocaleString()}`}
+                </span>
+              </div>
+            </div>
+
+            {totalSavings > 0 && (
+              <div style={{
+                marginTop: 4,
+                padding: '6px 12px',
+                background: 'rgba(152, 224, 56, 0.1)',
+                borderRadius: 6,
+                border: '1px solid rgba(152, 224, 56, 0.25)',
+                fontSize: 12,
+                fontWeight: 600,
+                color: 'var(--lime, #98e038)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6
+              }}>
+                <span>🎉</span>
+                <span>
+                  You save ₹{totalSavings.toLocaleString()} ({Math.round((totalSavings / basePrice) * 100)}% off catalog price)
+                </span>
+              </div>
+            )}
+          </div>
           <hr/>
           <h3>Terms & Conditions</h3>
         <label className="checkbox-row"><input type="checkbox" checked={accepted} onChange={e=>setAccepted(e.target.checked)}/>I agree to the terms of service and refund policy.</label>
         {error&&<Notice kind="error">{error}</Notice>}
-        <button className="button primary full" disabled={busy||!accepted} onClick={purchase}>{busy?'Processing...':(currentFinalPrice === 0 ? 'Claim Free Access' : (isPreview?'Simulate purchase — no charge':`Pay Securely`))}<ArrowRight size={17}/></button>
+        <button className="button primary full" disabled={busy||!accepted} onClick={purchase}>{busy?'Processing...':(grandTotal === 0 ? 'Claim Free Access (₹0)' : (isPreview?'Simulate purchase — no charge':`Pay Securely (₹${grandTotal.toLocaleString()})`))}<ArrowRight size={17}/></button>
       </div>
       <aside className="panel order-summary">
           <ProductIcon product={product!}/>
           <div>
             <h3>{renewalId ? `Renew ${product!.name}` : product!.name}</h3>
-            <p>{product!.description}</p>
+            {ext?.checkout_agent_description && ext.checkout_agent_description.trim() ? (
+              <p style={{ fontSize: 14.5, lineHeight: 1.6, color: 'var(--text-light)', marginTop: 8 }}>
+                {ext.checkout_agent_description}
+              </p>
+            ) : null}
           </div>
-          <div className="pricing-toggles" style={{display:'flex', flexDirection:'column', gap:12, margin:'20px 0'}}>
-{Number(product?.price1m) > 0 && <label style={{display:'flex', alignItems:'center', gap:12, padding:'16px', border: duration==='1_month'?'2px solid var(--accent)':'1px solid var(--border)', borderRadius:8, cursor:'pointer', background: duration==='1_month'?'rgba(200,255,100,0.05)':'transparent'}} onClick={()=>setDuration('1_month')}>
-                <input type="radio" checked={duration==='1_month'} readOnly style={{ width:18, height:18, flexShrink:0, margin:0, accentColor:'var(--accent)' }} />
-                <div style={{display:'flex', justifyContent:'space-between', flexGrow:1, alignItems:'center'}}>
-                  <b>1 Month</b>
-                  <div style={{color:'var(--text-light)', fontWeight:500, display: 'flex', flexDirection: 'column', alignItems: 'flex-end'}}>
-                    {(() => {
-                      const base = Number(product?.price1m) || 0;
-                      const hasSale = settings?.saleActive && settings?.salePercentage && product?.is_on_sale;
-                      const saleMultiplier = hasSale ? (1 - (settings?.salePercentage || 0) / 100) : 1;
-                      const isAllowed = !referralValid?.allowedDurations || referralValid.allowedDurations.includes('1_month');
-                      const refMultiplier = (referralValid?.valid && isAllowed && referralValid?.discount) 
-                        ? (1 - referralValid.discount / 100) 
-                        : (referralValid?.valid && isAllowed ? 0.9 : 1);
-                      const finalPrice = base * saleMultiplier * refMultiplier;
-                      
-                      if (hasSale || (referralValid?.valid && isAllowed)) {
-                        return (
+
+          <div className="checkout-plan-selector-header" style={{
+            marginTop: 22,
+            marginBottom: 16,
+            padding: '16px 18px',
+            background: 'linear-gradient(135deg, rgba(152, 224, 56, 0.08) 0%, rgba(20, 26, 18, 0.6) 100%)',
+            borderRadius: 10,
+            border: '1px solid rgba(152, 224, 56, 0.25)',
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.2)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--lime, #98e038)', fontSize: 13, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.8px' }}>
+              <Sparkles size={15} /> SELECT YOUR LICENSE PLAN
+            </div>
+            <p style={{ margin: '8px 0 0', fontSize: 14.5, color: '#f0f3ee', lineHeight: 1.6, fontWeight: 500 }}>
+              {ext?.checkout_description || 'Choose your access duration below. All plans include ultra-low latency cloud AI, live screen & audio context perception, multi-device activation, and zero prompt data logging.'}
+            </p>
+          </div>
+
+          {(() => {
+            const plans = [
+              {
+                key: '1_week',
+                title: '1 Week (7 Days)',
+                basePrice: Number((product as any)?.price1w || (product as any)?.price_1w) || 0,
+                days: 7,
+                defaultSubtitle: 'Fast-track pass — full desktop power for 7 days',
+                defaultBadge: hasSale ? `${settings?.salePercentage}% OFF` : undefined,
+              },
+              {
+                key: '1_month',
+                title: '1 Month',
+                basePrice: Number(product?.price1m) || 0,
+                days: 30,
+                defaultSubtitle: 'Full month of high-speed cloud AI interfaces',
+                defaultBadge: hasSale ? `${settings?.salePercentage}% OFF` : undefined,
+              },
+              {
+                key: '3_months',
+                title: '3 Months',
+                basePrice: Number(product?.price3m) || 0,
+                days: 90,
+                defaultSubtitle: 'Quarterly powerhouse — peak speed & extended quota',
+                defaultBadge: '🔥 Best Value',
+              },
+              {
+                key: 'lifetime',
+                title: 'Lifetime Access',
+                basePrice: Number(product?.price_lifetime) || 0,
+                days: null,
+                defaultSubtitle: 'One-time purchase — own your agent forever with all updates',
+                defaultBadge: '👑 Pay Once',
+              },
+            ].filter(p => p.basePrice > 0);
+
+            const trialPlans: any[] = [];
+            if (duration === '1_week_trial' || referralValid?.allowedDurations?.includes('1_week_trial')) {
+              trialPlans.push({
+                key: '1_week_trial',
+                title: '1 Week Free Trial',
+                basePrice: 0,
+                days: 7,
+                defaultSubtitle: '100% free promotional access — full desktop trial',
+                defaultBadge: '🎁 100% FREE',
+                isTrial: true,
+              });
+            }
+            if (duration === '1_month_trial' || referralValid?.allowedDurations?.includes('1_month_trial')) {
+              trialPlans.push({
+                key: '1_month_trial',
+                title: '1 Month Free Trial',
+                basePrice: 0,
+                days: 30,
+                defaultSubtitle: 'VIP partner pass — complimentary full month',
+                defaultBadge: '🎁 VIP PASS',
+                isTrial: true,
+              });
+            }
+            const allPlans = [...plans, ...trialPlans];
+
+            return (
+              <div className="pricing-toggles" style={{ display: 'flex', flexDirection: 'column', gap: 14, margin: '14px 0 24px 0' }}>
+                {allPlans.map(p => {
+                  const isSelected = duration === p.key;
+                  const isFeatured = (ext?.featured_plan || '1_month') === p.key;
+                  const ribbonText = ext?.featured_ribbon_text || '⭐ MOST POPULAR';
+                  const customSub = ext?.plan_configs?.[p.key]?.subtitle;
+                  const displaySubtitle = customSub && customSub.trim() ? customSub : p.defaultSubtitle;
+                  const customBadge = ext?.plan_configs?.[p.key]?.badge;
+                  const displayBadge = customBadge && customBadge.trim() ? customBadge : p.defaultBadge;
+
+                  const pBase = p.basePrice;
+                  const pHasSale = !p.isTrial && Boolean(settings?.saleActive && settings?.salePercentage && product?.is_on_sale);
+                  const pSaleMultiplier = pHasSale ? (1 - (settings?.salePercentage || 0) / 100) : 1;
+                  const pIsAllowed = !referralValid?.allowedDurations || referralValid.allowedDurations.includes(p.key);
+                  const pCouponMultiplier = (referralValid?.valid && pIsAllowed && referralValid?.discount)
+                    ? (1 - referralValid.discount / 100)
+                    : (referralValid?.valid && pIsAllowed ? 0.9 : 1);
+                  const pFinalPrice = p.isTrial ? 0 : Math.round(pBase * pSaleMultiplier * pCouponMultiplier);
+                  const pHasDiscount = pFinalPrice < pBase;
+
+                  const pPerDayText = p.isTrial
+                    ? 'Complimentary'
+                    : p.days
+                    ? `₹${Math.round(pFinalPrice / p.days)} / day`
+                    : 'Never renews';
+
+                  return (
+                    <label
+                      key={p.key}
+                      onClick={() => setDuration(p.key)}
+                      style={{
+                        position: 'relative',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 14,
+                        padding: '18px 16px',
+                        border: isSelected ? '2px solid var(--accent, #98e038)' : '1px solid var(--border)',
+                        borderRadius: 10,
+                        cursor: 'pointer',
+                        background: isSelected ? 'rgba(152, 224, 56, 0.05)' : 'rgba(255, 255, 255, 0.02)',
+                        boxShadow: isSelected ? '0 0 16px rgba(152, 224, 56, 0.12)' : 'none',
+                        transition: 'all 0.15s ease',
+                        marginTop: isFeatured ? 8 : 0,
+                      }}
+                    >
+                      {isFeatured && (
+                        <div style={{
+                          position: 'absolute',
+                          top: -10,
+                          right: 14,
+                          background: 'var(--lime, #98e038)',
+                          color: '#0c100a',
+                          fontSize: 10,
+                          fontWeight: 800,
+                          padding: '2.5px 9px',
+                          borderRadius: 10,
+                          letterSpacing: '0.6px',
+                          textTransform: 'uppercase',
+                          boxShadow: '0 2px 8px rgba(152, 224, 56, 0.35)',
+                          zIndex: 2,
+                        }}>
+                          {ribbonText}
+                        </div>
+                      )}
+
+                      <input
+                        type="radio"
+                        checked={isSelected}
+                        readOnly
+                        style={{
+                          width: 18,
+                          height: 18,
+                          flexShrink: 0,
+                          margin: 0,
+                          accentColor: 'var(--accent, #98e038)',
+                          cursor: 'pointer',
+                        }}
+                      />
+
+                      <div style={{ display: 'flex', flexDirection: 'column', flexGrow: 1, minWidth: 0, gap: 4 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                          <b style={{ fontSize: 15, color: '#f0f3ee' }}>{p.title}</b>
+                          {displayBadge && (
+                            <span style={{
+                              background: 'rgba(152, 224, 56, 0.14)',
+                              color: 'var(--lime, #98e038)',
+                              border: '1px solid rgba(152, 224, 56, 0.3)',
+                              padding: '1px 7px',
+                              borderRadius: 4,
+                              fontSize: 11,
+                              fontWeight: 700,
+                              letterSpacing: '0.3px',
+                            }}>
+                              {displayBadge}
+                            </span>
+                          )}
+                        </div>
+                        <div style={{ fontSize: 12.5, color: 'var(--text-light, #99a890)', lineHeight: 1.4 }}>
+                          {displaySubtitle}
+                        </div>
+                      </div>
+
+                      <div style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'flex-end',
+                        flexShrink: 0,
+                        marginLeft: 10,
+                      }}>
+                        {p.isTrial ? (
                           <>
-                            <span style={{textDecoration: 'line-through', fontSize: '12px', opacity: 0.7}}>₹{base}</span>
-                            <span style={{color:'var(--green)', fontSize: '16px', fontWeight: 600}}>₹{finalPrice.toFixed(0)}</span>
+                            <span style={{ color: 'var(--lime, #98e038)', fontSize: 16, fontWeight: 800 }}>
+                              FREE (₹0)
+                            </span>
+                            <span style={{ fontSize: 11, color: 'var(--muted, #667560)', marginTop: 2, fontWeight: 600 }}>
+                              Complimentary
+                            </span>
                           </>
-                        );
-                      }
-                      return <span>₹{base}</span>;
-                    })()}
-                  </div>
-                </div>
-              </label>}
-{Number(product?.price3m) > 0 && <label style={{display:'flex', alignItems:'center', gap:12, padding:'16px', border: duration==='3_months'?'2px solid var(--accent)':'1px solid var(--border)', borderRadius:8, cursor:'pointer', background: duration==='3_months'?'rgba(200,255,100,0.05)':'transparent'}} onClick={()=>setDuration('3_months')}>
-                <input type="radio" checked={duration==='3_months'} readOnly style={{ width:18, height:18, flexShrink:0, margin:0, accentColor:'var(--accent)' }} />
-                <div style={{display:'flex', justifyContent:'space-between', flexGrow:1, alignItems:'center'}}>
-                  <b>3 Months</b>
-                  <div style={{color:'var(--text-light)', fontWeight:500, display: 'flex', flexDirection: 'column', alignItems: 'flex-end'}}>
-                    {(() => {
-                      const base = Number(product?.price3m) || 0;
-                      const hasSale = settings?.saleActive && settings?.salePercentage && product?.is_on_sale;
-                      const saleMultiplier = hasSale ? (1 - (settings?.salePercentage || 0) / 100) : 1;
-                      const isAllowed = !referralValid?.allowedDurations || referralValid.allowedDurations.includes('3_months');
-                      const refMultiplier = (referralValid?.valid && isAllowed && referralValid?.discount) 
-                        ? (1 - referralValid.discount / 100) 
-                        : (referralValid?.valid && isAllowed ? 0.9 : 1);
-                      const finalPrice = base * saleMultiplier * refMultiplier;
-                      
-                      if (hasSale || (referralValid?.valid && isAllowed)) {
-                        return (
+                        ) : pHasDiscount ? (
                           <>
-                            <span style={{textDecoration: 'line-through', fontSize: '12px', opacity: 0.7}}>₹{base}</span>
-                            <span style={{color:'var(--green)', fontSize: '16px', fontWeight: 600}}>₹{finalPrice.toFixed(0)}</span>
+                            <span style={{ textDecoration: 'line-through', fontSize: 12, opacity: 0.65, color: 'var(--text-light)' }}>
+                              ₹{pBase}
+                            </span>
+                            <span style={{ color: 'var(--lime, #98e038)', fontSize: 18, fontWeight: 800 }}>
+                              ₹{pFinalPrice}
+                            </span>
+                            <span style={{ fontSize: 11, color: 'var(--muted, #667560)', marginTop: 2, fontWeight: 600 }}>
+                              {pPerDayText}
+                            </span>
                           </>
-                        );
-                      }
-                      return <span>₹{base}</span>;
-                    })()}
-                  </div>
-                </div>
-              </label>}
-{Number(product?.price_lifetime) > 0 && <label style={{display:'flex', alignItems:'center', gap:12, padding:'16px', border: duration==='lifetime'?'2px solid var(--accent)':'1px solid var(--border)', borderRadius:8, cursor:'pointer', background: duration==='lifetime'?'rgba(200,255,100,0.05)':'transparent'}} onClick={()=>setDuration('lifetime')}>
-                <input type="radio" checked={duration==='lifetime'} readOnly style={{ width:18, height:18, flexShrink:0, margin:0, accentColor:'var(--accent)' }} />
-                <div style={{display:'flex', justifyContent:'space-between', flexGrow:1, alignItems:'center'}}>
-                  <b>Lifetime Access</b>
-                  <div style={{color:'var(--text-light)', fontWeight:500, display: 'flex', flexDirection: 'column', alignItems: 'flex-end'}}>
-                    {(() => {
-                      const base = Number(product?.price_lifetime) || 0;
-                      const hasSale = settings?.saleActive && settings?.salePercentage && product?.is_on_sale;
-                      const saleMultiplier = hasSale ? (1 - (settings?.salePercentage || 0) / 100) : 1;
-                      const isAllowed = !referralValid?.allowedDurations || referralValid.allowedDurations.includes('lifetime');
-                      const refMultiplier = (referralValid?.valid && isAllowed && referralValid?.discount) 
-                        ? (1 - referralValid.discount / 100) 
-                        : (referralValid?.valid && isAllowed ? 0.9 : 1);
-                      const finalPrice = base * saleMultiplier * refMultiplier;
-                      
-                      if (hasSale || (referralValid?.valid && isAllowed)) {
-                        return (
+                        ) : (
                           <>
-                            <span style={{textDecoration: 'line-through', fontSize: '12px', opacity: 0.7}}>₹{base}</span>
-                            <span style={{color:'var(--green)', fontSize: '16px', fontWeight: 600}}>₹{finalPrice.toFixed(0)}</span>
+                            <span style={{ fontSize: 18, fontWeight: 800, color: '#f0f3ee' }}>
+                              ₹{pBase}
+                            </span>
+                            <span style={{ fontSize: 11, color: 'var(--muted, #667560)', marginTop: 2, fontWeight: 600 }}>
+                              {pPerDayText}
+                            </span>
                           </>
-                        );
-                      }
-                      return <span>₹{base}</span>;
-                    })()}
-                  </div>
+                        )}
+                      </div>
+                    </label>
+                  );
+                })}
+              </div>
+            );
+          })()}
+
+          {(() => {
+            const isTrialSelected = duration === '1_week_trial' || duration === '1_month_trial';
+            const highlights = isTrialSelected
+              ? ((ext?.trial_highlights && ext.trial_highlights.length > 0)
+                  ? ext.trial_highlights
+                  : getDefaultAgentTrialHighlights(product.slug))
+              : ((ext?.paid_highlights && ext.paid_highlights.length > 0)
+                  ? ext.paid_highlights
+                  : getDefaultAgentPaidHighlights(product.slug));
+            const headerText = isTrialSelected ? '🎁 What\'s Included in Free Trial Tier:' : '👑 What\'s Included in Paid Licenses:';
+            return (
+              <div className="checkout-highlights-box" style={{ display: 'flex', flexDirection: 'column', width: '100%', margin: '20px 0 16px 0', paddingTop: 16, borderTop: '1px solid var(--border)' }}>
+                <h4 style={{ margin: '0 0 14px 0', fontSize: 14, fontWeight: 700, color: 'var(--lime, #98e038)', textTransform: 'uppercase', letterSpacing: '0.6px', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  {headerText}
+                </h4>
+                <div className="highlights-list" style={{ display: 'flex', flexDirection: 'column', gap: 10, width: '100%' }}>
+                  {highlights.map((hl: string, idx: number) => (
+                    <div key={idx} className="highlight-item" style={{ display: 'flex', alignItems: 'flex-start', gap: 10, fontSize: 14, lineHeight: 1.5, color: 'var(--text, #f0f3ee)' }}>
+                      <Check size={16} style={{ color: 'var(--lime, #98e038)', flexShrink: 0, marginTop: 2.5 }} />
+                      <span>{hl}</span>
+                    </div>
+                  ))}
                 </div>
-              </label>}
-</div>
+                {isTrialSelected && (
+                  <div style={{ fontSize: 13, color: 'var(--text-light, #99a890)', marginTop: 12, lineHeight: 1.5, borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 10 }}>
+                    💡 {ext?.trial_notice || getDefaultAgentTrialNotice(product.slug)}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
           <p className="small-note">Includes a product-specific activation key to unlock the agent on your desktop.</p>
         </aside>
     </div>

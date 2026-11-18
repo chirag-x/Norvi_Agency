@@ -161,12 +161,17 @@ export function AdminSystemDiagnostics({ onNavigate }: { onNavigate?: (path: str
                     <a
                       href={check.actionUrl}
                       onClick={e => {
+                        if (check.actionUrl?.startsWith('http')) {
+                          return;
+                        }
                         if (onNavigate) {
                           const route = check.actionUrl!.replace('/admin', '') || '/';
                           e.preventDefault();
                           onNavigate(route);
                         }
                       }}
+                      target={check.actionUrl?.startsWith('http') ? '_blank' : undefined}
+                      rel={check.actionUrl?.startsWith('http') ? 'noreferrer noopener' : undefined}
                       style={{
                         fontSize: '0.75rem',
                         color: isOk ? 'var(--lime, #98e038)' : isError ? 'var(--red, #ef4444)' : '#f59e0b',
