@@ -449,12 +449,26 @@ export function createAgentAiHandler(deps: AgentAiHandlerDeps) {
 
     const taskKey = (req.headers.get('x-norvi-task') || 'default').trim().toLowerCase() || 'default';
 
-    const { data: quotaRaw, error: quotaErr } = await db.rpc('consume_agent_ai_quota', {
+    let { data: quotaRaw, error: quotaErr } = await db.rpc('consume_agent_ai_quota', {
       p_license_id: lease.license_id,
       p_product_id: product.id,
       p_device_id: headerDevice,
       p_task_key: taskKey,
     });
+
+    if (quotaErr && quotaErr.message && quotaErr.message.includes('license_devices')) {
+      console.warn('[agentAiProxy] Retrying consume_agent_ai_quota with null device_id due to legacy table reference');
+      const retry = await db.rpc('consume_agent_ai_quota', {
+        p_license_id: lease.license_id,
+        p_product_id: product.id,
+        p_device_id: null,
+        p_task_key: taskKey,
+      });
+      if (!retry.error && retry.data) {
+        quotaRaw = retry.data;
+        quotaErr = null;
+      }
+    }
 
     if (quotaErr || !quotaRaw) {
       if (quotaErr) {

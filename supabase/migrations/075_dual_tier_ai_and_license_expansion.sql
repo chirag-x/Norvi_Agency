@@ -435,7 +435,7 @@ BEGIN
   -- Device verification if device_id provided
   IF nullif(trim(coalesce(p_device_id, '')), '') IS NOT NULL THEN
     SELECT * INTO v_device
-    FROM public.license_devices
+    FROM public.devices
     WHERE license_id = p_license_id
       AND installation_id = trim(p_device_id);
 
