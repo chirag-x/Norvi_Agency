@@ -87,12 +87,19 @@ export function Detail({product, settings, isCatalogLoaded = true}:{product:Prod
     };
   }, [isCatalogLoaded, product?.slug, product?.name, settings?.saleActive, settings?.salePercentage]);
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('trial') === 'true' && account && !ownsProduct) {
+      setTrialModal(true);
+    }
+  }, [account, ownsProduct]);
+
   async function startTrial() {
     setTrialBusy(true);
     setTrialError('');
     try {
       if (!account) {
-        location.href = '/login?next=/agents/' + product!.slug;
+        location.href = '/register?next=' + encodeURIComponent('/agents/' + product!.slug + '?trial=true');
         return;
       }
       await api('/store/trial/create', { method: 'POST', body: JSON.stringify({ productSlug: product!.slug }) });
@@ -122,7 +129,9 @@ export function Detail({product, settings, isCatalogLoaded = true}:{product:Prod
                 </div>
                 <h3>Trial Activated!</h3>
                 <p style={{marginBottom: 24}}>Your free trial for <b>{product.name}</b> is ready. The unique activation key has been added to your dashboard.</p>
-                <button className="button primary full" onClick={() => { setTrialModal(false); setTrialSuccess(false); }}>Close & View Agent</button>
+                <a className="button primary full" href="/account/agents" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, textDecoration: 'none' }}>
+                  Download Desktop App &amp; View Key <ArrowUpRight size={17} />
+                </a>
               </>
             ) : (
               <>
@@ -204,12 +213,30 @@ export function Detail({product, settings, isCatalogLoaded = true}:{product:Prod
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 24 }}>
         <a className="breadcrumb" href="/agents" style={{ marginBottom: 0 }}>&larr; All agents</a>
-        {ext?.badgeText && (
-          <div className="agent-badge-pill" style={{ marginBottom: 0 }}>
-            <Sparkles size={14} style={{ color: 'var(--lime)' }} />
-            <span>{ext.badgeText}</span>
-          </div>
-        )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          {ext?.social_proof_text && (
+            <div style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '4px 12px',
+              borderRadius: 20,
+              background: 'rgba(152, 224, 56, 0.08)',
+              border: '1px solid rgba(152, 224, 56, 0.25)',
+              color: 'var(--lime, #98e038)',
+              fontSize: 12.5,
+              fontWeight: 600,
+            }}>
+              <span>{ext.social_proof_text}</span>
+            </div>
+          )}
+          {ext?.badgeText && (
+            <div className="agent-badge-pill" style={{ marginBottom: 0 }}>
+              <Sparkles size={14} style={{ color: 'var(--lime)' }} />
+              <span>{ext.badgeText}</span>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="detail-hero">
@@ -295,14 +322,36 @@ export function Detail({product, settings, isCatalogLoaded = true}:{product:Prod
                 ) : product.price}
               </h2>
               <p>Flexible access &middot; Try before you buy</p>
-              {product.status === 'archived' ? (
-                <button className="button secondary full" disabled>Archived &mdash; sales paused</button>
+              {product.releaseStatus === 'prelaunch' ? (
+                <button className="button secondary full" disabled style={{ opacity: 0.9, borderColor: 'rgba(59, 130, 246, 0.4)', color: '#60a5fa' }}>
+                  🚀 Preparing for Launch &mdash; Available Soon
+                </button>
               ) : product.releaseStatus === 'development' ? (
                 <button className="button secondary full" disabled>In development &mdash; sales unavailable</button>
+              ) : product.status === 'archived' ? (
+                <button className="button secondary full" disabled>Archived &mdash; sales paused</button>
               ) : (
                 <div style={{display: 'flex', flexDirection: 'column', gap: '8px'}}>
                   <a className="button primary full" href={'/checkout/'+product.slug}>{product.releaseStatus === 'live' ? 'Buy now' : 'View availability'} <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="7" y1="17" x2="17" y2="7"></line><polyline points="7 7 17 7 17 17"></polyline></svg></a>
                   {product.trialActive !== false && <button className="button secondary full" onClick={() => setTrialModal(true)}>Start free trial</button>}
+                </div>
+              )}
+              {ext?.guarantee_badge && (
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                  marginTop: 10,
+                  padding: '8px 10px',
+                  borderRadius: 6,
+                  background: 'rgba(255, 255, 255, 0.02)',
+                  border: '1px solid rgba(255, 255, 255, 0.06)',
+                  fontSize: 12,
+                  color: 'var(--muted, #8e9e87)',
+                  textAlign: 'center'
+                }}>
+                  <span>{ext.guarantee_badge}</span>
                 </div>
               )}
             </>
@@ -524,15 +573,29 @@ export function Detail({product, settings, isCatalogLoaded = true}:{product:Prod
             </a>
           ) : (
             <>
-              {product.status !== 'archived' && product.releaseStatus !== 'development' && (
-                <a className="button primary" href={'/checkout/' + product.slug}>
-                  Get {product.name} <ArrowUpRight size={18} />
-                </a>
-              )}
-              {product.trialActive !== false && product.releaseStatus !== 'development' && (
-                <button className="button secondary" onClick={() => setTrialModal(true)}>
-                  Start free trial
+              {product.releaseStatus === 'prelaunch' ? (
+                <button className="button secondary" disabled style={{ opacity: 0.9, borderColor: 'rgba(59, 130, 246, 0.4)', color: '#60a5fa' }}>
+                  🚀 Preparing for Launch &mdash; Available Soon
                 </button>
+              ) : product.releaseStatus === 'development' ? (
+                <button className="button secondary" disabled>
+                  In Development &mdash; Sales Unavailable
+                </button>
+              ) : product.status === 'archived' ? (
+                <button className="button secondary" disabled>
+                  Archived &mdash; Sales Paused
+                </button>
+              ) : (
+                <>
+                  <a className="button primary" href={'/checkout/' + product.slug}>
+                    Get {product.name} <ArrowUpRight size={18} />
+                  </a>
+                  {product.trialActive !== false && (
+                    <button className="button secondary" onClick={() => setTrialModal(true)}>
+                      Start free trial
+                    </button>
+                  )}
+                </>
               )}
             </>
           )}
@@ -980,6 +1043,8 @@ export function Checkout({product, settings}:{product:Product|undefined; setting
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.has('renew')) setRenewalId(params.get('renew'));
+    if (params.has('duration')) setDuration(params.get('duration')!);
+    if (params.has('coupon')) setReferralCode(params.get('coupon')!.toUpperCase());
   }, []);
   
         if (success) {
@@ -996,11 +1061,17 @@ export function Checkout({product, settings}:{product:Product|undefined; setting
     }
     if(!product)return <NotFound/>;
 
-  if(product.status==='archived')return <div className="container page"><PageHeading title={product.name} description={'Sales are currently paused for this agent.'}/><a className="button secondary" href={'/agents/'+product.slug}>Back to agent</a></div>;
+  if(product.releaseStatus==='prelaunch')return <div className="container page"><PageHeading title={product.name} description={'Preparing for launch. Public access and checkout will be open soon.'}/><a className="button secondary" href={'/agents/'+product.slug}>Back to agent</a></div>;
   if(product.releaseStatus==='development')return <div className="container page"><PageHeading title={product.name} description={'In development. Purchasing is unavailable.'}/><a className="button secondary" href={'/agents/'+product.slug}>Back to agent</a></div>;
+  if(product.status==='archived')return <div className="container page"><PageHeading title={product.name} description={'Sales are currently paused for this agent.'}/><a className="button secondary" href={'/agents/'+product.slug}>Back to agent</a></div>;
 
   async function purchase(){
     setBusy(true);setError('');
+    if (!account) {
+      const nextUrl = `/checkout/${product!.slug}?duration=${duration}${referralCode ? `&coupon=${encodeURIComponent(referralCode)}` : ''}`;
+      window.location.href = `/login?next=${encodeURIComponent(nextUrl)}`;
+      return;
+    }
     try{
       if(config?.preview){
         const {order}=await api('/preview/purchase',{method:'POST',body:JSON.stringify({productId:product!.id})});
@@ -1224,15 +1295,94 @@ export function Checkout({product, settings}:{product:Product|undefined; setting
             )}
           </div>
           <hr/>
+          {!account && (
+            <div style={{
+              background: 'rgba(59, 130, 246, 0.08)',
+              border: '1px solid rgba(59, 130, 246, 0.25)',
+              borderRadius: 8,
+              padding: '12px 16px',
+              marginBottom: 16,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 12,
+              flexWrap: 'wrap'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontSize: 18 }}>🔐</span>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: '#93c5fd' }}>
+                    Account required for instant license activation
+                  </div>
+                  <div style={{ fontSize: 12, color: 'var(--muted)' }}>
+                    Sign in or create an account to link your license and unlock desktop downloads.
+                  </div>
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <a
+                  href={`/login?next=${encodeURIComponent(`/checkout/${product!.slug}?duration=${duration}${referralCode ? `&coupon=${referralCode}` : ''}`)}`}
+                  className="button secondary small"
+                  style={{ fontSize: 12, padding: '5px 12px' }}
+                >
+                  Sign In
+                </a>
+                <a
+                  href={`/register?next=${encodeURIComponent(`/checkout/${product!.slug}?duration=${duration}${referralCode ? `&coupon=${referralCode}` : ''}`)}`}
+                  className="button primary small"
+                  style={{ fontSize: 12, padding: '5px 12px' }}
+                >
+                  Register
+                </a>
+              </div>
+            </div>
+          )}
           <h3>Terms & Conditions</h3>
         <label className="checkbox-row"><input type="checkbox" checked={accepted} onChange={e=>setAccepted(e.target.checked)}/>I agree to the terms of service and refund policy.</label>
         {error&&<Notice kind="error">{error}</Notice>}
         <button className="button primary full" disabled={busy||!accepted} onClick={purchase}>{busy?'Processing...':(grandTotal === 0 ? 'Claim Free Access (₹0)' : (isPreview?'Simulate purchase — no charge':`Pay Securely (₹${grandTotal.toLocaleString()})`))}<ArrowRight size={17}/></button>
+        {ext?.guarantee_badge && (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 8,
+            marginTop: 12,
+            padding: '8px 12px',
+            borderRadius: 6,
+            background: 'rgba(255, 255, 255, 0.02)',
+            border: '1px solid rgba(255, 255, 255, 0.07)',
+            fontSize: 12,
+            color: 'var(--muted, #8e9e87)',
+            textAlign: 'center'
+          }}>
+            <span>{ext.guarantee_badge}</span>
+          </div>
+        )}
       </div>
       <aside className="panel order-summary">
           <ProductIcon product={product!}/>
           <div>
             <h3>{renewalId ? `Renew ${product!.name}` : product!.name}</h3>
+            {ext?.social_proof_text && (
+              <div style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '4px 10px',
+                borderRadius: 20,
+                background: 'rgba(152, 224, 56, 0.08)',
+                border: '1px solid rgba(152, 224, 56, 0.25)',
+                color: 'var(--lime, #98e038)',
+                fontSize: 12,
+                fontWeight: 600,
+                marginTop: 6,
+                marginBottom: 4,
+                width: 'fit-content'
+              }}>
+                {ext.social_proof_text}
+              </div>
+            )}
             {ext?.checkout_agent_description && ext.checkout_agent_description.trim() ? (
               <p style={{ fontSize: 14.5, lineHeight: 1.6, color: 'var(--text-light)', marginTop: 8 }}>
                 {ext.checkout_agent_description}

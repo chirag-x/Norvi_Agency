@@ -4124,6 +4124,8 @@ export function AgentReleaseCard({
   const ext = (product.extendedContent || {}) as AgentExtendedContent;
   const [checkoutAgentDesc, setCheckoutAgentDesc] = useState(ext.checkout_agent_description || '');
   const [checkoutDesc, setCheckoutDesc] = useState(ext.checkout_description || '');
+  const [socialProofText, setSocialProofText] = useState(ext.social_proof_text || '');
+  const [guaranteeBadge, setGuaranteeBadge] = useState(ext.guarantee_badge || '');
 
   const [openSections, setOpenSections] = useState({
     pricing: initialOpenSections?.pricing ?? true,
@@ -4245,6 +4247,8 @@ export function AgentReleaseCard({
         ...(product.extendedContent || {}),
         checkout_agent_description: checkoutAgentDesc.trim() || undefined,
         checkout_description: checkoutDesc.trim() || undefined,
+        social_proof_text: socialProofText.trim() || undefined,
+        guarantee_badge: guaranteeBadge.trim() || undefined,
         paid_highlights: paidHighlightsArray.length ? paidHighlightsArray : undefined,
         trial_highlights: trialHighlightsArray.length ? trialHighlightsArray : undefined,
         trial_notice: trialNotice.trim() || undefined,
@@ -4742,6 +4746,28 @@ export function AgentReleaseCard({
                       value={checkoutDesc}
                       onChange={e => setCheckoutDesc(e.target.value)}
                       placeholder="Choose your access duration below. All plans include ultra-low latency cloud AI and multi-device activation."
+                    />
+                  </Field>
+
+                  <Field
+                    label="Social Proof Trust Pill (Optional)"
+                    hint="High-trust pill displayed on the agent storefront page (/agents/:slug) and checkout page. E.g. '⭐ 4.9/5 from 1,200+ engineers' or '🚀 15,000+ job applications sent'. Leave blank to hide."
+                  >
+                    <input
+                      value={socialProofText}
+                      onChange={e => setSocialProofText(e.target.value)}
+                      placeholder="e.g. ⭐ 4.9/5 Rating · 1,200+ Active Users · Ultra-Low Latency"
+                    />
+                  </Field>
+
+                  <Field
+                    label="Risk-Reversal & Guarantee Badge (Optional)"
+                    hint="Reassurance badge displayed below checkout bill breakdown and agent buy button. E.g. '🛡️ 100% Risk-Free Guarantee · Instant Key Delivery · Cancel Anytime'. Leave blank to hide."
+                  >
+                    <input
+                      value={guaranteeBadge}
+                      onChange={e => setGuaranteeBadge(e.target.value)}
+                      placeholder="e.g. 🛡️ 100% Satisfaction Guarantee · Instant Key Activation · Cancel Anytime"
                     />
                   </Field>
                 </div>

@@ -30,6 +30,8 @@ export type AgentExtendedContent = {
   featured_plan?: '1_week' | '1_month' | '3_months' | 'lifetime' | 'none';
   featured_ribbon_text?: string;
   plan_configs?: Record<string, { subtitle?: string; badge?: string }>;
+  social_proof_text?: string;
+  guarantee_badge?: string;
 };
 export type Product = { id: string; slug: string; name: string; categoryId: string; category?: Category | null; subHeading?: string; tagline: string; description: string; price: string; price1w?: string; price1m?: string; price3m?: string; price_lifetime?: string; is_on_sale?: boolean; trialActive?: boolean; aiUsage?: string; deviceAllowance?: string; status: 'draft' | 'published' | 'archived'; releaseStatus: 'development' | 'prelaunch' | 'live'; logoUrl: string | null; icon?: string; color?: string; features: string[]; version: string; requirements: string; workflowHeading: string; workflowDescription: string; workflowMediaUrl: string | null; workflowNote: string; updatedAt?: string; extendedContent?: AgentExtendedContent; };
 export type User = { id: string; name: string; email: string; role: Role; status: 'active' | 'suspended'; createdAt: string; lastLogin: string | null };

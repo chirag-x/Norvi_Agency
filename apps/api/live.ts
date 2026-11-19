@@ -1670,8 +1670,8 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
     if (!error) {
       if (c.env.SUPABASE_URL && c.env.SUPABASE_SERVICE_ROLE_KEY) {
         try {
-          const adminDb = options.agentAiDeps?.createServiceClient
-            ? options.agentAiDeps.createServiceClient(c.env)
+          const adminDb: any = options.agentAiDeps?.createServiceClient
+            ? options.agentAiDeps.createServiceClient(c.env.SUPABASE_URL, c.env.SUPABASE_SERVICE_ROLE_KEY)
             : createClient(c.env.SUPABASE_URL, c.env.SUPABASE_SERVICE_ROLE_KEY);
           const updateData: Record<string, any> = {};
           if (p.trialSttModel) updateData.trial_stt_model = p.trialSttModel;

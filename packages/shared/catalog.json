@@ -59,7 +59,7 @@
         "100% Data Protection — No Audio or Screen Logging"
       ],
       "version": "V - 1.4.2",
-      "requirements": "Windows 10 / Windows 11 (64-bit) & macOS 12+ . Supports Low end PC",
+      "requirements": "Windows 10 / Windows 11 (64-bit) & macOS 12+. Supports low-end PCs.",
       "releaseStatus": "live",
       "workflowHeading": "Engineered for calm, confident interviews.",
       "workflowDescription": "Voro sits unobtrusively in your system tray until your interview begins. As interviewers speak or display technical questions on screen, Voro extracts the core requirement, cross-references your uploaded resume, and projects bulletproof talking points onto your screen.",
@@ -67,7 +67,7 @@
       "workflowNote": "Windows 10/11 native installer. Includes automatic silent background updater and ultra-low latency NORVI Cloud AI.",
       "aiUsage": "Unlimited — Powered by NORVI Cloud AI",
       "deviceAllowance": "3 active device per license. Manage devices in your account.",
-      "is_on_sale": true,
+      "is_on_sale": false,
       "trialActive": true,
       "extendedContent": {
         "seo": {
@@ -183,7 +183,7 @@
               "feature": "Hinglish & Multi-Accent Recognition"
             },
             {
-              "us": "From ₹599 / Lifetime Available",
+              "us": "From ₹499 / Lifetime Available",
               "comp1": "₹9,500/month",
               "comp2": "$20 / month",
               "feature": "Pricing Model"
@@ -323,7 +323,7 @@
       "name": "Rolvio",
       "categoryId": "944ab0ea-e72b-49dd-9886-6816094c48de",
       "tagline": "Autonomous AI Job Hunter that hunts and applies to jobs with automated email tracking.",
-      "description": "An end-to-end, fully autonomous AI agent designed to automate the entire lifecycle of job hunting. From discovering jobs across multiple platforms to evaluating them with an single click , automatically submitting applications, and tracking invites via email.",
+      "description": "An end-to-end, fully autonomous AI agent designed to automate the entire lifecycle of job hunting. From discovering jobs across multiple platforms to evaluating them with a single click, automatically submitting applications, and tracking invites via email.",
       "price": "Pick Your Plan",
       "price1m": 479,
       "price3m": 1199,
@@ -331,14 +331,14 @@
       "status": "archived",
       "logoUrl": "https://lpzqvziejdpzykwrhkmn.supabase.co/storage/v1/object/public/product-assets/20648c17-771a-4ccd-9298-fdcad7cdecf9.jpg",
       "features": [
-        "Auto-Applies to LinkedIn , Indeed & more",
+        "Auto-Applies to LinkedIn, Indeed & more",
         "Matches Your Resume to Jobs",
         "Tracks Recruiter Replies in Email",
         "Human-like Typing & Anti-Bot Shield",
         "Organizes Applications on a Visual Board"
       ],
       "version": "V - 1.1.0",
-      "requirements": "Windows 10/11 , Supports Low end Pc ",
+      "requirements": "Windows 10 / 11 (64-bit). Supports low-end PCs.",
       "releaseStatus": "prelaunch",
       "workflowHeading": "How It Works (The 5 Phases)",
       "workflowDescription": "Rolvio spins up background workers to scrape job boards. It compares strict requirements against your resume using an its Brain. If approved, it launches autonomous browser sub agents to apply, then tracks email responses natively in a Kanban dashboard.",
@@ -346,7 +346,7 @@
       "workflowNote": "Native Windows background worker with intelligent ATS resume parsing and auto-fill engine.",
       "aiUsage": "Unlimited",
       "deviceAllowance": "3 active device per license. Manage devices in your account.",
-      "is_on_sale": true,
+      "is_on_sale": false,
       "trialActive": true,
       "extendedContent": {
         "seo": {
@@ -488,7 +488,7 @@
       "logoUrl": "https://lpzqvziejdpzykwrhkmn.supabase.co/storage/v1/object/public/product-assets/af8f7d1a-ef49-4214-a79f-79ed2c75323a.jpg",
       "features": [
         "Turns Long Videos into Viral Vertical Shorts",
-        "Auto-Publishes to YouTube,TikTok,Reels & more",
+        "Auto-Publishes to YouTube, TikTok, Reels & more",
         "Animated Captions (Hormozi & MrBeast Styles)",
         "Smart Face Centering Keeps Speaker in Frame",
         "AI Virality Scoring Finds the Best Clips"
@@ -502,7 +502,7 @@
       "workflowNote": "Nexus has no limit for usages your data and activation  keys are heavily encrypted and never leave your machine!",
       "aiUsage": "Unlimited — Powered by NORVI Cloud AI",
       "deviceAllowance": "3 active devices per license. Easily manage or switch devices anytime from your account.",
-      "is_on_sale": true,
+      "is_on_sale": false,
       "trialActive": true,
       "extendedContent": {
         "seo": {
@@ -718,33 +718,39 @@
     "description": "Make room for the work that matters. Discover AI agents built to take everyday tasks off your hands.",
     "email": "norviagency@gmail.com",
     "company": "Norvi AI Agency",
-    "domain": "nor-vi.in",
+    "domain": "Norvi Agency",
     "maintenanceMode": false,
     "permissions": {
       "owner": [
         "*"
       ],
-      "support": [
-        "",
-        "/devices",
-        "/payments",
-        "/support"
-      ],
       "administrator": [
         "",
         "/products",
+        "/releases",
         "/categories",
-        "/devices",
-        "/payments",
-        "/support",
+        "/customers",
+        "/licenses",
+        "/orders",
         "/subscriptions",
         "/announcements",
-        "/inquiries",
-        "/promotions",
-        "/affiliates"
+        "/content",
+        "/activity"
       ],
       "product_manager": [
-        ""
+        "",
+        "/products",
+        "/releases",
+        "/categories",
+        "/announcements",
+        "/content"
+      ],
+      "support": [
+        "",
+        "/customers",
+        "/licenses",
+        "/orders",
+        "/announcements"
       ]
     },
     "bannerText": "Get Extra 10% Off On All Agents | Nexus & Rolvio are Launching On 30!",
