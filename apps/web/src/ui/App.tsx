@@ -1,10 +1,10 @@
 import { AccountAuth, AccountSecurity } from './Accounts';
-import { ArrowUpRight, ArrowRight, Workflow, MessageSquare, Sparkles, ShieldCheck, KeyRound, Download, Check, Menu, X, Plus, Command, ChevronDown , Instagram, Youtube, Facebook, Twitter, Bot} from 'lucide-react';
+import { ArrowUpRight, ArrowRight, Workflow, MessageSquare, Sparkles, ShieldCheck, KeyRound, Download, Check, Menu, X, Plus, Command, ChevronDown , Instagram, Youtube, Facebook, Twitter, Bot, Play, Star, CheckCircle2, ChevronLeft, ChevronRight } from 'lucide-react';
 import React, { useEffect, useState, useRef, Component, type ReactNode, type ErrorInfo } from 'react';
 import { Catalog, Detail, PartnerProgram, About, Help, Contact, Legal, Checkout, NotFound } from './PublicPages';
 import { Workspace, OrderStatus } from './Workspace';
-import { getCached, setCached, removeCached } from './common';
-import type { Product, Settings, User } from '../../../../packages/shared/model';
+import { getCached, setCached, removeCached, SmartVideoPlayer, parseYouTubeVideoId, getReviewerInitials } from './common';
+import type { Product, Settings, User, CustomerVideoReview } from '../../../../packages/shared/model';
 import catalogSnapshot from '../../../../packages/shared/catalog.json';
 import { hasAdvertisingConsent, setAdvertisingConsent, getAdvertisingConsentPreference, trackMetaPageView } from './analytics';
 import { isEscalationNeeded } from './SupportChat';
@@ -644,5 +644,202 @@ export function ProductCard({product}:{product:Product}){
   );
 }
 
-function Home({products,settings}:{products:Product[];settings:Settings}){return <><section className="hero container"><div className="hero-copy"><div className="eyebrow"><span className="tiny-spark">✦</span> A NEW WAY TO GET THINGS DONE</div><h1>{settings.headline==="Less busywork.\\nMore possibility." || settings.headline==="Less busywork.\nMore possibility."?<>Less busywork.<br/>More <span className="serif">possibility.</span></>:<span className="customheadline" dangerouslySetInnerHTML={{__html: settings.headline.replace(/\\n|\n/g, '<br/>')}} />}</h1><p>{settings.description}</p><div className="hero-buttons"><a className="button primary" href="/agents">Explore the agents <ArrowUpRight size={19}/></a><a className="text-button" href="#how-it-works">See how it works <ArrowRight size={17}/></a></div><div className="hero-note"><ShieldCheck size={16}/><span>Your account. Your agents. Your access.</span></div><div className="hero-social-links" style={{display:'flex',gap:'1.5rem',marginTop:'1.5rem'}}>{settings.socialInstagram && <a href={settings.socialInstagram} target="_blank" rel="noreferrer" style={{color:'#E1306C'}}><Instagram size={22}/></a>}{settings.socialYoutube && <a href={settings.socialYoutube} target="_blank" rel="noreferrer" style={{color:'#FF0000'}}><Youtube size={22}/></a>}{settings.socialFacebook && <a href={settings.socialFacebook} target="_blank" rel="noreferrer" style={{color:'#1877F2'}}><Facebook size={22}/></a>}{settings.socialTwitter && <a href={settings.socialTwitter} target="_blank" rel="noreferrer" style={{color:'#1DA1F2'}}><Twitter size={22}/></a>}</div></div><div className="hero-console"><div className="console-top"><span><span className="console-dot"/> YOUR NEXT WORKFLOW</span><span>01 / 03</span></div><div className="workflow-title"><span className="mini-label">FROM TO-DO TO DONE</span><h2>Give the routine<br/>a new routine.</h2><p>A simpler way to put your agents to work.</p></div><div className="flow-line"><div className="flow-node"><span className="node-symbol"><Plus size={19}/></span><span><b>Choose your task</b><small>Start with what slows you down</small></span><span className="step-index">01</span></div><div className="connector"/><div className="flow-node selected"><span className="node-symbol"><Sparkles size={19}/></span><span><b>Meet your agent</b><small>The right tool for the right work</small></span><span className="step-index">02</span></div><div className="connector"/><div className="flow-node"><span className="node-symbol"><Check size={19}/></span><span><b>Make space for more</b><small>Bring your focus back to you</small></span><span className="step-index">03</span></div></div><div className="console-bottom"><span>Designed around your workflow</span><Workflow size={17}/></div></div></section><div className="value-ribbon"><div className="container" style={{display:'grid',gridTemplateColumns:'repeat(auto-fit, minmax(200px, 1fr))',gap:'16px',alignItems:'center'}}><span><Workflow size={18} style={{color:'var(--lime)'}}/> Autonomous Desktop AI Agents</span><span><ShieldCheck size={18} style={{color:'var(--lime)'}}/> 100% Private Native Desktop Apps · Cloud AI Included</span><span><KeyRound size={18} style={{color:'var(--lime)'}}/> Instant License &amp; Key Activation</span><span><Sparkles size={18} style={{color:'var(--lime)'}}/> Transparent Pricing · Zero Hidden Fees</span></div></div><section className="section container" id="agents"><div className="section-heading"><div><span className="eyebrow">THE AGENT COLLECTION</span><h2>Small tools.<br/><span className="muted">Bigger possibilities.</span></h2></div><div className="section-aside"><p>Explore your next addition to the workday.<br/>One agent. One less thing on your list.</p><a className="text-button" href="/agents">View all agents <ArrowUpRight size={17}/></a></div></div><div className="product-grid">{products.slice(0,3).map(p=><ProductCard key={p.id} product={p}/>)}</div>{settings.bannerText ? <p className="fineprint">{settings.bannerText}</p> : null}</section><section className="how-section" id="how-it-works"><div className="container"><div className="section-heading"><div><span className="eyebrow">LESS SETUP. MORE MOMENTUM.</span><h2>A clear path to<br/>your next agent.</h2></div><p className="section-aside">From discovery to your desktop,<br/>everything has its place.</p></div><div className="steps">{[['01','Find your dedicated agent','Browse purpose-built agents like Voro (real-time interview & coding copilot), Rolvio (job hunter & tracker), or Nexus (viral content studio). Review transparent hardware specs, live demos, and capabilities.'],['02','Choose your license tier','Select flexible 1-Month, 3-Month, or Lifetime access with zero recurring surprise billing. Pay securely via Razorpay (UPI, Cards, Netbanking) for instant digital fulfillment.'],['03','Install & activate in seconds','Download the lightweight native desktop app for Windows or macOS directly from your dashboard. Paste your activation key once to unlock full agent capabilities with zero complex setup, model downloads, or GPU requirements.']].map(([n,t,d])=><div className="step" key={n}><span>{n}</span><h3>{t}</h3><p>{d}</p></div>)}</div></div></section><section className="section container"><div className="faq-layout"><div><span className="eyebrow">GOOD QUESTIONS</span><h2>A little clarity<br/>goes a long way.</h2><a className="text-button" href="/help">Visit the help center <ArrowUpRight size={16}/></a></div><div className="faqs">{[['What makes NORVI desktop AI agents different from web chatbots?','Unlike web chatbots or browser extensions that require constant cloud uploads, NORVI agents are native desktop applications (Windows 10/11 64-bit and macOS) engineered to interact directly with your system—such as invisible screen capture on Zoom/Meet, private earpiece audio, and automated desktop workflows. All AI intelligence and models are seamlessly managed in the cloud by NORVI, so you never need heavy AI software, local models, or high-end hardware.'],['How do licenses and device activations work?','Every purchased license allows simultaneous activation on up to 3 of your personal computers (e.g., your desktop and laptop). If you change machines, you can release or rotate your active devices anytime with 1 click directly from your Keys & Devices dashboard.'],['Where and how do I receive my activation key after purchase?','Delivery is instant. The moment your checkout completes via Razorpay, your unique activation key (NORVI-••••-••••) is displayed on screen, added to your /account/licenses dashboard, and emailed to you. You can copy it with one click and activate your agent immediately.'],['Do I have to pay ongoing cloud token fees or hidden markups?','No. All AI models, intelligence, reasoning, vision, and transcription are fully hosted, managed, and covered by NORVI Agency. You never have to buy API keys, set up Ollama, pay per-token fees, or configure models. Everything works out of the box with zero hidden costs or extra bills.'],['Can I use my agent offline without an internet connection?','Once activated online, your desktop agent license remains active and valid on your PC for up to 24 hours without requiring a constant connection check. For live AI features (such as real-time interview answers or video AI analysis), an internet connection is used to reach NORVI\'s cloud AI brain.'],['Can I upgrade my plan from 1-Month or 3-Month to Lifetime later?','Yes. You can renew or upgrade your license tier at any time from your account dashboard. Upgrading to Lifetime access unlocks permanent software updates and priority technical support.']].map(([q,a])=><details key={q}><summary>{q}<Plus size={18}/></summary><p>{a}</p></details>)}</div></div></section><section className="cta container"><div><span className="eyebrow">MAKE ROOM FOR YOUR NEXT BIG THING</span><h2>Your workday.<br/>With a little more <span className="serif">possibility.</span></h2></div><a className="button dark" href="/agents">Find your agent <ArrowUpRight size={19}/></a></section></>;}
+function Home({products,settings}:{products:Product[];settings:Settings}){
+  const [activeReviewVideoId, setActiveReviewVideoId] = useState<string | null>(null);
+  const homeReviewsScrollRef = useRef<HTMLDivElement>(null);
+  return <><section className="hero container"><div className="hero-copy"><div className="eyebrow"><span className="tiny-spark">✦</span> A NEW WAY TO GET THINGS DONE</div><h1>{settings.headline==="Less busywork.\\nMore possibility." || settings.headline==="Less busywork.\nMore possibility."?<>Less busywork.<br/>More <span className="serif">possibility.</span></>:<span className="customheadline" dangerouslySetInnerHTML={{__html: settings.headline.replace(/\\n|\n/g, '<br/>')}} />}</h1><p>{settings.description}</p><div className="hero-buttons"><a className="button primary" href="/agents">Explore the agents <ArrowUpRight size={19}/></a><a className="text-button" href="#how-it-works">See how it works <ArrowRight size={17}/></a></div><div className="hero-note"><ShieldCheck size={16}/><span>Your account. Your agents. Your access.</span></div><div className="hero-social-links" style={{display:'flex',gap:'1.5rem',marginTop:'1.5rem'}}>{settings.socialInstagram && <a href={settings.socialInstagram} target="_blank" rel="noreferrer" style={{color:'#E1306C'}}><Instagram size={22}/></a>}{settings.socialYoutube && <a href={settings.socialYoutube} target="_blank" rel="noreferrer" style={{color:'#FF0000'}}><Youtube size={22}/></a>}{settings.socialFacebook && <a href={settings.socialFacebook} target="_blank" rel="noreferrer" style={{color:'#1877F2'}}><Facebook size={22}/></a>}{settings.socialTwitter && <a href={settings.socialTwitter} target="_blank" rel="noreferrer" style={{color:'#1DA1F2'}}><Twitter size={22}/></a>}</div></div><div className="hero-console"><div className="console-top"><span><span className="console-dot"/> YOUR NEXT WORKFLOW</span><span>01 / 03</span></div><div className="workflow-title"><span className="mini-label">FROM TO-DO TO DONE</span><h2>Give the routine<br/>a new routine.</h2><p>A simpler way to put your agents to work.</p></div><div className="flow-line"><div className="flow-node"><span className="node-symbol"><Plus size={19}/></span><span><b>Choose your task</b><small>Start with what slows you down</small></span><span className="step-index">01</span></div><div className="connector"/><div className="flow-node selected"><span className="node-symbol"><Sparkles size={19}/></span><span><b>Meet your agent</b><small>The right tool for the right work</small></span><span className="step-index">02</span></div><div className="connector"/><div className="flow-node"><span className="node-symbol"><Check size={19}/></span><span><b>Make space for more</b><small>Bring your focus back to you</small></span><span className="step-index">03</span></div></div><div className="console-bottom"><span>Designed around your workflow</span><Workflow size={17}/></div></div></section><div className="value-ribbon"><div className="container" style={{display:'grid',gridTemplateColumns:'repeat(auto-fit, minmax(200px, 1fr))',gap:'16px',alignItems:'center'}}><span><Workflow size={18} style={{color:'var(--lime)'}}/> Autonomous Desktop AI Agents</span><span><ShieldCheck size={18} style={{color:'var(--lime)'}}/> 100% Private Native Desktop Apps · Cloud AI Included</span><span><KeyRound size={18} style={{color:'var(--lime)'}}/> Instant License &amp; Key Activation</span><span><Sparkles size={18} style={{color:'var(--lime)'}}/> Transparent Pricing · Zero Hidden Fees</span></div></div><section className="section container" id="agents"><div className="section-heading"><div><span className="eyebrow">THE AGENT COLLECTION</span><h2>Small tools.<br/><span className="muted">Bigger possibilities.</span></h2></div><div className="section-aside"><p>Explore your next addition to the workday.<br/>One agent. One less thing on your list.</p><a className="text-button" href="/agents">View all agents <ArrowUpRight size={17}/></a></div></div><div className="product-grid">{products.slice(0,3).map(p=><ProductCard key={p.id} product={p}/>)}</div>{settings.bannerText ? <p className="fineprint">{settings.bannerText}</p> : null}</section><section className="how-section" id="how-it-works"><div className="container"><div className="section-heading"><div><span className="eyebrow">LESS SETUP. MORE MOMENTUM.</span><h2>A clear path to<br/>your next agent.</h2></div><p className="section-aside">From discovery to your desktop,<br/>everything has its place.</p></div><div className="steps">{[['01','Find your dedicated agent','Browse purpose-built agents like Voro (real-time interview & coding copilot), Rolvio (job hunter & tracker), or Nexus (viral content studio). Review transparent hardware specs, live demos, and capabilities.'],['02','Choose your license tier','Select flexible 1-Month, 3-Month, or Lifetime access with zero recurring surprise billing. Pay securely via Razorpay (UPI, Cards, Netbanking) for instant digital fulfillment.'],['03','Install & activate in seconds','Download the lightweight native desktop app for Windows or macOS directly from your dashboard. Paste your activation key once to unlock full agent capabilities with zero complex setup, model downloads, or GPU requirements.']].map(([n,t,d])=><div className="step" key={n}><span>{n}</span><h3>{t}</h3><p>{d}</p></div>)}</div></div></section>{settings.video_reviews && settings.video_reviews.length > 0 && (
+  <section className="section container video-reviews-section" style={{ marginTop: '20px', marginBottom: '40px' }}>
+    <div className="section-heading" style={{ marginBottom: 16 }}>
+      <div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8, flexWrap: 'wrap' }}>
+          <span className="eyebrow" style={{ margin: 0 }}>CUSTOMER STORIES &amp; REVIEWS</span>
+          <span className="badge" style={{ background: 'rgba(234, 179, 8, 0.12)', color: '#facc15', border: '1px solid rgba(234, 179, 8, 0.25)', fontSize: 11, padding: '2px 8px' }}>
+            ★ 4.9/5 Verified Ratings
+          </span>
+        </div>
+        <h2>{settings.video_reviews_heading || 'Trusted by Builders, Founders & Candidates'}</h2>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <p className="section-aside" style={{ margin: 0 }}>
+          {settings.video_reviews_subheading || 'Real feedback and unedited demonstrations from professionals using NORVI autonomous agents in production.'}
+        </p>
+        {settings.video_reviews.length > 1 && (
+          <div className="gallery-scroll-nav" style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+            <button
+              type="button"
+              className="icon-button"
+              aria-label="Scroll reviews left"
+              onClick={() => {
+                homeReviewsScrollRef.current?.scrollBy({ left: -300, behavior: 'smooth' });
+              }}
+              style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+            >
+              <ChevronLeft size={18} />
+            </button>
+            <button
+              type="button"
+              className="icon-button"
+              aria-label="Scroll reviews right"
+              onClick={() => {
+                homeReviewsScrollRef.current?.scrollBy({ left: 300, behavior: 'smooth' });
+              }}
+              style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+            >
+              <ChevronRight size={18} />
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+
+    <div className="video-reviews-track" ref={homeReviewsScrollRef}>
+      {settings.video_reviews.map((review, idx) => {
+        const isPlaying = activeReviewVideoId === review.id;
+        const isVertical = review.aspectRatio === '9:16';
+        const youtubeId = parseYouTubeVideoId(review.videoUrl);
+        const thumbnailSrc = youtubeId ? `https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg` : null;
+        const ratingCount = Math.min(5, Math.max(1, review.rating || 5));
+
+        return (
+          <div
+            key={review.id || idx}
+            className={`video-review-card ${isVertical ? 'vertical-format' : 'landscape-format'}`}
+          >
+            <div
+              className="video-review-media-wrap"
+              style={{
+                position: 'relative',
+                width: '100%',
+                aspectRatio: isVertical ? '9/16' : '16/9',
+                borderRadius: '10px',
+                overflow: 'hidden',
+                background: '#090a0c'
+              }}
+            >
+              {isPlaying ? (
+                <SmartVideoPlayer
+                  url={review.videoUrl}
+                  autoPlay={true}
+                  muted={false}
+                  controls={true}
+                  aspectRatio={isVertical ? '9/16' : '16/9'}
+                  title={review.title || `${review.reviewerName} review`}
+                />
+              ) : (
+                <div
+                  className="video-review-poster"
+                  onClick={() => setActiveReviewVideoId(review.id)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      setActiveReviewVideoId(review.id);
+                    }
+                  }}
+                  aria-label={`Play video review from ${review.reviewerName}`}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    position: 'relative',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: thumbnailSrc
+                      ? `linear-gradient(180deg, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.7) 100%), url(${thumbnailSrc}) center/cover no-repeat`
+                      : 'linear-gradient(135deg, rgba(20,24,33,0.95) 0%, rgba(10,12,16,0.98) 100%)'
+                  }}
+                >
+                  <span
+                    className="badge small"
+                    style={{
+                      position: 'absolute',
+                      top: 8,
+                      left: 8,
+                      fontSize: 10,
+                      background: 'rgba(0,0,0,0.65)',
+                      backdropFilter: 'blur(8px)',
+                      color: '#e2e8f0',
+                      border: '1px solid rgba(255,255,255,0.1)'
+                    }}
+                  >
+                    {isVertical ? '📱 Short' : '▶ Video'}
+                  </span>
+
+                  <button
+                    type="button"
+                    className="video-review-play-btn"
+                    onClick={e => {
+                      e.stopPropagation();
+                      setActiveReviewVideoId(review.id);
+                    }}
+                    aria-label={`Play review by ${review.reviewerName}`}
+                  >
+                    <Play size={20} style={{ marginLeft: 2 }} fill="currentColor" />
+                  </button>
+
+                  <span
+                    style={{
+                      position: 'absolute',
+                      bottom: 10,
+                      fontSize: 10.5,
+                      color: '#cbd5e1',
+                      background: 'rgba(0,0,0,0.6)',
+                      padding: '2px 7px',
+                      borderRadius: 5,
+                      backdropFilter: 'blur(6px)',
+                      letterSpacing: '0.02em'
+                    }}
+                  >
+                    Click to play with sound
+                  </span>
+                </div>
+              )}
+            </div>
+
+            <div className="video-review-body">
+              <div style={{ display: 'flex', gap: 3, marginBottom: 6 }} aria-label={`${ratingCount} out of 5 stars`}>
+                {Array.from({ length: 5 }).map((_, sIdx) => (
+                  <Star
+                    key={sIdx}
+                    size={13}
+                    fill={sIdx < ratingCount ? '#f59e0b' : 'none'}
+                    color={sIdx < ratingCount ? '#f59e0b' : 'rgba(255,255,255,0.2)'}
+                  />
+                ))}
+              </div>
+
+              {review.title && (
+                <h4 className="video-review-title">
+                  "{review.title}"
+                </h4>
+              )}
+
+              {review.reviewText && (
+                <p className="video-review-quote">
+                  {review.reviewText}
+                </p>
+              )}
+
+              <div className="video-review-author">
+                <div className="video-review-avatar">
+                  {getReviewerInitials(review.reviewerName)}
+                </div>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <b className="video-review-name">{review.reviewerName || 'Verified User'}</b>
+                    <CheckCircle2 size={12} style={{ color: 'var(--lime)', flexShrink: 0 }} />
+                  </div>
+                  {review.reviewerRole && (
+                    <span className="video-review-role">{review.reviewerRole}</span>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  </section>
+)}<section className="section container"><div className="faq-layout"><div><span className="eyebrow">GOOD QUESTIONS</span><h2>A little clarity<br/>goes a long way.</h2><a className="text-button" href="/help">Visit the help center <ArrowUpRight size={16}/></a></div><div className="faqs">{[['What makes NORVI desktop AI agents different from web chatbots?','Unlike web chatbots or browser extensions that require constant cloud uploads, NORVI agents are native desktop applications (Windows 10/11 64-bit and macOS) engineered to interact directly with your system—such as invisible screen capture on Zoom/Meet, private earpiece audio, and automated desktop workflows. All AI intelligence and models are seamlessly managed in the cloud by NORVI, so you never need heavy AI software, local models, or high-end hardware.'],['How do licenses and device activations work?','Every purchased license allows simultaneous activation on up to 3 of your personal computers (e.g., your desktop and laptop). If you change machines, you can release or rotate your active devices anytime with 1 click directly from your Keys & Devices dashboard.'],['Where and how do I receive my activation key after purchase?','Delivery is instant. The moment your checkout completes via Razorpay, your unique activation key (NORVI-••••-••••) is displayed on screen, added to your /account/licenses dashboard, and emailed to you. You can copy it with one click and activate your agent immediately.'],['Do I have to pay ongoing cloud token fees or hidden markups?','No. All AI models, intelligence, reasoning, vision, and transcription are fully hosted, managed, and covered by NORVI Agency. You never have to buy API keys, set up Ollama, pay per-token fees, or configure models. Everything works out of the box with zero hidden costs or extra bills.'],['Can I use my agent offline without an internet connection?','Once activated online, your desktop agent license remains active and valid on your PC for up to 24 hours without requiring a constant connection check. For live AI features (such as real-time interview answers or video AI analysis), an internet connection is used to reach NORVI\'s cloud AI brain.'],['Can I upgrade my plan from 1-Month or 3-Month to Lifetime later?','Yes. You can renew or upgrade your license tier at any time from your account dashboard. Upgrading to Lifetime access unlocks permanent software updates and priority technical support.']].map(([q,a])=><details key={q}><summary>{q}<Plus size={18}/></summary><p>{a}</p></details>)}</div></div></section><section className="cta container"><div><span className="eyebrow">MAKE ROOM FOR YOUR NEXT BIG THING</span><h2>Your workday.<br/>With a little more <span className="serif">possibility.</span></h2></div><a className="button dark" href="/agents">Find your agent <ArrowUpRight size={19}/></a></section></>;}
 function Footer({settings, onOpenConsent}:{settings:Settings; onOpenConsent?: () => void}){const brandLabel = settings.name === 'NORVI' ? 'NORVI Agency' : settings.name;return <footer className="footer container"><div className="footer-main"><div><a href="/" className="brand"><img src="/logo.jpg?v=2" alt="NORVI Agency" style={{width: 34, height: 34, borderRadius: 4, objectFit: "contain", marginRight: 10}}/>{settings.name}</a><p>A little less routine.<br/>A little more room for you.</p></div><div><b>Explore</b><a href="/agents">All agents</a><a href="/partners">Partner Program</a><a href="/about">Our story</a></div><div><b>Here to help</b><a href="/help">Help center</a><a href="/contact">Contact us</a><a href="/account">My account</a></div><div><b>The details</b><a href="/privacy">Privacy policy</a><a href="/terms">Terms of service</a><a href="/refunds">Refund policy</a><a href="/delivery">Shipping & delivery</a>{onOpenConsent && <button onClick={onOpenConsent} style={{background:'none',border:'none',padding:0,color:'inherit',font:'inherit',textAlign:'left',cursor:'pointer'}}>Cookie preferences</button>}</div></div><div className="footer-bottom"><span>© {new Date().getFullYear()} {brandLabel}. All rights reserved.</span><a href="/license">License agreement <ArrowUpRight size={13}/></a><span>Built for a better workday.</span></div></footer>;}

@@ -2,11 +2,12 @@ import { useState, useEffect, useRef } from 'react';
 import { 
   ArrowRight, ArrowUpRight, Search, Check, ShieldCheck, KeyRound, Download, 
   Mail, LifeBuoy, Workflow, Activity, Instagram, Youtube, Facebook, Twitter,
-  Sparkles, Plus, Code, Mic, Bot, Film, Cpu, Zap, Monitor, Layers, Lock, Terminal, Eye, X, ChevronLeft, ChevronRight
+  Sparkles, Plus, Code, Mic, Bot, Film, Cpu, Zap, Monitor, Layers, Lock, Terminal, Eye, X, ChevronLeft, ChevronRight,
+  Play, Star, CheckCircle2
 } from 'lucide-react';
-import { formatDurationLabel, getDefaultAgentPaidHighlights, getDefaultAgentTrialHighlights, getDefaultAgentTrialNotice, type Product, type Settings, type User, type FeaturePillar, type AgentExtendedContent } from '../../../../packages/shared/model';
+import { formatDurationLabel, getDefaultAgentPaidHighlights, getDefaultAgentTrialHighlights, getDefaultAgentTrialNotice, type Product, type Settings, type User, type FeaturePillar, type AgentExtendedContent, type CustomerVideoReview } from '../../../../packages/shared/model';
 import { ProductCard,ProductIcon } from './App';
-import { PageHeading, Notice, Field, Empty, api, useData, Badge, SmartVideoPlayer, parseYouTubeVideoId } from './common';
+import { PageHeading, Notice, Field, Empty, api, useData, Badge, SmartVideoPlayer, parseYouTubeVideoId, getReviewerInitials } from './common';
 import { trackMetaPurchase, trackMetaViewContent, hasAdvertisingConsent, getProductDisplayPrice } from './analytics';
 import { SupportChatBox } from './SupportChat';
 export function Catalog({products, settings}:{products:Product[]; settings?:Settings}){const [query,setQuery]=useState('');const filtered=products.filter(p=>{const sub=p.subHeading||p.extendedContent?.subHeading||'';const catName=typeof p.category==='string'?p.category:(p.category?.name||'');return (p.name+' '+sub+' '+catName+' '+p.description).toLowerCase().includes(query.toLowerCase());});return <div className="container page"><PageHeading eyebrow="YOUR NEXT WORKFLOW STARTS HERE" title="Meet your next agent." description="A collection of tools for a little less routine and a lot more possibility."/><div className="catalog-toolbar"><span className="tab active">All agents <b>{products.length}</b></span><label className="search"><Search size={17}/><input aria-label="Search agents" placeholder="Find an agent…" value={query} onChange={e=>setQuery(e.target.value)}/></label></div><div className="product-grid">{filtered.map(p=><ProductCard key={p.id} product={p}/>)}</div>{!filtered.length&&<Empty title="No matches just yet." description="Try another name or clear your search."/>}<div className="inline-callout"><div><h3>Not sure where to start?</h3><p>Learn how purchase, download, and activation will work.</p></div><a className="text-button" href="/help">Get a little guidance <ArrowUpRight size={18}/></a></div></div>;}
@@ -59,6 +60,8 @@ export function Detail({product, settings, isCatalogLoaded = true}:{product:Prod
   const [selectedPillar, setSelectedPillar] = useState<FeaturePillar | null>(null);
   const [selectedGalleryIndex, setSelectedGalleryIndex] = useState<number | null>(null);
   const galleryScrollRef = useRef<HTMLDivElement>(null);
+  const [activeReviewVideoId, setActiveReviewVideoId] = useState<string | null>(null);
+  const videoReviewsScrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!isCatalogLoaded || !product || !product.slug || !product.name) return;
@@ -886,6 +889,202 @@ export function Detail({product, settings, isCatalogLoaded = true}:{product:Prod
                 <p style={{ whiteSpace: 'pre-line' }}>{faq.answer}</p>
               </details>
             ))}
+          </div>
+        </section>
+      )}
+
+      {ext?.video_reviews && ext.video_reviews.length > 0 && (
+        <section className="video-reviews-section">
+          <div className="section-heading" style={{ marginBottom: 20 }}>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8, flexWrap: 'wrap' }}>
+                <span className="eyebrow" style={{ margin: 0 }}>CUSTOMER STORIES &amp; REVIEWS</span>
+                <span className="badge" style={{ background: 'rgba(234, 179, 8, 0.12)', color: '#facc15', border: '1px solid rgba(234, 179, 8, 0.25)', fontSize: 11, padding: '2px 8px' }}>
+                  ★ 4.9/5 Verified Ratings
+                </span>
+              </div>
+              <h2>{ext.video_reviews_heading || 'Customer Stories & Video Reviews'}</h2>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <p className="section-aside" style={{ margin: 0 }}>
+                {ext.video_reviews_subheading || `Real feedback and unedited demonstrations from professionals using ${product.name}.`}
+              </p>
+              {ext.video_reviews.length > 1 && (
+                <div className="gallery-scroll-nav" style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                  <button
+                    type="button"
+                    className="icon-button"
+                    aria-label="Scroll reviews left"
+                    onClick={() => {
+                      videoReviewsScrollRef.current?.scrollBy({ left: -360, behavior: 'smooth' });
+                    }}
+                    style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                  >
+                    <ChevronLeft size={18} />
+                  </button>
+                  <button
+                    type="button"
+                    className="icon-button"
+                    aria-label="Scroll reviews right"
+                    onClick={() => {
+                      videoReviewsScrollRef.current?.scrollBy({ left: 360, behavior: 'smooth' });
+                    }}
+                    style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                  >
+                    <ChevronRight size={18} />
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="video-reviews-track" ref={videoReviewsScrollRef}>
+            {ext.video_reviews.map((review, idx) => {
+              const isPlaying = activeReviewVideoId === review.id;
+              const isVertical = review.aspectRatio === '9:16';
+              const youtubeId = parseYouTubeVideoId(review.videoUrl);
+              const thumbnailSrc = youtubeId ? `https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg` : null;
+              const ratingCount = Math.min(5, Math.max(1, review.rating || 5));
+
+              return (
+                <div
+                  key={review.id || idx}
+                  className={`video-review-card ${isVertical ? 'vertical-format' : 'landscape-format'}`}
+                >
+                  <div
+                    className="video-review-media-wrap"
+                    style={{
+                      position: 'relative',
+                      width: '100%',
+                      aspectRatio: isVertical ? '9/16' : '16/9',
+                      borderRadius: '10px',
+                      overflow: 'hidden',
+                      background: '#090a0c'
+                    }}
+                  >
+                    {isPlaying ? (
+                      <SmartVideoPlayer
+                        url={review.videoUrl}
+                        autoPlay={true}
+                        muted={false}
+                        controls={true}
+                        aspectRatio={isVertical ? '9/16' : '16/9'}
+                        title={review.title || `${review.reviewerName} review`}
+                      />
+                    ) : (
+                      <div
+                        className="video-review-poster"
+                        onClick={() => setActiveReviewVideoId(review.id)}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            setActiveReviewVideoId(review.id);
+                          }
+                        }}
+                        aria-label={`Play video review from ${review.reviewerName}`}
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          position: 'relative',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          background: thumbnailSrc
+                            ? `linear-gradient(180deg, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.7) 100%), url(${thumbnailSrc}) center/cover no-repeat`
+                            : 'linear-gradient(135deg, rgba(20,24,33,0.95) 0%, rgba(10,12,16,0.98) 100%)'
+                        }}
+                      >
+                        <span
+                          className="badge small"
+                          style={{
+                            position: 'absolute',
+                            top: 10,
+                            left: 10,
+                            fontSize: 10,
+                            background: 'rgba(0,0,0,0.65)',
+                            backdropFilter: 'blur(8px)',
+                            color: '#e2e8f0',
+                            border: '1px solid rgba(255,255,255,0.1)'
+                          }}
+                        >
+                          {isVertical ? '📱 Short' : '▶ Video'}
+                        </span>
+
+                        <button
+                          type="button"
+                          className="video-review-play-btn"
+                          onClick={e => {
+                            e.stopPropagation();
+                            setActiveReviewVideoId(review.id);
+                          }}
+                          aria-label={`Play review by ${review.reviewerName}`}
+                        >
+                          <Play size={24} style={{ marginLeft: 3 }} fill="currentColor" />
+                        </button>
+
+                        <span
+                          style={{
+                            position: 'absolute',
+                            bottom: 12,
+                            fontSize: 11,
+                            color: '#cbd5e1',
+                            background: 'rgba(0,0,0,0.6)',
+                            padding: '3px 8px',
+                            borderRadius: 6,
+                            backdropFilter: 'blur(6px)',
+                            letterSpacing: '0.02em'
+                          }}
+                        >
+                          Click to play with sound
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="video-review-body">
+                    <div style={{ display: 'flex', gap: 3, marginBottom: 8 }} aria-label={`${ratingCount} out of 5 stars`}>
+                      {Array.from({ length: 5 }).map((_, sIdx) => (
+                        <Star
+                          key={sIdx}
+                          size={14}
+                          fill={sIdx < ratingCount ? '#f59e0b' : 'none'}
+                          color={sIdx < ratingCount ? '#f59e0b' : 'rgba(255,255,255,0.2)'}
+                        />
+                      ))}
+                    </div>
+
+                    {review.title && (
+                      <h4 className="video-review-title">
+                        "{review.title}"
+                      </h4>
+                    )}
+
+                    {review.reviewText && (
+                      <p className="video-review-quote">
+                        {review.reviewText}
+                      </p>
+                    )}
+
+                    <div className="video-review-author">
+                      <div className="video-review-avatar">
+                        {getReviewerInitials(review.reviewerName)}
+                      </div>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <b className="video-review-name">{review.reviewerName || 'Verified User'}</b>
+                          <CheckCircle2 size={13} style={{ color: 'var(--lime)', flexShrink: 0 }} />
+                        </div>
+                        {review.reviewerRole && (
+                          <span className="video-review-role">{review.reviewerRole}</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </section>
       )}

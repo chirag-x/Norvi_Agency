@@ -205,11 +205,21 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
         .select('id, slug, name, categoryId:category_id, tagline, description, price:price_label, price1w:price_1w, price1m:price_1m, price3m:price_3m, price_lifetime:price_lifetime, status, logoUrl:logo_url, features, version, requirements, releaseStatus:release_status, workflowHeading:workflow_heading, workflowDescription:workflow_description, workflowMediaUrl:workflow_media_url, workflowNote:workflow_note, aiUsage:ai_usage, deviceAllowance:device_allowance, is_on_sale, trialActive:trial_active, extendedContent:extended_content')
         .in('status', ['published', 'archived'])
         .order('created_at', { ascending: true }),
-      supabase.from('site_settings').select('name, headline, description, email, company, domain, maintenance_mode, permissions, banner_text, sale_active, sale_percentage, socialInstagram:social_instagram, socialYoutube:social_youtube, socialFacebook:social_facebook, socialTwitter:social_twitter').single(),
+      supabase.from('site_settings').select('name, headline, description, email, company, domain, maintenance_mode, permissions, banner_text, sale_active, sale_percentage, socialInstagram:social_instagram, socialYoutube:social_youtube, socialFacebook:social_facebook, socialTwitter:social_twitter, video_reviews, video_reviews_heading, video_reviews_subheading').single(),
       supabase.from('categories').select('id, slug, name, createdAt:created_at')
     ]);
     const products = (productsResult.data || catalog.products).map(p => ({...p, extendedContent: (p as any).extendedContent || {}, subHeading: (p as any).subHeading || (p as any).extendedContent?.subHeading || undefined, category: (categoriesResult.data || catalog.categories).find(c => c.id === p.categoryId) || null}));
-    const settings = settingsResult.data ? { ...settingsResult.data, maintenanceMode: settingsResult.data.maintenance_mode, bannerText: settingsResult.data.banner_text, saleActive: settingsResult.data.sale_active, salePercentage: settingsResult.data.sale_percentage, permissions: (Object.keys(settingsResult.data.permissions || {}).length > 0) ? settingsResult.data.permissions : defaultPermissions } : catalog.settings;
+    const settings = settingsResult.data ? { 
+      ...settingsResult.data, 
+      maintenanceMode: settingsResult.data.maintenance_mode, 
+      bannerText: settingsResult.data.banner_text, 
+      saleActive: settingsResult.data.sale_active, 
+      salePercentage: settingsResult.data.sale_percentage,
+      video_reviews: (settingsResult.data as any).video_reviews || undefined,
+      video_reviews_heading: (settingsResult.data as any).video_reviews_heading || undefined,
+      video_reviews_subheading: (settingsResult.data as any).video_reviews_subheading || undefined,
+      permissions: (Object.keys(settingsResult.data.permissions || {}).length > 0) ? settingsResult.data.permissions : defaultPermissions 
+    } : catalog.settings;
     const categories = categoriesResult.data || catalog.categories;
 
     const catalogData = { categories, products, settings, preview: false };
@@ -1794,11 +1804,38 @@ export function createLiveApp(makeClient: Factory = factory, options: { upstream
   app.patch('/api/admin/content', async c => {
     if (!['owner', 'administrator'].includes(c.get('user').role)) return c.json({ error: 'Permission denied.' }, 403);
     const input = await c.req.json();
-    const { error } = await c.get('db').rpc('admin_update_content', { p_headline: input.headline, p_description: input.description });
-    if (!error) {
-      await logAdminAudit(c, 'content.updated', 'homepage_content', 'Updated website headline and copy');
+    const updateData: Record<string, any> = {
+      headline: input.headline,
+      description: input.description
+    };
+    if (input.video_reviews !== undefined) {
+      updateData.video_reviews = input.video_reviews;
     }
-    return error ? c.json({ error: 'Settings could not be saved.' }, 400) : c.json({ ok: true });
+    if (input.video_reviews_heading !== undefined) {
+      updateData.video_reviews_heading = input.video_reviews_heading;
+    }
+    if (input.video_reviews_subheading !== undefined) {
+      updateData.video_reviews_subheading = input.video_reviews_subheading;
+    }
+
+    let directError: any = null;
+    try {
+      const adminDb: any = options.agentAiDeps?.createServiceClient
+        ? (options.agentAiDeps.createServiceClient as any)(c.env.SUPABASE_URL, c.env.SUPABASE_SERVICE_ROLE_KEY)
+        : createClient(c.env.SUPABASE_URL!, c.env.SUPABASE_SERVICE_ROLE_KEY!);
+      const res = await adminDb.from('site_settings').update(updateData).eq('id', 1);
+      directError = res?.error;
+    } catch (err: any) {
+      directError = err;
+    }
+
+    if (directError) {
+      const { error } = await c.get('db').rpc('admin_update_content', { p_headline: input.headline, p_description: input.description });
+      if (error) return c.json({ error: 'Settings could not be saved.' }, 400);
+    }
+
+    await logAdminAudit(c, 'content.updated', 'homepage_content', 'Updated website headline, copy and video reviews');
+    return c.json({ ok: true });
   });
 
   app.patch('/api/admin/settings', async c => {

@@ -2,6 +2,7 @@ export type Role = 'owner' | 'administrator' | 'product_manager' | 'support' | '
 export type Category = { id: string; slug: string; name: string; createdAt?: string };
 export type FeaturePillar = { id: string; title: string; shortDescription?: string; description: string; icon?: string; tag?: string; mediaUrl?: string | null; };
 export type MediaGalleryItem = { id: string; type: 'image' | 'video' | 'gif'; url: string; title?: string; caption?: string; };
+export type CustomerVideoReview = { id: string; reviewerName: string; reviewerRole?: string; title?: string; reviewText?: string; videoUrl: string; aspectRatio?: '16:9' | '9:16'; rating?: number; };
 export type ComparisonRow = { feature: string; us: boolean | string; comp1: boolean | string; comp2: boolean | string; };
 export type CompetitorComparison = { headline?: string; competitor1Name: string; competitor2Name: string; rows: ComparisonRow[]; };
 export type WorkflowStep = { step: string; title: string; description: string; };
@@ -20,6 +21,9 @@ export type AgentExtendedContent = {
   comparison?: CompetitorComparison;
   workflowSteps?: WorkflowStep[];
   faqs?: AgentFaq[];
+  video_reviews?: CustomerVideoReview[];
+  video_reviews_heading?: string;
+  video_reviews_subheading?: string;
   seo?: AgentSeo;
   guide?: AgentGuide;
   checkout_description?: string;
@@ -40,7 +44,7 @@ export type Order = { id: string; userId: string; productId: string; status: 'si
 export type Audit = { id: string; actor: string; action: string; target: string; createdAt: string };
 export type Ticket = { id: string; userId: string; subject: string; message: string; status: 'open' | 'closed'; createdAt: string };
 export type Invite = { id: string; email: string; role: Role; status: 'pending' | 'revoked'; createdAt: string };
-export type Settings = { name: string; headline: string; description: string; email: string; company: string; domain: string; maintenanceMode: boolean; permissions: Record<string, string[]>; bannerText?: string; saleActive?: boolean; salePercentage?: number; socialInstagram?: string; socialYoutube?: string; socialFacebook?: string; socialTwitter?: string; };
+export type Settings = { name: string; headline: string; description: string; email: string; company: string; domain: string; maintenanceMode: boolean; permissions: Record<string, string[]>; bannerText?: string; saleActive?: boolean; salePercentage?: number; socialInstagram?: string; socialYoutube?: string; socialFacebook?: string; socialTwitter?: string; video_reviews?: CustomerVideoReview[]; video_reviews_heading?: string; video_reviews_subheading?: string; };
 export type Announcement = { id: string; authorId: string; audience: 'customer' | 'team'; message: string; createdAt: string };
 export type Store = { categories: Category[]; products: Product[]; users: User[]; licenses: License[]; orders: Order[]; audit: Audit[]; tickets: Ticket[]; invitations: Invite[]; settings: Settings; emails: { id: string; userId: string; orderId: string; status: string; createdAt: string }[]; announcements: Announcement[] };
 export const settings: Settings = { name: 'NORVI', headline: 'Less busywork.\nMore possibility.', description: 'Make room for the work that matters. Discover AI agents built to take everyday tasks off your hands.', email: 'chiragsharmawork95@gmail.com', company: 'name_Company', domain: 'domain_Website', maintenanceMode: false, permissions: { owner: ['*'], administrator: ['', '/products', '/releases', '/categories', '/customers', '/licenses', '/orders', '/subscriptions', '/announcements', '/content', '/activity'], product_manager: ['', '/products', '/releases', '/categories', '/announcements', '/content'], support: ['', '/customers', '/licenses', '/orders', '/announcements'] } };

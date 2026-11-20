@@ -148,43 +148,50 @@
             "id": "gallery-1795177547308-uxm2",
             "url": "https://lpzqvziejdpzykwrhkmn.supabase.co/storage/v1/object/public/product-assets/28a63d08-29b7-451a-a0ae-a9c7362ce7f4.jpg",
             "type": "image",
+            "title": "🎯 Personal Resume Grounding (Solid HUD)",
             "caption": "Grounded in your actual work history, projects, and tech stack — sounds natural, confident, and 100% human."
           },
           {
             "id": "gallery-1795177886549-icrz",
             "url": "https://lpzqvziejdpzykwrhkmn.supabase.co/storage/v1/object/public/product-assets/80f65f0a-2bcb-49d1-b356-7668bf466082.jpg",
             "type": "image",
-            "caption": ""
+            "title": "👻 Stealth Transparency Overlay (Transparent HUD)",
+            "caption": "Dial down overlay opacity so you can view your IDE, Zoom meeting, or problem description directly behind Voro."
           },
           {
             "id": "gallery-1795177887214-anyh",
             "url": "https://lpzqvziejdpzykwrhkmn.supabase.co/storage/v1/object/public/product-assets/9c25df3b-c67d-4ff2-8af7-1657c1ccdcc9.jpg",
             "type": "image",
-            "caption": ""
+            "title": "🧠 Technical Depth & Internals",
+            "caption": "Concise breakdowns of language paradigms, execution models, dynamic typing, and automatic memory management."
           },
           {
             "id": "gallery-1795177887970-c548",
             "url": "https://lpzqvziejdpzykwrhkmn.supabase.co/storage/v1/object/public/product-assets/c88fa97d-a7d4-49f7-919b-6dc4019e21df.jpg",
             "type": "image",
-            "caption": ""
+            "title": "👁️ Invisible Reading Mode",
+            "caption": "Transparent interview HUD allows seamless reading without looking away from your camera or code editor."
           },
           {
             "id": "gallery-1795177888627-02zj",
             "url": "https://lpzqvziejdpzykwrhkmn.supabase.co/storage/v1/object/public/product-assets/2a7b1bcb-13c1-4525-b764-61456b189145.png",
             "type": "image",
-            "caption": ""
+            "title": "💻 Live LeetCode & DSA Problem Solving",
+            "caption": "Optimal time & space complexity, clean idiomatic code, and step-by-step interview walkthroughs."
           },
           {
             "id": "gallery-1795177889183-rz0t",
             "url": "https://lpzqvziejdpzykwrhkmn.supabase.co/storage/v1/object/public/product-assets/11608296-7dc4-4f75-991d-951859de85dc.png",
             "type": "image",
-            "caption": ""
+            "title": "⚡ Instant Screen Vision (OCR)",
+            "caption": "One-click screen solve analyzes code prompts, technical questions, or diagrams directly from your display."
           },
           {
             "id": "gallery-1795177940320-sy0w",
             "url": "https://lpzqvziejdpzykwrhkmn.supabase.co/storage/v1/object/public/product-assets/8b9e5414-cc72-40ed-aa3a-639b4b918fdf.png",
             "type": "image",
-            "caption": ""
+            "title": "🏗️ High-Concurrency System Design",
+            "caption": "Distributed locking, Redis Lua scripts, edge rate-limiting, and microservices architecture trade-offs."
           }
         ],
         "badgeText": "⚡ Undetectable Hardware Cloak · Sub-Second Cloud AI · Live Screen Perception",
@@ -259,6 +266,18 @@
         },
         "trial_notice": "Free trial runs on standard community cloud capacity. Upgrade to any paid license anytime for instant sub-second speed, unlimited access, and prioritized performance.",
         "featured_plan": "1_month",
+        "video_reviews": [
+          {
+            "id": "rev-1795195303195-uhsc",
+            "title": "Cracked my L5 technical interview on the first try",
+            "rating": 5,
+            "videoUrl": "https://youtube.com/shorts/XNI6pwIfSbU?si=IoFfBta0UPpIWgTp",
+            "reviewText": "Smooth horizontal scroll-snap track with touch swiping for mobile devices.\nAuto-Hide: If an agent has no video reviews configured, the section automatically hides completely with zero leftover whitespace.",
+            "aspectRatio": "9:16",
+            "reviewerName": "Chirag",
+            "reviewerRole": "Test Customer"
+          }
+        ],
         "featurePillars": [
           {
             "id": "voro-p1",
@@ -758,11 +777,11 @@
   ],
   "settings": {
     "name": "NORVI",
-    "headline": "Less busywork.\\nMore possibility.",
+    "headline": "Less busywork.\nMore possibility.",
     "description": "Make room for the work that matters. Discover AI agents built to take everyday tasks off your hands.",
-    "email": "norviagency@gmail.com",
-    "company": "Norvi AI Agency",
-    "domain": "Norvi Agency",
+    "email": "chiragsharmawork95@gmail.com",
+    "company": "name_Company",
+    "domain": "domain_Website",
     "maintenanceMode": false,
     "permissions": {
       "owner": [
@@ -796,13 +815,6 @@
         "/orders",
         "/announcements"
       ]
-    },
-    "bannerText": "Get Extra 10% Off On All Agents | Nexus & Rolvio are Launching On 30!",
-    "saleActive": true,
-    "salePercentage": 10,
-    "socialInstagram": "https://www.instagram.com/norviagency/?hl=en",
-    "socialYoutube": "https://www.youtube.com/@NorviAgency",
-    "socialFacebook": "https://www.facebook.com/profile.php?id=61594850554956",
-    "socialTwitter": ""
+    }
   }
 }

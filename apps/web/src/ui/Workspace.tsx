@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Activity, ArrowRight, ChevronDown, ChevronUp, Bot, ArrowUpRight, BookOpen, Box, Check, Copy, CreditCard, Download, Eye, FileText, KeyRound, LayoutDashboard, LifeBuoy, LogOut, Plus, Search, Settings as SettingsIcon, ShieldCheck, Users, X, Monitor, SlidersHorizontal, Mail, Megaphone, Globe, Sparkles, Video, Image as ImageIcon, HelpCircle, Layers, Trash2, Tag, ExternalLink, Printer, Phone, Clock, Share2, MessageSquare, Zap, Mic, Rocket } from 'lucide-react';
-import { formatDurationLabel, formatPaymentReference, formatStatusLabel, getDefaultAgentPaidHighlights, getDefaultAgentTrialHighlights, getDefaultAgentTrialNotice, getDefaultAgentPlanConfigs, type Category, type Product, type Settings, type User, type AgentExtendedContent, type FeaturePillar, type MediaGalleryItem, type ComparisonRow, type AgentFaq, type GuideSection, type AgentGuide } from '../../../../packages/shared/model';
+import { Activity, ArrowRight, ChevronDown, ChevronUp, Bot, ArrowUpRight, BookOpen, Box, Check, Copy, CreditCard, Download, Eye, FileText, KeyRound, LayoutDashboard, LifeBuoy, LogOut, Plus, Search, Settings as SettingsIcon, ShieldCheck, Users, X, Monitor, SlidersHorizontal, Mail, Megaphone, Globe, Sparkles, Video, Image as ImageIcon, HelpCircle, Layers, Trash2, Tag, ExternalLink, Printer, Phone, Clock, Share2, MessageSquare, Zap, Mic, Rocket, Star } from 'lucide-react';
+import { formatDurationLabel, formatPaymentReference, formatStatusLabel, getDefaultAgentPaidHighlights, getDefaultAgentTrialHighlights, getDefaultAgentTrialNotice, getDefaultAgentPlanConfigs, type Category, type Product, type Settings, type User, type AgentExtendedContent, type FeaturePillar, type MediaGalleryItem, type ComparisonRow, type AgentFaq, type GuideSection, type AgentGuide, type CustomerVideoReview } from '../../../../packages/shared/model';
 import { createDefaultAgentAiPolicy, normalizeAgentAiPolicyPayload, type AgentAiPolicy } from '../../../../packages/shared/agentAi';
 import { AgentAiPolicySection } from './AgentAiPolicySection';
 import { AdminAiKeyManager } from './AdminAiKeyManager';
@@ -4977,7 +4977,7 @@ export function AgentReleaseCard({
 }
 
 export function ProductForm({ product, onSave, categories }: { product: Product | null; onSave: () => void; categories: Category[] }) { 
-  const [activeTab, setActiveTab] = useState<'overview' | 'media' | 'pillars' | 'platforms' | 'comparison' | 'faqs' | 'guide' | 'seo'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'media' | 'pillars' | 'platforms' | 'comparison' | 'faqs' | 'reviews' | 'guide' | 'seo'>('overview');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -5019,12 +5019,17 @@ export function ProductForm({ product, onSave, categories }: { product: Product 
   // Tab 6: FAQs
   const [faqs, setFaqs] = useState<AgentFaq[]>(ext.faqs || []);
 
-  // Tab 7: Setup Guide
+  // Tab 7: Video Reviews
+  const [videoReviews, setVideoReviews] = useState<CustomerVideoReview[]>(ext.video_reviews || []);
+  const [videoReviewsHeading, setVideoReviewsHeading] = useState(ext.video_reviews_heading || '');
+  const [videoReviewsSubheading, setVideoReviewsSubheading] = useState(ext.video_reviews_subheading || '');
+
+  // Tab 8: Setup Guide
   const guide = ext.guide || { videoUrl: '', sections: [] };
   const [guideVideoUrl, setGuideVideoUrl] = useState(guide.videoUrl || '');
   const [guideSections, setGuideSections] = useState<GuideSection[]>(guide.sections || []);
 
-  // Tab 8: SEO Engine
+  // Tab 9: SEO Engine
   const seo = ext.seo || {};
   const [metaTitle, setMetaTitle] = useState(seo.metaTitle || '');
   const [metaDescription, setMetaDescription] = useState(seo.metaDescription || '');
@@ -5061,6 +5066,9 @@ export function ProductForm({ product, onSave, categories }: { product: Product 
           rows: comparisonRows.filter(r => r.feature.trim())
         } : undefined,
         faqs: faqs.filter(f => f.question.trim()).length ? faqs.filter(f => f.question.trim()) : undefined,
+        video_reviews: videoReviews.filter(r => r.videoUrl.trim()).length ? videoReviews.filter(r => r.videoUrl.trim()) : undefined,
+        video_reviews_heading: videoReviewsHeading.trim() || undefined,
+        video_reviews_subheading: videoReviewsSubheading.trim() || undefined,
         guide: (guideVideoUrl.trim() || guideSections.filter(s => s.heading.trim()).length) ? {
           videoUrl: guideVideoUrl.trim() || null,
           sections: guideSections.filter(s => s.heading.trim())
@@ -5121,6 +5129,7 @@ export function ProductForm({ product, onSave, categories }: { product: Product 
     { id: 'platforms', label: 'Platform Badges' },
     { id: 'comparison', label: 'Comparison Matrix' },
     { id: 'faqs', label: 'FAQs Builder' },
+    { id: 'reviews', label: 'Video Reviews' },
     { id: 'guide', label: 'Setup Guide' },
     { id: 'seo', label: 'Google SEO & Preview' }
   ];
@@ -5571,6 +5580,223 @@ export function ProductForm({ product, onSave, categories }: { product: Product 
         </div>
       )}
 
+      {activeTab === 'reviews' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div className="panel" style={{ background: 'var(--surface)', padding: '16px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+            <h4 style={{ margin: '0 0 6px 0' }}>Video Reviews Section Headers</h4>
+            <p style={{ margin: '0 0 12px 0', fontSize: '13px', color: 'var(--text-light)' }}>
+              Customize the heading and subtitle displayed above the video testimonials track on the public agent page.
+            </p>
+            <div className="form-grid">
+              <Field label="Section Heading" hint="Defaults to 'Customer Stories & Video Reviews' if left blank">
+                <input
+                  value={videoReviewsHeading}
+                  onChange={e => setVideoReviewsHeading(e.target.value)}
+                  placeholder="Customer Stories & Video Reviews"
+                />
+              </Field>
+              <Field label="Section Subheading" hint="Defaults to contextual explanation if left blank">
+                <input
+                  value={videoReviewsSubheading}
+                  onChange={e => setVideoReviewsSubheading(e.target.value)}
+                  placeholder={`Real feedback, verified results, and demonstrations from people using ${name || 'our agents'}.`}
+                />
+              </Field>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+            <div>
+              <h4 style={{ margin: 0 }}>Customer Video Reviews ({videoReviews.length})</h4>
+              <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: 'var(--text-light)' }}>
+                Add video testimonials from YouTube (standard URLs or Shorts) or direct MP4/WebM uploads. Supports both 16:9 widescreen and 9:16 vertical smartphone format.
+              </p>
+            </div>
+            <button
+              type="button"
+              className="button primary small"
+              onClick={() => setVideoReviews([
+                ...videoReviews,
+                {
+                  id: 'rev-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
+                  reviewerName: '',
+                  reviewerRole: '',
+                  title: '',
+                  reviewText: '',
+                  videoUrl: '',
+                  aspectRatio: '16:9',
+                  rating: 5
+                }
+              ])}
+            >
+              <Plus size={14} /> Add Video Review
+            </button>
+          </div>
+
+          {!videoReviews.length ? (
+            <div style={{ textAlign: 'center', padding: '36px 20px', background: 'var(--surface)', borderRadius: '8px', border: '1px dashed var(--border)' }}>
+              <Video size={28} style={{ color: 'var(--text-light)', opacity: 0.5, marginBottom: '8px' }} />
+              <p style={{ fontSize: '13px', color: 'var(--text-light)', margin: 0 }}>
+                No video reviews added yet for this agent. Click "+ Add Video Review" above to showcase customer proof and video testimonials.
+              </p>
+            </div>
+          ) : (
+            videoReviews.map((rev, idx) => (
+              <div key={rev.id || idx} className="panel" style={{ background: 'var(--surface)', padding: '16px', borderRadius: '8px', border: '1px solid var(--border)', position: 'relative' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border)', paddingBottom: '10px', marginBottom: '14px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span className="badge small" style={{ fontWeight: 600 }}>Review #{idx + 1}</span>
+                    <span style={{ fontSize: '13px', color: 'var(--text-light)' }}>
+                      {rev.reviewerName ? `${rev.reviewerName}${rev.reviewerRole ? ` (${rev.reviewerRole})` : ''}` : 'Untitled Review'}
+                    </span>
+                    <span className="badge small" style={{ background: rev.aspectRatio === '9:16' ? 'rgba(168, 85, 247, 0.15)' : 'rgba(59, 130, 246, 0.15)', color: rev.aspectRatio === '9:16' ? '#c084fc' : '#60a5fa' }}>
+                      {rev.aspectRatio === '9:16' ? '📱 9:16 Vertical / Short' : '🖥️ 16:9 Widescreen'}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    {idx > 0 && (
+                      <button
+                        type="button"
+                        className="icon-button"
+                        title="Move up"
+                        onClick={() => {
+                          const updated = [...videoReviews];
+                          const temp = updated[idx];
+                          updated[idx] = updated[idx - 1];
+                          updated[idx - 1] = temp;
+                          setVideoReviews(updated);
+                        }}
+                      >
+                        <ChevronUp size={16} />
+                      </button>
+                    )}
+                    {idx < videoReviews.length - 1 && (
+                      <button
+                        type="button"
+                        className="icon-button"
+                        title="Move down"
+                        onClick={() => {
+                          const updated = [...videoReviews];
+                          const temp = updated[idx];
+                          updated[idx] = updated[idx + 1];
+                          updated[idx + 1] = temp;
+                          setVideoReviews(updated);
+                        }}
+                      >
+                        <ChevronDown size={16} />
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="icon-button"
+                      title="Delete review"
+                      style={{ color: 'var(--red)' }}
+                      onClick={() => setVideoReviews(videoReviews.filter((_, i) => i !== idx))}
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="form-grid">
+                  <Field label="Reviewer Name *" hint="Displayed on customer card">
+                    <input
+                      value={rev.reviewerName}
+                      onChange={e => setVideoReviews(videoReviews.map((item, i) => i === idx ? { ...item, reviewerName: e.target.value } : item))}
+                      placeholder="e.g. Alex M."
+                      required
+                    />
+                  </Field>
+                  <Field label="Reviewer Role / Credential" hint="e.g. Senior Software Engineer · FAANG candidate">
+                    <input
+                      value={rev.reviewerRole || ''}
+                      onChange={e => setVideoReviews(videoReviews.map((item, i) => i === idx ? { ...item, reviewerRole: e.target.value } : item))}
+                      placeholder="e.g. Verified Candidate / Software Engineer"
+                    />
+                  </Field>
+                  <Field label="Review Headline / Title" hint="Optional summary hook">
+                    <input
+                      value={rev.title || ''}
+                      onChange={e => setVideoReviews(videoReviews.map((item, i) => i === idx ? { ...item, title: e.target.value } : item))}
+                      placeholder="e.g. Cracked my L5 technical interview on the first try"
+                    />
+                  </Field>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                    <Field label="Star Rating">
+                      <select
+                        value={rev.rating || 5}
+                        onChange={e => setVideoReviews(videoReviews.map((item, i) => i === idx ? { ...item, rating: Number(e.target.value) } : item))}
+                      >
+                        <option value={5}>⭐⭐⭐⭐⭐ (5 Stars)</option>
+                        <option value={4}>⭐⭐⭐⭐ (4 Stars)</option>
+                        <option value={3}>⭐⭐⭐ (3 Stars)</option>
+                      </select>
+                    </Field>
+                    <Field label="Video Format / Aspect Ratio">
+                      <select
+                        value={rev.aspectRatio || '16:9'}
+                        onChange={e => setVideoReviews(videoReviews.map((item, i) => i === idx ? { ...item, aspectRatio: e.target.value as '16:9' | '9:16' } : item))}
+                      >
+                        <option value="16:9">16:9 Widescreen (Desktop/YouTube)</option>
+                        <option value="9:16">9:16 Vertical (Shorts/Reel/Mobile)</option>
+                      </select>
+                    </Field>
+                  </div>
+                </div>
+
+                <div className="form-grid" style={{ marginTop: '10px' }}>
+                  <Field label="Video Link (YouTube URL or direct video URL) *">
+                    <input
+                      value={rev.videoUrl}
+                      onChange={e => setVideoReviews(videoReviews.map((item, i) => i === idx ? { ...item, videoUrl: e.target.value } : item))}
+                      placeholder="e.g. https://www.youtube.com/watch?v=... or https://youtube.com/shorts/... or https://..."
+                      required
+                    />
+                  </Field>
+                  <Field label="Or Upload Direct Video File">
+                    <input
+                      type="file"
+                      accept="video/mp4,video/webm"
+                      onChange={e => {
+                        if (e.target.files?.[0]) {
+                          handleFileUpload(e.target.files[0], url => {
+                            setVideoReviews(videoReviews.map((item, i) => i === idx ? { ...item, videoUrl: url } : item));
+                          });
+                        }
+                      }}
+                    />
+                  </Field>
+                </div>
+
+                <div style={{ marginTop: '10px' }}>
+                  <Field label="Written Testimonial / Quote" hint="Optional text quote displayed below the video">
+                    <textarea
+                      rows={2}
+                      value={rev.reviewText || ''}
+                      onChange={e => setVideoReviews(videoReviews.map((item, i) => i === idx ? { ...item, reviewText: e.target.value } : item))}
+                      placeholder="Write what the customer said in their review..."
+                    />
+                  </Field>
+                </div>
+
+                {rev.videoUrl && (
+                  <div style={{ marginTop: '14px', maxWidth: rev.aspectRatio === '9:16' ? '240px' : '380px' }}>
+                    <span style={{ fontSize: '11px', color: 'var(--text-light)', display: 'block', marginBottom: '6px' }}>
+                      Live Preview ({rev.aspectRatio === '9:16' ? '9:16 Vertical' : '16:9 Widescreen'}):
+                    </span>
+                    <SmartVideoPlayer
+                      url={rev.videoUrl}
+                      aspectRatio={rev.aspectRatio === '9:16' ? '9/16' : '16/9'}
+                      title={`Review by ${rev.reviewerName}`}
+                    />
+                  </div>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
       {activeTab === 'guide' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
           <div className="panel" style={{ background: 'var(--surface)' }}>
@@ -5919,11 +6145,30 @@ export function RolePermissionsAdmin({
 export function SettingsForm({ initial, contentOnly = false, onSave }: { initial: Settings; contentOnly?: boolean; onSave: () => void }) {
   const [message, setMessage] = useState('');
   const init = initial || ({} as Settings);
+  const [videoReviews, setVideoReviews] = useState<CustomerVideoReview[]>(init.video_reviews || []);
+  const [videoReviewsHeading, setVideoReviewsHeading] = useState(init.video_reviews_heading || '');
+  const [videoReviewsSubheading, setVideoReviewsSubheading] = useState(init.video_reviews_subheading || '');
+
+  const handleFileUpload = async (file: File, callback: (url: string) => void) => {
+    try {
+      const url = await uploadFile(file);
+      callback(url);
+    } catch (e: any) {
+      alert('Upload failed: ' + e.message);
+    }
+  };
+
   return (
     <form className="panel settings-form" onSubmit={async e => {
       e.preventDefault();
       const form = new FormData(e.currentTarget);
-      const d = { ...Object.fromEntries(form), maintenanceMode: form.get('maintenanceMode') === 'on' };
+      const d = { 
+        ...Object.fromEntries(form), 
+        maintenanceMode: form.get('maintenanceMode') === 'on',
+        video_reviews: videoReviews.filter(r => r.videoUrl.trim()).length ? videoReviews.filter(r => r.videoUrl.trim()) : undefined,
+        video_reviews_heading: videoReviewsHeading.trim() || undefined,
+        video_reviews_subheading: videoReviewsSubheading.trim() || undefined
+      };
       try {
         await api(contentOnly ? '/admin/content' : '/admin/settings', {
           method: 'PATCH',
@@ -5950,6 +6195,218 @@ export function SettingsForm({ initial, contentOnly = false, onSave }: { initial
       <Field label="Homepage description">
         <textarea name="description" required rows={3} defaultValue={init.description || ''} />
       </Field>
+
+      <div className="panel" style={{ background: 'var(--surface)', padding: '18px', borderRadius: '8px', border: '1px solid var(--border)', marginTop: '20px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: 10 }}>
+          <div>
+            <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 600 }}>Homepage Customer Video Reviews ({videoReviews.length})</h4>
+            <p style={{ margin: '4px 0 0 0', fontSize: '12.5px', color: 'var(--text-light)' }}>
+              Showcase agency-wide video testimonials on the main homepage (below "How It Works" and above FAQ). Supports YouTube, Shorts, and MP4 direct uploads.
+            </p>
+          </div>
+          <button
+            type="button"
+            className="button primary small"
+            onClick={() => setVideoReviews([
+              ...videoReviews,
+              {
+                id: 'home-rev-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
+                reviewerName: '',
+                reviewerRole: '',
+                title: '',
+                reviewText: '',
+                videoUrl: '',
+                aspectRatio: '16:9',
+                rating: 5
+              }
+            ])}
+          >
+            <Plus size={14} /> Add Video Review
+          </button>
+        </div>
+
+        <div className="form-grid" style={{ marginBottom: '16px' }}>
+          <Field label="Section Heading" hint="Defaults to 'Trusted by Builders, Founders & Candidates' if blank">
+            <input
+              value={videoReviewsHeading}
+              onChange={e => setVideoReviewsHeading(e.target.value)}
+              placeholder="Trusted by Builders, Founders & Candidates"
+            />
+          </Field>
+          <Field label="Section Subheading" hint="Defaults to contextual explanation if blank">
+            <input
+              value={videoReviewsSubheading}
+              onChange={e => setVideoReviewsSubheading(e.target.value)}
+              placeholder="Real feedback and unedited demonstrations from professionals using NORVI autonomous agents in production."
+            />
+          </Field>
+        </div>
+
+        {!videoReviews.length ? (
+          <div style={{ textAlign: 'center', padding: '30px 20px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px dashed var(--border)' }}>
+            <Video size={26} style={{ color: 'var(--text-light)', opacity: 0.5, marginBottom: '6px' }} />
+            <p style={{ fontSize: '13px', color: 'var(--text-light)', margin: 0 }}>
+              No homepage video reviews added yet. Click "+ Add Video Review" above to feature customer stories on the main landing page.
+            </p>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            {videoReviews.map((rev, idx) => (
+              <div key={rev.id || idx} className="panel" style={{ background: 'rgba(255,255,255,0.03)', padding: '14px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border)', paddingBottom: '8px', marginBottom: '12px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span className="badge small" style={{ fontWeight: 600 }}>Review #{idx + 1}</span>
+                    <span style={{ fontSize: '13px', color: 'var(--text-light)' }}>
+                      {rev.reviewerName ? `${rev.reviewerName}${rev.reviewerRole ? ` (${rev.reviewerRole})` : ''}` : 'Untitled Review'}
+                    </span>
+                    <span className="badge small" style={{ background: rev.aspectRatio === '9:16' ? 'rgba(168, 85, 247, 0.15)' : 'rgba(59, 130, 246, 0.15)', color: rev.aspectRatio === '9:16' ? '#c084fc' : '#60a5fa' }}>
+                      {rev.aspectRatio === '9:16' ? '📱 9:16 Vertical / Short' : '🖥️ 16:9 Widescreen'}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    {idx > 0 && (
+                      <button
+                        type="button"
+                        className="icon-button"
+                        title="Move up"
+                        onClick={() => {
+                          const updated = [...videoReviews];
+                          const temp = updated[idx];
+                          updated[idx] = updated[idx - 1];
+                          updated[idx - 1] = temp;
+                          setVideoReviews(updated);
+                        }}
+                      >
+                        <ChevronUp size={16} />
+                      </button>
+                    )}
+                    {idx < videoReviews.length - 1 && (
+                      <button
+                        type="button"
+                        className="icon-button"
+                        title="Move down"
+                        onClick={() => {
+                          const updated = [...videoReviews];
+                          const temp = updated[idx];
+                          updated[idx] = updated[idx + 1];
+                          updated[idx + 1] = temp;
+                          setVideoReviews(updated);
+                        }}
+                      >
+                        <ChevronDown size={16} />
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="icon-button"
+                      title="Delete review"
+                      style={{ color: 'var(--red)' }}
+                      onClick={() => setVideoReviews(videoReviews.filter((_, i) => i !== idx))}
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="form-grid">
+                  <Field label="Reviewer Name *" hint="Displayed on testimonial card">
+                    <input
+                      value={rev.reviewerName}
+                      onChange={e => setVideoReviews(videoReviews.map((item, i) => i === idx ? { ...item, reviewerName: e.target.value } : item))}
+                      placeholder="e.g. Alex M."
+                      required
+                    />
+                  </Field>
+                  <Field label="Reviewer Role / Product Tag" hint="e.g. Senior Software Engineer · Voro User">
+                    <input
+                      value={rev.reviewerRole || ''}
+                      onChange={e => setVideoReviews(videoReviews.map((item, i) => i === idx ? { ...item, reviewerRole: e.target.value } : item))}
+                      placeholder="e.g. Founder / Voro User"
+                    />
+                  </Field>
+                  <Field label="Review Headline / Title" hint="Optional summary hook">
+                    <input
+                      value={rev.title || ''}
+                      onChange={e => setVideoReviews(videoReviews.map((item, i) => i === idx ? { ...item, title: e.target.value } : item))}
+                      placeholder="e.g. Cracked my L5 interview on the first try"
+                    />
+                  </Field>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                    <Field label="Star Rating">
+                      <select
+                        value={rev.rating || 5}
+                        onChange={e => setVideoReviews(videoReviews.map((item, i) => i === idx ? { ...item, rating: Number(e.target.value) } : item))}
+                      >
+                        <option value={5}>⭐⭐⭐⭐⭐ (5 Stars)</option>
+                        <option value={4}>⭐⭐⭐⭐ (4 Stars)</option>
+                        <option value={3}>⭐⭐⭐ (3 Stars)</option>
+                      </select>
+                    </Field>
+                    <Field label="Video Format / Aspect Ratio">
+                      <select
+                        value={rev.aspectRatio || '16:9'}
+                        onChange={e => setVideoReviews(videoReviews.map((item, i) => i === idx ? { ...item, aspectRatio: e.target.value as '16:9' | '9:16' } : item))}
+                      >
+                        <option value="16:9">16:9 Widescreen (Desktop/YouTube)</option>
+                        <option value="9:16">9:16 Vertical (Shorts/Reel/Mobile)</option>
+                      </select>
+                    </Field>
+                  </div>
+                </div>
+
+                <div className="form-grid" style={{ marginTop: '10px' }}>
+                  <Field label="Video Link (YouTube URL or direct video URL) *">
+                    <input
+                      value={rev.videoUrl}
+                      onChange={e => setVideoReviews(videoReviews.map((item, i) => i === idx ? { ...item, videoUrl: e.target.value } : item))}
+                      placeholder="e.g. https://www.youtube.com/watch?v=... or https://youtube.com/shorts/..."
+                      required
+                    />
+                  </Field>
+                  <Field label="Or Upload Direct Video File">
+                    <input
+                      type="file"
+                      accept="video/mp4,video/webm"
+                      onChange={e => {
+                        if (e.target.files?.[0]) {
+                          handleFileUpload(e.target.files[0], url => {
+                            setVideoReviews(videoReviews.map((item, i) => i === idx ? { ...item, videoUrl: url } : item));
+                          });
+                        }
+                      }}
+                    />
+                  </Field>
+                </div>
+
+                <div style={{ marginTop: '10px' }}>
+                  <Field label="Written Testimonial / Quote" hint="Optional text quote displayed below the video">
+                    <textarea
+                      rows={2}
+                      value={rev.reviewText || ''}
+                      onChange={e => setVideoReviews(videoReviews.map((item, i) => i === idx ? { ...item, reviewText: e.target.value } : item))}
+                      placeholder="Write what the customer said in their review..."
+                    />
+                  </Field>
+                </div>
+
+                {rev.videoUrl && (
+                  <div style={{ marginTop: '12px', maxWidth: rev.aspectRatio === '9:16' ? '200px' : '340px' }}>
+                    <span style={{ fontSize: '11px', color: 'var(--text-light)', display: 'block', marginBottom: '4px' }}>
+                      Preview:
+                    </span>
+                    <SmartVideoPlayer
+                      url={rev.videoUrl}
+                      aspectRatio={rev.aspectRatio === '9:16' ? '9/16' : '16/9'}
+                      title={`Review by ${rev.reviewerName}`}
+                    />
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       {!contentOnly && (
         <label style={{ display: 'flex', gap: 10, alignItems: 'center', margin: '20px 0', background: 'var(--surface)', padding: 15, borderRadius: 8, border: '1px solid var(--border)' }}>
           <input type="checkbox" name="maintenanceMode" defaultChecked={Boolean(init.maintenanceMode)} style={{ width: 18, height: 18 }} />
@@ -5961,7 +6418,7 @@ export function SettingsForm({ initial, contentOnly = false, onSave }: { initial
           </div>
         </label>
       )}
-      <button className="button primary">Save changes <Check size={16} /></button>
+      <button className="button primary" style={{ marginTop: '16px' }}>Save changes <Check size={16} /></button>
       {message && <Notice>{message}</Notice>}
     </form>
   );

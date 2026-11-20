@@ -174,6 +174,15 @@ export function parseYouTubeVideoId(url: string | null | undefined): string | nu
   return null;
 }
 
+export function getReviewerInitials(name?: string): string {
+  if (!name) return 'U';
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) {
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  }
+  return name.slice(0, 2).toUpperCase();
+}
+
 export function SmartVideoPlayer({
   url,
   title = 'Video Player',
@@ -183,7 +192,8 @@ export function SmartVideoPlayer({
   controls = true,
   showExternalLink = true,
   className = '',
-  style
+  style,
+  aspectRatio = '16/9'
 }: {
   url?: string | null;
   title?: string;
@@ -194,6 +204,7 @@ export function SmartVideoPlayer({
   showExternalLink?: boolean;
   className?: string;
   style?: CSSProperties;
+  aspectRatio?: string;
 }) {
   if (!url) return null;
   const youtubeId = parseYouTubeVideoId(url);
@@ -214,7 +225,7 @@ export function SmartVideoPlayer({
 
     return (
       <div className={`smart-video-wrap ${className}`} style={{ width: '100%', position: 'relative', ...style }}>
-        <div style={{ position: 'relative', width: '100%', aspectRatio: '16/9', overflow: 'hidden', borderRadius: '8px', background: '#000' }}>
+        <div style={{ position: 'relative', width: '100%', aspectRatio, overflow: 'hidden', borderRadius: '8px', background: '#000' }}>
           <iframe
             src={`https://www.youtube-nocookie.com/embed/${youtubeId}?${embedParams.toString()}`}
             title={title}
@@ -241,17 +252,19 @@ export function SmartVideoPlayer({
   }
 
   return (
-    <div className={`smart-video-wrap ${className}`} style={{ width: '100%', ...style }}>
-      <video
-        src={url}
-        controls={controls}
-        autoPlay={autoPlay}
-        loop={loop}
-        muted={muted}
-        playsInline
-        preload="metadata"
-        style={{ width: '100%', height: 'auto', display: 'block', borderRadius: '8px' }}
-      />
+    <div className={`smart-video-wrap ${className}`} style={{ width: '100%', position: 'relative', ...style }}>
+      <div style={{ position: 'relative', width: '100%', aspectRatio, overflow: 'hidden', borderRadius: '8px', background: '#000' }}>
+        <video
+          src={url}
+          controls={controls}
+          autoPlay={autoPlay}
+          loop={loop}
+          muted={muted}
+          playsInline
+          preload="metadata"
+          style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
+        />
+      </div>
     </div>
   );
 }

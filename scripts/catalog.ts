@@ -63,7 +63,7 @@ async function fetchLivePublicCatalog(): Promise<boolean> {
     supabase
       .from('site_settings')
       .select(
-        'name, headline, description, email, company, domain, maintenance_mode, permissions, banner_text, sale_active, sale_percentage, socialInstagram:social_instagram, socialYoutube:social_youtube, socialFacebook:social_facebook, socialTwitter:social_twitter'
+        'name, headline, description, email, company, domain, maintenance_mode, permissions, banner_text, sale_active, sale_percentage, socialInstagram:social_instagram, socialYoutube:social_youtube, socialFacebook:social_facebook, socialTwitter:social_twitter, video_reviews, video_reviews_heading, video_reviews_subheading'
       )
       .single(),
     supabase.from('categories').select('id, slug, name, createdAt:created_at')
@@ -109,7 +109,10 @@ async function fetchLivePublicCatalog(): Promise<boolean> {
         socialInstagram: rawSettings.socialInstagram || '',
         socialYoutube: rawSettings.socialYoutube || '',
         socialFacebook: rawSettings.socialFacebook || '',
-        socialTwitter: rawSettings.socialTwitter || ''
+        socialTwitter: rawSettings.socialTwitter || '',
+        video_reviews: rawSettings.video_reviews || undefined,
+        video_reviews_heading: rawSettings.video_reviews_heading || undefined,
+        video_reviews_subheading: rawSettings.video_reviews_subheading || undefined
       }
     : defaults.settings;
 
