@@ -59,15 +59,15 @@
         "100% Data Protection — No Audio or Screen Logging"
       ],
       "version": "V - 1.4.2",
-      "requirements": "Windows 10 / Windows 11 (64-bit) & macOS 12+. Supports low-end PCs.",
+      "requirements": "Windows 10 / Windows 11 (64-bit) & macOS 12+ . Supports Low end PC",
       "releaseStatus": "live",
       "workflowHeading": "Engineered for calm, confident interviews.",
       "workflowDescription": "Voro sits unobtrusively in your system tray until your interview begins. As interviewers speak or display technical questions on screen, Voro extracts the core requirement, cross-references your uploaded resume, and projects bulletproof talking points onto your screen.",
-      "workflowMediaUrl": "https://lpzqvziejdpzykwrhkmn.supabase.co/storage/v1/object/public/product-assets/400e959b-2aa1-424b-9fd2-854720b09969.mp4",
+      "workflowMediaUrl": null,
       "workflowNote": "Windows 10/11 native installer. Includes automatic silent background updater and ultra-low latency NORVI Cloud AI.",
       "aiUsage": "Unlimited — Powered by NORVI Cloud AI",
       "deviceAllowance": "3 active device per license. Manage devices in your account.",
-      "is_on_sale": false,
+      "is_on_sale": true,
       "trialActive": true,
       "extendedContent": {
         "seo": {
@@ -108,41 +108,85 @@
               "id": "section-voro-step-1",
               "content": "1. In your NORVI Dashboard (https://nor-vi.in/account/agents), click the \"Download Installer\" button next to Voro to get the official setup file (Voro_Setup.exe).\n2. Open the downloaded file and follow the standard on-screen Windows installer steps.\n3. Once installed, launch Voro from your desktop shortcut or Windows Start menu.",
               "heading": "Download & Install Voro",
-              "imageUrl": null
+              "imageUrl": "https://lpzqvziejdpzykwrhkmn.supabase.co/storage/v1/object/public/product-assets/67c38e74-8ec8-48e5-8bbd-1b962f2b8b69.png"
             },
             {
               "id": "section-voro-step-2",
               "content": "1. On your NORVI Dashboard, find Voro and click \"View License\".\n2. Copy your unique activation key (starts with NORVI-VORO-).\n3. In the Voro application, paste your license key and click \"Activate\". Your license is verified immediately through the NORVI security gateway, giving you full access.",
               "heading": "Activate Your License Key",
-              "imageUrl": null
+              "imageUrl": "https://lpzqvziejdpzykwrhkmn.supabase.co/storage/v1/object/public/product-assets/e33570b0-cb62-4754-a99a-4723483028d3.png"
             },
             {
               "id": "section-voro-step-3",
               "content": "Unlike older tools that require you to configure Ollama, install Python, or download massive 10GB models, Voro connects to the NORVI Cloud AI brain automatically.\n• Real-time interview reasoning, coding solutions, and answer distillation are 100% active immediately.\n• Zero GPU requirements and minimal system resource usage—runs smoothly on standard laptops.\n• Check your operational status at any time in Voro Settings → System Readiness Summary.",
               "heading": "Instant Cloud AI Brain (Zero Setup Needed)",
-              "imageUrl": null
+              "imageUrl": "https://lpzqvziejdpzykwrhkmn.supabase.co/storage/v1/object/public/product-assets/0095074b-9ed4-4e89-bb32-f305bec64d1a.png"
             },
             {
               "id": "section-voro-step-4",
               "content": "For ultra-fast ~200ms speech recognition, connect your free personal Groq API key:\n1. Inside Voro, open Settings → Audio tab.\n2. In Section 3 (Voice Recognition), click \"Get Free Key\" (or visit https://console.groq.com/keys).\n3. Sign up or log in (100% free with Google, no card required).\n4. Click \"Create API Key\", name it \"Voro\", and copy your key (starts with \"gsk_...\").\n5. Paste it into the \"Groq API Key\" field in Voro and click \"⚡ Test Key\".\n(Note: If you ever interview offline without internet, simply select an offline model from the dropdown and click \"Download\" for zero-internet backup).",
               "heading": "Connect Fast Voice Recognition (~200ms Latency)",
-              "imageUrl": null
+              "imageUrl": "https://lpzqvziejdpzykwrhkmn.supabase.co/storage/v1/object/public/product-assets/a8f8b799-9277-462e-bdfb-72e1a6c46b86.png"
             },
             {
               "id": "section-voro-step-5",
               "content": "Make your answers sound completely natural and grounded in your real background:\n1. Open Voro Settings → Profile tab.\n2. Paste your Resume / Work History detailing your past projects, tech stack, and experience.\n3. Paste the target Job Description of the role you are interviewing for.\n4. Click \"Save Settings\". Voro will now frame all behavioral and technical answers using your genuine past experience.",
               "heading": "Personalize Answers with Your Resume & Target Job",
-              "imageUrl": null
+              "imageUrl": "https://lpzqvziejdpzykwrhkmn.supabase.co/storage/v1/object/public/product-assets/7eb3e4aa-af2d-4b0b-a2e9-ca764042a03d.png"
             },
             {
               "id": "section-voro-step-6",
               "content": "Prepare your meeting audio and control Voro effortlessly with keyboard shortcuts:\n• Private Headphone Audio: In Settings → Audio, select your headphones/earpiece as the output device so only you hear Voro's voice.\n• 100% Invisible Screen Share: Voro uses Windows hardware display isolation (SetWindowDisplayAffinity) and is completely invisible to Zoom, Teams, and Google Meet even when sharing your entire desktop.\n• Key Shortcuts:\n  - Ctrl + Enter: Push-to-Answer (answers the technical question while filtering small talk).\n  - Ctrl + Shift + U: Toggle Auto-Answer (hands-free automatic answers).\n  - Ctrl + Shift + Q: Screen Vision (reads LeetCode/IDE code on screen and generates clean code + Big-O analysis).\n  - Ctrl + Shift + G: Emergency Stealth Cloak (instantly hides Voro in under 20ms).",
               "heading": "Meeting Setup & Live Interview Hotkeys",
-              "imageUrl": null
+              "imageUrl": "https://lpzqvziejdpzykwrhkmn.supabase.co/storage/v1/object/public/product-assets/2ff7da38-d1b8-4400-a3be-83a7517ef11c.png"
             }
           ],
           "videoUrl": null
         },
+        "gallery": [
+          {
+            "id": "gallery-1795177547308-uxm2",
+            "url": "https://lpzqvziejdpzykwrhkmn.supabase.co/storage/v1/object/public/product-assets/28a63d08-29b7-451a-a0ae-a9c7362ce7f4.jpg",
+            "type": "image",
+            "caption": "Grounded in your actual work history, projects, and tech stack — sounds natural, confident, and 100% human."
+          },
+          {
+            "id": "gallery-1795177886549-icrz",
+            "url": "https://lpzqvziejdpzykwrhkmn.supabase.co/storage/v1/object/public/product-assets/80f65f0a-2bcb-49d1-b356-7668bf466082.jpg",
+            "type": "image",
+            "caption": ""
+          },
+          {
+            "id": "gallery-1795177887214-anyh",
+            "url": "https://lpzqvziejdpzykwrhkmn.supabase.co/storage/v1/object/public/product-assets/9c25df3b-c67d-4ff2-8af7-1657c1ccdcc9.jpg",
+            "type": "image",
+            "caption": ""
+          },
+          {
+            "id": "gallery-1795177887970-c548",
+            "url": "https://lpzqvziejdpzykwrhkmn.supabase.co/storage/v1/object/public/product-assets/c88fa97d-a7d4-49f7-919b-6dc4019e21df.jpg",
+            "type": "image",
+            "caption": ""
+          },
+          {
+            "id": "gallery-1795177888627-02zj",
+            "url": "https://lpzqvziejdpzykwrhkmn.supabase.co/storage/v1/object/public/product-assets/2a7b1bcb-13c1-4525-b764-61456b189145.png",
+            "type": "image",
+            "caption": ""
+          },
+          {
+            "id": "gallery-1795177889183-rz0t",
+            "url": "https://lpzqvziejdpzykwrhkmn.supabase.co/storage/v1/object/public/product-assets/11608296-7dc4-4f75-991d-951859de85dc.png",
+            "type": "image",
+            "caption": ""
+          },
+          {
+            "id": "gallery-1795177940320-sy0w",
+            "url": "https://lpzqvziejdpzykwrhkmn.supabase.co/storage/v1/object/public/product-assets/8b9e5414-cc72-40ed-aa3a-639b4b918fdf.png",
+            "type": "image",
+            "caption": ""
+          }
+        ],
         "badgeText": "⚡ Undetectable Hardware Cloak · Sub-Second Cloud AI · Live Screen Perception",
         "comparison": {
           "rows": [
@@ -346,7 +390,7 @@
       "workflowNote": "Native Windows background worker with intelligent ATS resume parsing and auto-fill engine.",
       "aiUsage": "Unlimited",
       "deviceAllowance": "3 active device per license. Manage devices in your account.",
-      "is_on_sale": false,
+      "is_on_sale": true,
       "trialActive": true,
       "extendedContent": {
         "seo": {
@@ -502,7 +546,7 @@
       "workflowNote": "Nexus has no limit for usages your data and activation  keys are heavily encrypted and never leave your machine!",
       "aiUsage": "Unlimited — Powered by NORVI Cloud AI",
       "deviceAllowance": "3 active devices per license. Easily manage or switch devices anytime from your account.",
-      "is_on_sale": false,
+      "is_on_sale": true,
       "trialActive": true,
       "extendedContent": {
         "seo": {

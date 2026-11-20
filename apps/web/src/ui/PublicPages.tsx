@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { 
   ArrowRight, ArrowUpRight, Search, Check, ShieldCheck, KeyRound, Download, 
   Mail, LifeBuoy, Workflow, Activity, Instagram, Youtube, Facebook, Twitter,
-  Sparkles, Plus, Code, Mic, Bot, Film, Cpu, Zap, Monitor, Layers, Lock, Terminal, Eye, X
+  Sparkles, Plus, Code, Mic, Bot, Film, Cpu, Zap, Monitor, Layers, Lock, Terminal, Eye, X, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { formatDurationLabel, getDefaultAgentPaidHighlights, getDefaultAgentTrialHighlights, getDefaultAgentTrialNotice, type Product, type Settings, type User, type FeaturePillar, type AgentExtendedContent } from '../../../../packages/shared/model';
 import { ProductCard,ProductIcon } from './App';
@@ -57,6 +57,8 @@ export function Detail({product, settings, isCatalogLoaded = true}:{product:Prod
   const [trialBusy, setTrialBusy] = useState(false);
   const [trialError, setTrialError] = useState('');
   const [selectedPillar, setSelectedPillar] = useState<FeaturePillar | null>(null);
+  const [selectedGalleryIndex, setSelectedGalleryIndex] = useState<number | null>(null);
+  const galleryScrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!isCatalogLoaded || !product || !product.slug || !product.name) return;
@@ -116,6 +118,21 @@ export function Detail({product, settings, isCatalogLoaded = true}:{product:Prod
 
   const ext = (product.extendedContent || (product as any)?.extended_content) as AgentExtendedContent | undefined;
   const isVideo = ext?.heroMediaType === 'video' || (ext?.heroMediaUrl && (/\.(mp4|webm)$/i.test(ext.heroMediaUrl) || Boolean(parseYouTubeVideoId(ext.heroMediaUrl))));
+
+  useEffect(() => {
+    if (selectedGalleryIndex === null) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setSelectedGalleryIndex(null);
+      } else if (e.key === 'ArrowLeft' && ext?.gallery?.length) {
+        setSelectedGalleryIndex(prev => prev !== null ? (prev - 1 + ext.gallery!.length) % ext.gallery!.length : null);
+      } else if (e.key === 'ArrowRight' && ext?.gallery?.length) {
+        setSelectedGalleryIndex(prev => prev !== null ? (prev + 1) % ext.gallery!.length : null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedGalleryIndex, ext?.gallery]);
 
   return (
     <div className="container page">
@@ -210,6 +227,223 @@ export function Detail({product, settings, isCatalogLoaded = true}:{product:Prod
           </div>
         </div>
       )}
+
+      {selectedGalleryIndex !== null && ext?.gallery && ext.gallery[selectedGalleryIndex] && (() => {
+        const currentItem = ext.gallery[selectedGalleryIndex];
+        const hasMultiple = ext.gallery.length > 1;
+        const totalItems = ext.gallery.length;
+
+        const handlePrev = (e?: React.MouseEvent) => {
+          e?.stopPropagation();
+          setSelectedGalleryIndex((selectedGalleryIndex - 1 + totalItems) % totalItems);
+        };
+
+        const handleNext = (e?: React.MouseEvent) => {
+          e?.stopPropagation();
+          setSelectedGalleryIndex((selectedGalleryIndex + 1) % totalItems);
+        };
+
+        return (
+          <div
+            className="modal-overlay"
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'rgba(0, 0, 0, 0.92)',
+              zIndex: 9999,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '16px',
+              backdropFilter: 'blur(6px)',
+            }}
+            onClick={() => setSelectedGalleryIndex(null)}
+          >
+            <div
+              className="panel gallery-lightbox-panel"
+              style={{
+                maxWidth: 1040,
+                width: '100%',
+                maxHeight: '94vh',
+                display: 'flex',
+                flexDirection: 'column',
+                position: 'relative',
+                padding: '24px',
+                background: 'var(--panel, #121711)',
+                border: '1px solid var(--line, #2a3824)',
+                borderRadius: 14,
+                overflowY: 'auto',
+              }}
+              onClick={e => e.stopPropagation()}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, gap: 12, flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20, background: 'rgba(152, 224, 56, 0.12)', border: '1px solid rgba(152, 224, 56, 0.25)', color: 'var(--lime, #98e038)', textTransform: 'uppercase', letterSpacing: '0.6px' }}>
+                    Visual #{selectedGalleryIndex + 1} of {totalItems}
+                  </span>
+                  {currentItem.type && currentItem.type !== 'image' && (
+                    <span className="badge" style={{ textTransform: 'uppercase', fontSize: 11 }}>
+                      {currentItem.type}
+                    </span>
+                  )}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  {hasMultiple && (
+                    <>
+                      <button
+                        type="button"
+                        className="icon-button"
+                        onClick={handlePrev}
+                        title="Previous visual (←)"
+                        aria-label="Previous visual"
+                        style={{ width: 34, height: 34, borderRadius: 6, background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                      >
+                        <ChevronLeft size={18} />
+                      </button>
+                      <button
+                        type="button"
+                        className="icon-button"
+                        onClick={handleNext}
+                        title="Next visual (→)"
+                        aria-label="Next visual"
+                        style={{ width: 34, height: 34, borderRadius: 6, background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                      >
+                        <ChevronRight size={18} />
+                      </button>
+                    </>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setSelectedGalleryIndex(null)}
+                    className="icon-button"
+                    aria-label="Close dialog"
+                    style={{ width: 34, height: 34, borderRadius: 6, background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+              </div>
+
+              {currentItem.title && (
+                <h2 style={{ fontSize: '1.4rem', fontWeight: 700, margin: '0 0 14px 0', color: '#f0f3ee', letterSpacing: '-0.3px' }}>
+                  {currentItem.title}
+                </h2>
+              )}
+
+              <div
+                style={{
+                  position: 'relative',
+                  width: '100%',
+                  background: '#070a06',
+                  borderRadius: 10,
+                  overflow: 'hidden',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  minHeight: 280,
+                  maxHeight: '66vh',
+                }}
+              >
+                {currentItem.type === 'video' || /\.(mp4|webm)$/i.test(currentItem.url) || Boolean(parseYouTubeVideoId(currentItem.url)) ? (
+                  <SmartVideoPlayer url={currentItem.url} controls title={currentItem.title || currentItem.caption || `${product.name} visual`} />
+                ) : (
+                  <img
+                    src={currentItem.url}
+                    alt={currentItem.title || currentItem.caption || `${product.name} interface visual`}
+                    style={{
+                      maxWidth: '100%',
+                      maxHeight: '66vh',
+                      width: 'auto',
+                      height: 'auto',
+                      objectFit: 'contain',
+                      display: 'block',
+                    }}
+                  />
+                )}
+
+                {hasMultiple && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={handlePrev}
+                      aria-label="Previous visual"
+                      style={{
+                        position: 'absolute',
+                        left: 12,
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        width: 42,
+                        height: 42,
+                        borderRadius: '50%',
+                        background: 'rgba(0,0,0,0.65)',
+                        border: '1px solid rgba(255,255,255,0.2)',
+                        color: '#fff',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                        backdropFilter: 'blur(4px)',
+                      }}
+                    >
+                      <ChevronLeft size={22} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleNext}
+                      aria-label="Next visual"
+                      style={{
+                        position: 'absolute',
+                        right: 12,
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        width: 42,
+                        height: 42,
+                        borderRadius: '50%',
+                        background: 'rgba(0,0,0,0.65)',
+                        border: '1px solid rgba(255,255,255,0.2)',
+                        color: '#fff',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                        backdropFilter: 'blur(4px)',
+                      }}
+                    >
+                      <ChevronRight size={22} />
+                    </button>
+                  </>
+                )}
+              </div>
+
+              {currentItem.caption && (
+                <div style={{ marginTop: 14, padding: '12px 16px', background: 'rgba(255,255,255,0.03)', borderRadius: 8, border: '1px solid rgba(255,255,255,0.06)' }}>
+                  <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6, color: '#ced6c7', whiteSpace: 'pre-line' }}>
+                    {currentItem.caption}
+                  </p>
+                </div>
+              )}
+
+              <div style={{ marginTop: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+                <span style={{ fontSize: 12, color: 'var(--muted)' }}>
+                  Tip: Use Left (←) / Right (→) keys to navigate · Esc to close
+                </span>
+                <button
+                  type="button"
+                  className="button secondary"
+                  onClick={() => setSelectedGalleryIndex(null)}
+                  style={{ fontSize: 13, padding: '6px 18px' }}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 24 }}>
         <a className="breadcrumb" href="/agents" style={{ marginBottom: 0 }}>&larr; All agents</a>
@@ -393,11 +627,15 @@ export function Detail({product, settings, isCatalogLoaded = true}:{product:Prod
               <div 
                 key={pillar.id} 
                 className="pillar-card"
-                onClick={() => setSelectedPillar(pillar)}
+                onClick={() => {
+                  if (typeof window !== 'undefined' && window.innerWidth > 768) {
+                    setSelectedPillar(pillar);
+                  }
+                }}
                 role="button"
                 tabIndex={0}
                 onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') setSelectedPillar(pillar); }}
-                style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column' }}
+                style={{ display: 'flex', flexDirection: 'column' }}
               >
                 <div className="pillar-header">
                   <div className="pillar-icon-box">
@@ -407,9 +645,31 @@ export function Detail({product, settings, isCatalogLoaded = true}:{product:Prod
                 </div>
                 <h3>{pillar.title}</h3>
                 <p>{pillar.shortDescription || pillar.description}</p>
-                <div style={{ marginTop: 'auto', paddingTop: 14, display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--lime)', fontWeight: 600 }}>
-                  <span>{pillar.mediaUrl ? 'View demo & details' : 'Explore capability'}</span>
-                  <ArrowUpRight size={14} />
+                <div style={{ marginTop: 'auto', paddingTop: 14 }}>
+                  <button
+                    type="button"
+                    className="pillar-action-button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedPillar(pillar);
+                    }}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      padding: 0,
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      fontSize: 12.5,
+                      color: 'var(--lime, #98e038)',
+                      fontWeight: 600,
+                      fontFamily: 'inherit'
+                    }}
+                  >
+                    <span>{pillar.mediaUrl ? 'View demo & details' : 'Explore capability'}</span>
+                    <ArrowUpRight size={14} />
+                  </button>
                 </div>
               </div>
             ))}
@@ -419,24 +679,102 @@ export function Detail({product, settings, isCatalogLoaded = true}:{product:Prod
 
       {ext?.gallery && ext.gallery.length > 0 && (
         <section className="gallery-section">
-          <div className="section-heading" style={{ marginBottom: 20 }}>
+          <div className="section-heading" style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: 12 }}>
             <div>
               <span className="eyebrow">SEE IT IN ACTION</span>
               <h2>Interface &amp; Visuals</h2>
+              <p className="section-aside" style={{ margin: '4px 0 0 0' }}>
+                A closer look at how {product.name} operates on your desktop.
+              </p>
             </div>
-            <p className="section-aside">A closer look at how {product.name} operates on your desktop.</p>
+            {ext.gallery.length > 1 && (
+              <div className="gallery-nav-controls" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 12, color: 'var(--muted)', marginRight: 4 }}>
+                  {ext.gallery.length} visual{ext.gallery.length === 1 ? '' : 's'} &middot; Scroll to explore
+                </span>
+                <button
+                  type="button"
+                  className="icon-button"
+                  aria-label="Scroll visuals left"
+                  onClick={() => {
+                    galleryScrollRef.current?.scrollBy({ left: -380, behavior: 'smooth' });
+                  }}
+                  style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                >
+                  <ChevronLeft size={18} />
+                </button>
+                <button
+                  type="button"
+                  className="icon-button"
+                  aria-label="Scroll visuals right"
+                  onClick={() => {
+                    galleryScrollRef.current?.scrollBy({ left: 380, behavior: 'smooth' });
+                  }}
+                  style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                >
+                  <ChevronRight size={18} />
+                </button>
+              </div>
+            )}
           </div>
-          <div className="gallery-grid">
-            {ext.gallery.map(item => (
-              <div key={item.id} className="gallery-card">
+
+          <div className="gallery-track gallery-scroll" ref={galleryScrollRef}>
+            {ext.gallery.map((item, idx) => (
+              <div
+                key={item.id}
+                className="gallery-card"
+                onClick={() => {
+                  if (typeof window !== 'undefined' && window.innerWidth > 768) {
+                    setSelectedGalleryIndex(idx);
+                  }
+                }}
+                role="button"
+                tabIndex={0}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    setSelectedGalleryIndex(idx);
+                  }
+                }}
+              >
                 <div className="gallery-media-wrap">
                   {item.type === 'video' || /\.(mp4|webm)$/i.test(item.url) || Boolean(parseYouTubeVideoId(item.url)) ? (
-                    <SmartVideoPlayer url={item.url} controls title={item.caption || `${product.name} interface view`} />
+                    <SmartVideoPlayer url={item.url} controls title={item.title || item.caption || `${product.name} visual #${idx + 1}`} />
                   ) : (
-                    <img src={item.url} alt={item.caption || `${product.name} interface view`} loading="lazy" />
+                    <img src={item.url} alt={item.title || item.caption || `${product.name} visual #${idx + 1}`} loading="lazy" />
                   )}
+                  <div className="gallery-zoom-badge">
+                    <Eye size={13} />
+                    <span>Expand view</span>
+                  </div>
                 </div>
-                {item.caption && <div className="gallery-caption">{item.caption}</div>}
+
+                <div className="gallery-card-body">
+                  <h3 className="gallery-item-title">
+                    {item.title ? item.title : `Visual #${idx + 1}`}
+                  </h3>
+                  {item.caption && (
+                    <p className="gallery-item-caption">
+                      {item.caption}
+                    </p>
+                  )}
+                  <div className="gallery-card-footer">
+                    <span className="gallery-desktop-hint">
+                      <span>Click to view in high-res</span>
+                      <ArrowUpRight size={13} />
+                    </span>
+                    <button
+                      type="button"
+                      className="gallery-mobile-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedGalleryIndex(idx);
+                      }}
+                    >
+                      <span>View Visual</span>
+                      <ArrowUpRight size={14} />
+                    </button>
+                  </div>
+                </div>
               </div>
             ))}
           </div>

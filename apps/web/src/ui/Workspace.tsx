@@ -5275,26 +5275,112 @@ export function ProductForm({ product, onSave, categories }: { product: Product 
           </div>
 
           <div className="panel" style={{ background: 'var(--surface)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-              <h4 style={{ margin: 0 }}>Screenshot & Demo Gallery</h4>
-              <button type="button" className="button secondary small" onClick={() => setGallery([...gallery, { id: 'gallery-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6), type: 'image', url: '', caption: '' }])}>
-                <Plus size={14} /> Add Gallery Item
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
+              <div>
+                <h4 style={{ margin: 0 }}>Screenshot &amp; Demo Visuals Gallery</h4>
+                <p style={{ margin: '3px 0 0', fontSize: '12px', color: 'var(--text-light)' }}>
+                  Add desktop screenshots, animated GIFs, or walkthrough clips. Displayed as a smooth horizontal scroll section on the public agent page.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="button secondary small"
+                onClick={() => setGallery([...gallery, { id: 'gallery-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6), type: 'image', url: '', title: '', caption: '' }])}
+              >
+                <Plus size={14} /> Add Gallery Visual
               </button>
             </div>
             {!gallery.length ? (
               <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-light)' }}>No gallery items added yet. Click above to add screenshots or demo clips.</p>
             ) : (
               gallery.map((g, idx) => (
-                <div key={idx} style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px', background: 'var(--background)', padding: '8px', borderRadius: '6px', border: '1px solid var(--border)', flexWrap: 'wrap' }}>
-                  <select value={g.type} onChange={e => setGallery(gallery.map((item, i) => i === idx ? { ...item, type: e.target.value as any } : item))} style={{ width: 90 }}>
-                    <option value="image">Image</option>
-                    <option value="gif">GIF</option>
-                    <option value="video">Video</option>
-                  </select>
-                  <input style={{ flex: 1, minWidth: 140 }} value={g.url} onChange={e => setGallery(gallery.map((item, i) => i === idx ? { ...item, url: e.target.value } : item))} placeholder="Media URL or upload file" />
-                  <input type="file" style={{ width: 130 }} onChange={e => { if (e.target.files?.[0]) handleFileUpload(e.target.files[0], url => setGallery(gallery.map((item, i) => i === idx ? { ...item, url } : item))); }} />
-                  <input style={{ flex: 1, minWidth: 120 }} value={g.caption || ''} onChange={e => setGallery(gallery.map((item, i) => i === idx ? { ...item, caption: e.target.value } : item))} placeholder="Caption" />
-                  <button type="button" className="icon-button" onClick={() => setGallery(gallery.filter((_, i) => i !== idx))} title="Delete item"><Trash2 size={16} /></button>
+                <div
+                  key={idx}
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '10px',
+                    marginBottom: '12px',
+                    background: 'var(--background)',
+                    padding: '12px 14px',
+                    borderRadius: '8px',
+                    border: '1px solid var(--border)',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '4px', background: 'rgba(255,255,255,0.06)', color: 'var(--lime, #98e038)' }}>
+                        Visual #{idx + 1}
+                      </span>
+                      <select
+                        value={g.type}
+                        onChange={e => setGallery(gallery.map((item, i) => i === idx ? { ...item, type: e.target.value as any } : item))}
+                        style={{ width: 100, fontSize: '12px' }}
+                      >
+                        <option value="image">Image</option>
+                        <option value="gif">GIF</option>
+                        <option value="video">Video</option>
+                      </select>
+                      {g.url && (
+                        <span style={{ fontSize: '11px', color: 'var(--text-light)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                          <Eye size={12} /> Media linked
+                        </span>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      className="icon-button"
+                      onClick={() => setGallery(gallery.filter((_, i) => i !== idx))}
+                      title="Delete item"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+
+                  {/* URL & Upload Row */}
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <input
+                      style={{ flex: 1, minWidth: 200, fontSize: '13px' }}
+                      value={g.url}
+                      onChange={e => setGallery(gallery.map((item, i) => i === idx ? { ...item, url: e.target.value } : item))}
+                      placeholder="Media URL (direct image/GIF/video link or upload file)"
+                    />
+                    <input
+                      type="file"
+                      style={{ width: 130, fontSize: '12px' }}
+                      onChange={e => {
+                        if (e.target.files?.[0]) {
+                          handleFileUpload(e.target.files[0], url => setGallery(gallery.map((item, i) => i === idx ? { ...item, url } : item)));
+                        }
+                      }}
+                    />
+                  </div>
+
+                  {/* Title & Caption Row */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '10px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: 'var(--text-light)', marginBottom: '3px' }}>
+                        Visual Title (Optional)
+                      </label>
+                      <input
+                        style={{ width: '100%', fontSize: '13px' }}
+                        value={g.title || ''}
+                        onChange={e => setGallery(gallery.map((item, i) => i === idx ? { ...item, title: e.target.value } : item))}
+                        placeholder="e.g. Real-Time Interview Copilot Screen"
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: 'var(--text-light)', marginBottom: '3px' }}>
+                        Caption / Description (Optional)
+                      </label>
+                      <input
+                        style={{ width: '100%', fontSize: '13px' }}
+                        value={g.caption || ''}
+                        onChange={e => setGallery(gallery.map((item, i) => i === idx ? { ...item, caption: e.target.value } : item))}
+                        placeholder="e.g. Grounded in your actual work history and tech stack..."
+                      />
+                    </div>
+                  </div>
                 </div>
               ))
             )}
