@@ -266,18 +266,6 @@
         },
         "trial_notice": "Free trial runs on standard community cloud capacity. Upgrade to any paid license anytime for instant sub-second speed, unlimited access, and prioritized performance.",
         "featured_plan": "1_month",
-        "video_reviews": [
-          {
-            "id": "rev-1795195303195-uhsc",
-            "title": "Cracked my L5 technical interview on the first try",
-            "rating": 5,
-            "videoUrl": "https://youtube.com/shorts/XNI6pwIfSbU?si=IoFfBta0UPpIWgTp",
-            "reviewText": "Smooth horizontal scroll-snap track with touch swiping for mobile devices.\nAuto-Hide: If an agent has no video reviews configured, the section automatically hides completely with zero leftover whitespace.",
-            "aspectRatio": "9:16",
-            "reviewerName": "Chirag",
-            "reviewerRole": "Test Customer"
-          }
-        ],
         "featurePillars": [
           {
             "id": "voro-p1",

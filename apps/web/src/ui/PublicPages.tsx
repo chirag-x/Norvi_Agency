@@ -3,7 +3,7 @@ import {
   ArrowRight, ArrowUpRight, Search, Check, ShieldCheck, KeyRound, Download, 
   Mail, LifeBuoy, Workflow, Activity, Instagram, Youtube, Facebook, Twitter,
   Sparkles, Plus, Code, Mic, Bot, Film, Cpu, Zap, Monitor, Layers, Lock, Terminal, Eye, X, ChevronLeft, ChevronRight,
-  Play, Star, CheckCircle2
+  Play, Star, CheckCircle2, Users
 } from 'lucide-react';
 import { formatDurationLabel, getDefaultAgentPaidHighlights, getDefaultAgentTrialHighlights, getDefaultAgentTrialNotice, type Product, type Settings, type User, type FeaturePillar, type AgentExtendedContent, type CustomerVideoReview } from '../../../../packages/shared/model';
 import { ProductCard,ProductIcon } from './App';
@@ -1272,41 +1272,122 @@ export function About(){
   return (
     <div className="container page">
       <PageHeading
-        eyebrow="THE IDEA BEHIND NORVI"
-        title="More room for meaningful work."
-        description="We’re building a collection of AI agents to help people spend less time on repetitive tasks."
+        eyebrow="THE NORVI COLLECTIVE"
+        title="Engineering autonomous desktop agents for high-stakes work."
+        description="We are an agile startup of 20 engineers, systems researchers, and product designers building privacy-first AI that runs natively on your hardware."
       />
+
       <div className="about-feature">
         <span className="serif">
-          Possibility<br />starts with<br />a little space.
+          Native power.<br />Zero bloat.<br />Built for scale.
         </span>
         <div>
           <span className="eyebrow">OUR STARTING POINT</span>
-          <h2>Useful tools.<br />A human purpose.</h2>
+          <h2>Useful tools. Zero compromise. Built for real work.</h2>
           <p>
-            NORVI is taking its first steps. Our aim is simple: make it easier to discover, purchase, and manage AI agents that fit the way you work.
+            NORVI began with a bold conviction: powerful AI shouldn't live trapped inside browser tabs, metered by punishing per-token fees, or dependent on cloud servers watching your every move. It should live where real work happens—natively on your desktop, with zero latency, complete privacy, and effortless system-level intelligence.
           </p>
           <p>
-            Every product will have a clear purpose, an honest demonstration, and an explanation of what you need to use it.
+            Today, NORVI is powered by a multidisciplinary startup of <b>20+ engineers, researchers, and customer specialists</b>. From low-level C++ and Qt kernel windowing to multimodal vision models and low-latency audio DSP pipelines, our squad works around the clock to ensure every agent—whether it's <b>Voro</b>, <b>Rolvio</b>, or <b>Nexus</b>—delivers industrial-grade reliability from day one.
           </p>
+        </div>
+      </div>
+
+      {/* The 20-Person Squad Operational Breakdown */}
+      <div style={{ marginTop: '48px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+          <Users size={16} style={{ color: 'var(--lime)' }} />
+          <span className="eyebrow" style={{ color: 'var(--lime)', margin: 0, fontSize: '11px', letterSpacing: '1px' }}>
+            THE TEAM BEHIND THE AGENTS
+          </span>
+        </div>
+        <h2 style={{ fontSize: '28px', margin: '0 0 8px 0' }}>A specialized collective of 20 builders.</h2>
+        <p style={{ margin: '0 0 24px 0', color: 'var(--text-light)', fontSize: '14px', maxWidth: '720px' }}>
+          Every release is backed by dedicated engineering pods focusing on low-level operating system performance, machine learning inference, and round-the-clock customer reliability.
+        </p>
+
+        <div style={{ 
+          display: 'grid', 
+          gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', 
+          gap: '18px' 
+        }}>
+          <div className="panel" style={{ margin: 0, padding: '22px', background: '#161e13', borderColor: '#2e3d25' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+              <div style={{ width: 34, height: 34, borderRadius: 6, background: '#25341c', display: 'grid', placeItems: 'center', color: 'var(--lime)' }}>
+                <Terminal size={18} />
+              </div>
+              <span className="badge" style={{ background: '#202e19', color: 'var(--lime)', border: '1px solid #3c542a', fontSize: '11px', padding: '3px 8px', borderRadius: 4 }}>
+                7 Engineers
+              </span>
+            </div>
+            <h4 style={{ margin: '0 0 8px 0', fontSize: '16px' }}>Native Systems &amp; OS Architecture</h4>
+            <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-light)', lineHeight: 1.6 }}>
+              Win32 kernel windowing, low-level C++/Qt memory management, invisible screen capture pipelines, and multi-channel hardware audio loopback isolation.
+            </p>
+          </div>
+
+          <div className="panel" style={{ margin: 0, padding: '22px', background: '#161e13', borderColor: '#2e3d25' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+              <div style={{ width: 34, height: 34, borderRadius: 6, background: '#25341c', display: 'grid', placeItems: 'center', color: 'var(--lime)' }}>
+                <Bot size={18} />
+              </div>
+              <span className="badge" style={{ background: '#202e19', color: 'var(--lime)', border: '1px solid #3c542a', fontSize: '11px', padding: '3px 8px', borderRadius: 4 }}>
+                5 Researchers
+              </span>
+            </div>
+            <h4 style={{ margin: '0 0 8px 0', fontSize: '16px' }}>Applied AI &amp; Multimodal Research</h4>
+            <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-light)', lineHeight: 1.6 }}>
+              Sub-300ms multimodal vision reasoning, streaming speech-to-text inference, prompt hardening, and dynamic multi-provider cloud failovers.
+            </p>
+          </div>
+
+          <div className="panel" style={{ margin: 0, padding: '22px', background: '#161e13', borderColor: '#2e3d25' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+              <div style={{ width: 34, height: 34, borderRadius: 6, background: '#25341c', display: 'grid', placeItems: 'center', color: 'var(--lime)' }}>
+                <Layers size={18} />
+              </div>
+              <span className="badge" style={{ background: '#202e19', color: 'var(--lime)', border: '1px solid #3c542a', fontSize: '11px', padding: '3px 8px', borderRadius: 4 }}>
+                4 Designers
+              </span>
+            </div>
+            <h4 style={{ margin: '0 0 8px 0', fontSize: '16px' }}>Product Ergonomics &amp; Desktop UX</h4>
+            <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-light)', lineHeight: 1.6 }}>
+              Minimalist heads-up displays (HUDs), stealth overlays, unobtrusive taskbar modes, and ergonomic hotkeys that blend seamlessly into daily work.
+            </p>
+          </div>
+
+          <div className="panel" style={{ margin: 0, padding: '22px', background: '#161e13', borderColor: '#2e3d25' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+              <div style={{ width: 34, height: 34, borderRadius: 6, background: '#25341c', display: 'grid', placeItems: 'center', color: 'var(--lime)' }}>
+                <ShieldCheck size={18} />
+              </div>
+              <span className="badge" style={{ background: '#202e19', color: 'var(--lime)', border: '1px solid #3c542a', fontSize: '11px', padding: '3px 8px', borderRadius: 4 }}>
+                4 Specialists
+              </span>
+            </div>
+            <h4 style={{ margin: '0 0 8px 0', fontSize: '16px' }}>Security, Hardening &amp; 24/7 Support</h4>
+            <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-light)', lineHeight: 1.6 }}>
+              Hardware-bound license authentication, zero-log local privacy, automated release testing, and rapid, around-the-clock customer technical support.
+            </p>
+          </div>
         </div>
       </div>
 
       <div className="steps">
         <div className="step">
           <span>01</span>
-          <h3>Start with the task.</h3>
-          <p>Build around a real problem, not a list of buzzwords.</p>
+          <h3>Native &amp; Invisible</h3>
+          <p>Built directly for the OS kernel. No heavy browser wrappers, zero latency, and privacy modes that keep your workflows completely discreet.</p>
         </div>
         <div className="step">
           <span>02</span>
-          <h3>Keep things clear.</h3>
-          <p>Explain capabilities, requirements, usage, and access before purchase.</p>
+          <h3>Predictable &amp; Managed</h3>
+          <p>No surprise per-token API bills. Every agent includes managed cloud AI intelligence, clear hardware compatibility, and lifetime software updates.</p>
         </div>
         <div className="step">
           <span>03</span>
-          <h3>Grow thoughtfully.</h3>
-          <p>Learn from customers and make the useful things better.</p>
+          <h3>Continuous Model Hardening</h3>
+          <p>Our engineering squad continuously optimizes model prompts, latency thresholds, and accuracy benchmarks so your tools get smarter every single week.</p>
         </div>
       </div>
 
@@ -1315,7 +1396,7 @@ export function About(){
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
           <Sparkles size={16} style={{ color: 'var(--lime)' }} />
           <span className="eyebrow" style={{ color: 'var(--lime)', margin: 0, fontSize: '11px', letterSpacing: '1px' }}>
-            FOUNDER &amp; ARCHITECT
+            FOUNDER &amp; CHIEF ARCHITECT
           </span>
         </div>
         
@@ -1323,7 +1404,7 @@ export function About(){
           <div>
             <h2 style={{ margin: '0 0 6px 0', fontSize: '26px' }}>Chirag Sharma</h2>
             <p style={{ margin: 0, color: 'var(--text-light)', fontSize: '14px' }}>
-              Founder &amp; Lead AI Engineer &middot; Based in India 🇮🇳
+              Founder &amp; CEO &middot; Chief Systems Architect &middot; Based in India 🇮🇳
             </p>
           </div>
           <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
@@ -1359,13 +1440,13 @@ export function About(){
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', fontSize: '14px', lineHeight: 1.7, color: 'var(--text-light)', borderTop: '1px solid var(--border)', paddingTop: '20px' }}>
           <p style={{ margin: 0 }}>
-            NORVI Agency was founded by <b>Chirag Sharma</b> with a single focused vision: to engineer autonomous desktop AI agents that combine native system-level capabilities (like invisible screen capture, earpiece whisper, and desktop automation) with powerful, fully managed cloud AI intelligence—without forcing professionals to pay per-token fees, configure complex models, or buy expensive GPUs.
+            NORVI was founded by <b>Chirag Sharma</b> with a clear mission: to replace brittle browser wrappers with true native desktop intelligence. Having designed and engineered high-performance software systems, Chirag established NORVI Agency to unite deep OS-level integration with the world's most capable AI reasoning models.
           </p>
           <p style={{ margin: 0 }}>
-            Every product in the agency—including <b>Voro</b> (the discreet real-time coding copilot and interview assistant), <b>Rolvio</b> (the autonomous job application hunter), and <b>Nexus</b> (the 24/7 video-to-shorts content studio)—is personally designed, built, and maintained with a privacy-respecting native desktop architecture.
+            What began as an ambitious core architecture has grown into a high-tempo startup of <b>20+ specialized software engineers, ML researchers, and support professionals</b>. Under Chirag’s architectural leadership, the team is dedicated to building tools that solve urgent, high-stakes challenges—empowering engineers to ace interviews with <b>Voro</b>, job seekers to automate career outreach with <b>Rolvio</b>, and creators to streamline video production with <b>Nexus</b>.
           </p>
           <p style={{ margin: 0 }}>
-            As the solo creator and lead architect behind the NORVI platform, Chirag actively oversees development, release hardening, and customer support. If you have questions, partnerships, or custom enterprise inquiries, reach out directly through the portfolio link or our contact center.
+            Chirag directs product vision, systems architecture, and engineering standards from India, working closely with the entire engineering team to ensure every commercial release meets rigorous benchmarks for sub-second latency, hardware privacy, and continuous uptime. If you have enterprise inquiries, partnership proposals, or architectural questions, connect directly through the portfolio link or our contact center.
           </p>
         </div>
       </div>
