@@ -62,6 +62,9 @@ if (path.startsWith('/agents/')) {
       "description": description,
       "applicationCategory": "BusinessApplication",
       "operatingSystem": product.requirements || "Windows 10, Windows 11, macOS, Linux",
+      "brand": {
+        "@id": "https://nor-vi.in/#organization"
+      },
       "offers": {
         "@type": "Offer",
         "price": priceVal,
@@ -136,13 +139,18 @@ if (path.startsWith('/agents/')) {
 const websiteJsonLd = JSON.stringify({
   "@context": "https://schema.org",
   "@type": "WebSite",
+  "@id": "https://nor-vi.in/#website",
   "name": "NORVI Agency",
-  "alternateName": ["NORVI", "NORVI AI Agency", "NORVI AI"],
-  "url": "https://nor-vi.in/"
+  "alternateName": ["NORVI", "NORVI AI Agency", "NORVI AI", "nor-vi.in"],
+  "url": "https://nor-vi.in/",
+  "publisher": {
+    "@id": "https://nor-vi.in/#organization"
+  }
 });
 
 const founderJsonLd = {
   "@type": "Person",
+  "@id": "https://nor-vi.in/#founder",
   "name": "Chirag Sharma",
   "jobTitle": "Founder & CEO, Chief Systems Architect",
   "url": "https://chirag-portfolio-v3.netlify.app/",
@@ -165,17 +173,16 @@ const founderJsonLd = {
     "name": "India"
   },
   "worksFor": {
-    "@type": "Organization",
-    "name": "NORVI Agency",
-    "url": "https://nor-vi.in/"
+    "@id": "https://nor-vi.in/#organization"
   }
 };
 
 const orgJsonLd = JSON.stringify({
   "@context": "https://schema.org",
   "@type": "Organization",
+  "@id": "https://nor-vi.in/#organization",
   "name": "NORVI Agency",
-  "alternateName": ["NORVI", "NORVI AI", "NORVI AI Agency", "NORVI Agents"],
+  "alternateName": ["NORVI", "NORVI AI", "NORVI AI Agency", "NORVI Agents", "nor-vi.in"],
   "url": "https://nor-vi.in/",
   "logo": "https://nor-vi.in/logo.jpg?v=2",
   "description": settings.description,
@@ -192,9 +199,16 @@ const orgJsonLd = JSON.stringify({
 const aboutPageJsonLd = path === '/about' ? JSON.stringify({
   "@context": "https://schema.org",
   "@type": "AboutPage",
+  "@id": "https://nor-vi.in/about/#aboutpage",
   "name": "Our Story & Team | NORVI Agency",
   "url": "https://nor-vi.in/about/",
   "description": "Learn about NORVI Agency, founded by Chirag Sharma and powered by an agile team of 20+ specialized AI and native desktop systems engineers.",
+  "isPartOf": {
+    "@id": "https://nor-vi.in/#website"
+  },
+  "publisher": {
+    "@id": "https://nor-vi.in/#organization"
+  },
   "mainEntity": founderJsonLd
 }) : "";
 ---
