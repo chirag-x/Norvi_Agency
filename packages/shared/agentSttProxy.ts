@@ -213,6 +213,7 @@ export function createAgentSttHandler(deps: AgentSttHandlerDeps) {
         ok: true,
         stt_model: policyRaw.stt_model || 'whisper-large-v3-turbo',
         fallback_enabled: Boolean(policyRaw.fallback_enabled),
+        groq_fallback_enabled: Boolean(policyRaw.fallback_enabled),
       });
     }
 
